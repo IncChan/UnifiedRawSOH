@@ -1,0 +1,51 @@
+{
+  "status": "runnable",
+  "base_config": "../../common/xjtu_raw_c5b_base.json",
+  "experiment": {
+    "name": "E1_RawMamba_smarthealth_lishen40",
+    "task": "e1_raw_soh_learning_single_domain_benchmark",
+    "domain_id": "smarthealth_lishen40",
+    "dataset_id": "smarthealth",
+    "loader": "single_domain",
+    "batches": [],
+    "split_file": "UnifiedRawSOH/splits/smarthealth/smarthealth_lishen40_cell_split.json"
+  },
+  "output": {
+    "experiment_id": "e1_raw_soh_learning",
+    "model_id": "RawMamba",
+    "data_id": "smarthealth_lishen40"
+  },
+  "data": {
+    "data_root": "UnifiedRawSOH/datasets/SmartHealth_raw",
+    "domain_id": "smarthealth_lishen40",
+    "dataset": "SmartHealth_raw",
+    "nominal_capacity": 40.0,
+    "label_scale_mode": "none",
+    "data_mode": "all_batch_pooled",
+    "raw_phase_policy": {
+      "version": "smarthealth_cccv_calibration_v2",
+      "phase_decision": "persistent current taper inside the combined charge step before windowing",
+      "cc_voltage_range_V": [3.45, 3.58],
+      "cv_c_rate_range": [0.05, 0.25],
+      "cv_sampling_tolerance_C": 0.002,
+      "current_normalization": "abs(current_A) / nominal_capacity_Ah",
+      "temperature": "selected source points only; no imputation"
+    }
+  },
+  "normalization": {
+    "mode": "physical_window",
+    "cc_voltage_low": 3.45,
+    "cc_voltage_high": 3.58,
+    "cv_current_low": 2.0,
+    "cv_current_high": 10.0,
+    "cc_current_ref": 80.0,
+    "cv_voltage_ref": 3.6,
+    "cv_voltage_scale": 0.01,
+    "cc_current_mode": "physical",
+    "cv_voltage_mode": "physical",
+    "current_use_abs": true,
+    "temp_room": 25.0,
+    "temp_abs_scale": 20.0,
+    "temp_delta_scale": 10.0
+  }
+}

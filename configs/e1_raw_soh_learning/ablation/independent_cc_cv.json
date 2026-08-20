@@ -1,0 +1,17 @@
+{
+  "status": "runnable",
+  "base_config": "../benchmark/raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E1_RawMamba_xjtu_independent_cc_cv",
+    "task": "e1_raw_soh_learning_cc_cv_ablation",
+    "domain_id": "xjtu"
+  },
+  "output": {
+    "experiment_id": "e1_raw_soh_learning",
+    "model_id": "RawMamba-IndependentCCCV",
+    "data_id": "xjtu"
+  },
+  "model": {
+    "use_cc_to_cv_bridge": false
+  }
+}

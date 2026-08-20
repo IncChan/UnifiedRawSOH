@@ -1,0 +1,71 @@
+{
+  "name": "mit_paper_v1_mixed_cell_mod5_test",
+  "dataset_id": "mit",
+  "status": "recommended",
+  "source": "PINN4SOH/data/MIT_raw_t_v1 and PINN4SOH/data/MIT_t_v1",
+  "test_rule": {
+    "type": "cell_id_modulo",
+    "modulus": 5,
+    "remainder": 0,
+    "reason": "inherit the PINN4SOH battery-level test rule while using the full observed MIT inventory",
+    "apply_to_all_observed_batteries": true,
+    "explicit_ids_are_current_inventory_snapshot": true
+  },
+  "test_batteries": [
+    "2017-05-12_battery-5",
+    "2017-05-12_battery-10",
+    "2017-05-12_battery-15",
+    "2017-05-12_battery-20",
+    "2017-05-12_battery-25",
+    "2017-05-12_battery-30",
+    "2017-05-12_battery-35",
+    "2017-05-12_battery-40",
+    "2017-05-12_battery-45",
+    "2017-06-30_battery-5",
+    "2017-06-30_battery-10",
+    "2017-06-30_battery-15",
+    "2017-06-30_battery-20",
+    "2017-06-30_battery-25",
+    "2017-06-30_battery-30",
+    "2017-06-30_battery-35",
+    "2017-06-30_battery-40",
+    "2017-06-30_battery-45",
+    "2018-04-12_battery-5",
+    "2018-04-12_battery-10",
+    "2018-04-12_battery-15",
+    "2018-04-12_battery-20",
+    "2018-04-12_battery-25",
+    "2018-04-12_battery-30",
+    "2018-04-12_battery-35",
+    "2018-04-12_battery-40",
+    "2018-04-12_battery-45"
+  ],
+  "development_split": {
+    "mode": "mixed_cycle",
+    "scope": "per_date_then_pool",
+    "val_ratio": 0.2,
+    "random_state": 420,
+    "train_val_battery_overlap_expected": true
+  },
+  "invalid_cycles": [
+    {
+      "battery_id": "2017-05-12_battery-19",
+      "cycle_id": 39,
+      "reason": "source capacity spike: capacity_Ah=2.8840845 and derived SOH=2.621895"
+    }
+  ],
+  "counts": {
+    "total_batteries": 140,
+    "test_batteries": 27,
+    "development_batteries": 113,
+    "raw_written_cycles_before_invalid_filter": 114446,
+    "old_feature_valid_rows": 110158
+  },
+  "notes": [
+    "All MIT_raw_t_v1 battery files are eligible; the test rule is battery-level and does not restrict the raw archive to old feature-table cycles.",
+    "Runtime code reapplies cell_id % 5 to observed batteries so a later expanded inventory is not truncated by this snapshot.",
+    "The old feature table is not row-number aligned with MIT_raw.",
+    "Raw applies this invalid-cycle entry by canonical battery/cycle ID; Only-F uses validated source-native all-column 3-sigma because feature rows are not safely aligned to raw cycle IDs.",
+    "The real 0.022 A C/50 cutoff is not the same as the extracted 0.1-0.5 A CV window."
+  ]
+}

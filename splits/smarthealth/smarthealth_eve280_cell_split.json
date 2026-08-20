@@ -1,0 +1,203 @@
+{
+  "conditions": {
+    "0.5C-100%DOD": {
+      "development_cells": [
+        "smarthealth_eve280__04qcb76718400jb630001092__0_5c_100_dod",
+        "smarthealth_eve280__04qcb76718400jb630001859__0_5c_100_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "0.5C-100%DOD",
+          "eligible_cycles": 1010,
+          "logical_sequence_id": "smarthealth_eve280__04qcb76716600jb630005726__0_5c_100_dod",
+          "selection": "test",
+          "source_chunks": 40,
+          "source_serial": "04QCB76716600JB630005726",
+          "split_rank_sha256": "cae0f78d3b4dc6c106adb88dc275c2c17cfdee5be1c922a3072ef866118dc379"
+        },
+        {
+          "condition": "0.5C-100%DOD",
+          "eligible_cycles": 857,
+          "logical_sequence_id": "smarthealth_eve280__04qcb76718400jb630001092__0_5c_100_dod",
+          "selection": "development",
+          "source_chunks": 40,
+          "source_serial": "04QCB76718400JB630001092",
+          "split_rank_sha256": "186017e8748c7f46dda5010430e3b0949447d4db96a804cf0284686d752a765b"
+        },
+        {
+          "condition": "0.5C-100%DOD",
+          "eligible_cycles": 1401,
+          "logical_sequence_id": "smarthealth_eve280__04qcb76718400jb630001859__0_5c_100_dod",
+          "selection": "development",
+          "source_chunks": 38,
+          "source_serial": "04QCB76718400JB630001859",
+          "split_rank_sha256": "6ab9ce53ef20bff6d5f28c27c543a1716ee1855766bf5f3abf3a0ec6c80b582d"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_eve280__04qcb76716600jb630005726__0_5c_100_dod"
+    },
+    "0.5C-20%DOD": {
+      "development_cells": [
+        "smarthealth_eve280__04qcb76718400jb640004290__0_5c_20_dod",
+        "smarthealth_eve280__04qcb76718400jb640005123__0_5c_20_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "0.5C-20%DOD",
+          "eligible_cycles": 265,
+          "logical_sequence_id": "smarthealth_eve280__04qcb76717200jb5h0002297__0_5c_20_dod",
+          "selection": "test",
+          "source_chunks": 24,
+          "source_serial": "04QCB76717200JB5H0002297",
+          "split_rank_sha256": "9e2e238261d453a73aa6ba10a3b5277adc39bf112ff79bc1e5be9bf141381b6e"
+        },
+        {
+          "condition": "0.5C-20%DOD",
+          "eligible_cycles": 265,
+          "logical_sequence_id": "smarthealth_eve280__04qcb76718400jb640004290__0_5c_20_dod",
+          "selection": "development",
+          "source_chunks": 23,
+          "source_serial": "04QCB76718400JB640004290",
+          "split_rank_sha256": "0519844d7e145035a49f9f871f47973e2cbe6a92c7a4a327d7979a1f6d22cb2b"
+        },
+        {
+          "condition": "0.5C-20%DOD",
+          "eligible_cycles": 1326,
+          "logical_sequence_id": "smarthealth_eve280__04qcb76718400jb640005123__0_5c_20_dod",
+          "selection": "development",
+          "source_chunks": 25,
+          "source_serial": "04QCB76718400JB640005123",
+          "split_rank_sha256": "0fadddc420a441affb4635de04994b69937ee801de1222483572d0f94c337b86"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_eve280__04qcb76717200jb5h0002297__0_5c_20_dod"
+    },
+    "0.5C-60%DOD": {
+      "development_cells": [
+        "smarthealth_eve280__04qcb76718400jb640003859__0_5c_60_dod",
+        "smarthealth_eve280__04qcb76717100jb5g0000730__0_5c_60_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "0.5C-60%DOD",
+          "eligible_cycles": 1481,
+          "logical_sequence_id": "smarthealth_eve280__04qcb76717100jb5g0000730__0_5c_60_dod",
+          "selection": "development",
+          "source_chunks": 36,
+          "source_serial": "04QCB76717100JB5G0000730",
+          "split_rank_sha256": "89abcedc8781622d29934774b8d59390e6ea5a83f7c8f26ac073e2b3dfa5e312"
+        },
+        {
+          "condition": "0.5C-60%DOD",
+          "eligible_cycles": 1430,
+          "logical_sequence_id": "smarthealth_eve280__04qcb76718400jb640003611__0_5c_60_dod",
+          "selection": "test",
+          "source_chunks": 36,
+          "source_serial": "04QCB76718400JB640003611",
+          "split_rank_sha256": "b84917e6da52fa3e5cac05882a03f65d78ab745737d5a236e33f1479e9d88adf"
+        },
+        {
+          "condition": "0.5C-60%DOD",
+          "eligible_cycles": 1478,
+          "logical_sequence_id": "smarthealth_eve280__04qcb76718400jb640003859__0_5c_60_dod",
+          "selection": "development",
+          "source_chunks": 37,
+          "source_serial": "04QCB76718400JB640003859",
+          "split_rank_sha256": "2dbaf194fea339ddcbd2d494f9c825d65b67854a4822d1ffa8b821af231c547e"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_eve280__04qcb76718400jb640003611__0_5c_60_dod"
+    }
+  },
+  "dataset": "smarthealth",
+  "development_batteries_by_condition": {
+    "0.5C-100%DOD": [
+      "smarthealth_eve280__04qcb76718400jb630001092__0_5c_100_dod",
+      "smarthealth_eve280__04qcb76718400jb630001859__0_5c_100_dod"
+    ],
+    "0.5C-20%DOD": [
+      "smarthealth_eve280__04qcb76718400jb640004290__0_5c_20_dod",
+      "smarthealth_eve280__04qcb76718400jb640005123__0_5c_20_dod"
+    ],
+    "0.5C-60%DOD": [
+      "smarthealth_eve280__04qcb76718400jb640003859__0_5c_60_dod",
+      "smarthealth_eve280__04qcb76717100jb5g0000730__0_5c_60_dod"
+    ]
+  },
+  "development_split": {
+    "mode": "mixed_cycle",
+    "random_state": 420,
+    "scope": "all development logical sequences pooled within the battery family",
+    "split_unit": "cycle",
+    "train_ratio": 0.8,
+    "train_val_battery_overlap_expected": true,
+    "val_ratio": 0.2
+  },
+  "domain_id": "smarthealth_eve280",
+  "logical_sequence_rule": "domain + source serial + C-rate + DOD; no cross-condition merge",
+  "manual_confirmation_conditions": {},
+  "name": "smarthealth_eve280_condition_stratified_2development_1test_v3",
+  "preprocessing_strategy_version": "smarthealth_cccv_calibration_v2",
+  "schema_version": 3,
+  "selection_rule": "For each condition with exactly three exportable logical sequences, ascending deterministic SHA256 ranking selects ranks 0 and 1 as development and rank 2 as the held-out test. Other inventories are recorded for manual confirmation without a fallback split.",
+  "source_manifest_signature_sha256": "607e802eea6147cc33db688b73cca387ab2f1ccd8a02918bddb398a966f5ff2b",
+  "split_status": "complete",
+  "split_strategy_version": "smarthealth_condition_cell_split_2development_1test_v3",
+  "strategy_version": "smarthealth_cccv_calibration_v2",
+  "test_batteries_by_condition": {
+    "0.5C-100%DOD": [
+      "smarthealth_eve280__04qcb76716600jb630005726__0_5c_100_dod"
+    ],
+    "0.5C-20%DOD": [
+      "smarthealth_eve280__04qcb76717200jb5h0002297__0_5c_20_dod"
+    ],
+    "0.5C-60%DOD": [
+      "smarthealth_eve280__04qcb76718400jb640003611__0_5c_60_dod"
+    ]
+  }
+}

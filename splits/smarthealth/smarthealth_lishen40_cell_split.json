@@ -1,0 +1,551 @@
+{
+  "conditions": {
+    "0.3C-100%DOD": {
+      "development_cells": [
+        "smarthealth_lishen40__0118__0_3c_100_dod",
+        "smarthealth_lishen40__0448__0_3c_100_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "0.3C-100%DOD",
+          "eligible_cycles": 940,
+          "logical_sequence_id": "smarthealth_lishen40__0118__0_3c_100_dod",
+          "selection": "development",
+          "source_chunks": 37,
+          "source_serial": "-0118",
+          "split_rank_sha256": "16f94e5a9e24ff0b0edf45c5285dc50a74e0aaef394b1293688532521024de0a"
+        },
+        {
+          "condition": "0.3C-100%DOD",
+          "eligible_cycles": 944,
+          "logical_sequence_id": "smarthealth_lishen40__0337__0_3c_100_dod",
+          "selection": "test",
+          "source_chunks": 37,
+          "source_serial": "-0337",
+          "split_rank_sha256": "b55bba670e5946e476c219762b565b975656f36d95f10220c99077a5cb0bc891"
+        },
+        {
+          "condition": "0.3C-100%DOD",
+          "eligible_cycles": 947,
+          "logical_sequence_id": "smarthealth_lishen40__0448__0_3c_100_dod",
+          "selection": "development",
+          "source_chunks": 37,
+          "source_serial": "-0448",
+          "split_rank_sha256": "63c22060e190d8f59480567386de993521f6f8a51d48a1409671bebefab03084"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_lishen40__0337__0_3c_100_dod"
+    },
+    "0.3C-20%DOD": {
+      "development_cells": [
+        "smarthealth_lishen40__0422__0_3c_20_dod",
+        "smarthealth_lishen40__0149__0_3c_20_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "0.3C-20%DOD",
+          "eligible_cycles": 1095,
+          "logical_sequence_id": "smarthealth_lishen40__0149__0_3c_20_dod",
+          "selection": "development",
+          "source_chunks": 16,
+          "source_serial": "-0149",
+          "split_rank_sha256": "a3fba014ce38f61c0c6572dfc7555f1fefa4924d8582bd89a53dc87373e31959"
+        },
+        {
+          "condition": "0.3C-20%DOD",
+          "eligible_cycles": 1094,
+          "logical_sequence_id": "smarthealth_lishen40__0422__0_3c_20_dod",
+          "selection": "development",
+          "source_chunks": 16,
+          "source_serial": "-0422",
+          "split_rank_sha256": "16db9ee8d4d56ef47647c7618ff8dc2e05b183bb1a15d6c71b0af6a6d1cda4d3"
+        },
+        {
+          "condition": "0.3C-20%DOD",
+          "eligible_cycles": 1086,
+          "logical_sequence_id": "smarthealth_lishen40__0748__0_3c_20_dod",
+          "selection": "test",
+          "source_chunks": 16,
+          "source_serial": "-0748",
+          "split_rank_sha256": "f22fbb479d534aa911ede7042e242135e6aee8d31d528c25f1c810b31411373e"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_lishen40__0748__0_3c_20_dod"
+    },
+    "0.3C-60%DOD": {
+      "development_cells": [
+        "smarthealth_lishen40__2061__0_3c_60_dod",
+        "smarthealth_lishen40__2054__0_3c_60_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "0.3C-60%DOD",
+          "eligible_cycles": 591,
+          "logical_sequence_id": "smarthealth_lishen40__0332__0_3c_60_dod",
+          "selection": "test",
+          "source_chunks": 16,
+          "source_serial": "-0332",
+          "split_rank_sha256": "d33ee3a9ecf57d9318a22e5d4e5b39b3133c57307490c8e96dcdd31104b71e20"
+        },
+        {
+          "condition": "0.3C-60%DOD",
+          "eligible_cycles": 591,
+          "logical_sequence_id": "smarthealth_lishen40__2054__0_3c_60_dod",
+          "selection": "development",
+          "source_chunks": 16,
+          "source_serial": "-2054",
+          "split_rank_sha256": "92fa47f0ab0650423d57890d748c078531e72e9a41447bbecbbbdd21f3e8109a"
+        },
+        {
+          "condition": "0.3C-60%DOD",
+          "eligible_cycles": 591,
+          "logical_sequence_id": "smarthealth_lishen40__2061__0_3c_60_dod",
+          "selection": "development",
+          "source_chunks": 16,
+          "source_serial": "-2061",
+          "split_rank_sha256": "342a22f97ba91628c8501954c89419033ac66564d3e33606f138a03baccad61d"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_lishen40__0332__0_3c_60_dod"
+    },
+    "1C-100%DOD": {
+      "development_cells": [
+        "smarthealth_lishen40__0291__1c_100_dod",
+        "smarthealth_lishen40__2016__1c_100_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "1C-100%DOD",
+          "eligible_cycles": 1519,
+          "logical_sequence_id": "smarthealth_lishen40__0291__1c_100_dod",
+          "selection": "development",
+          "source_chunks": 30,
+          "source_serial": "-0291",
+          "split_rank_sha256": "3e936881d6e848dce51c8e07e55aa6743d0c166e08dc35cdf52614788915322a"
+        },
+        {
+          "condition": "1C-100%DOD",
+          "eligible_cycles": 1500,
+          "logical_sequence_id": "smarthealth_lishen40__0813__1c_100_dod",
+          "selection": "test",
+          "source_chunks": 31,
+          "source_serial": "-0813",
+          "split_rank_sha256": "c7e711efd69204209bef8e7a3e5dd608ac3a0c03ed538b7efd70051247ced278"
+        },
+        {
+          "condition": "1C-100%DOD",
+          "eligible_cycles": 1499,
+          "logical_sequence_id": "smarthealth_lishen40__2016__1c_100_dod",
+          "selection": "development",
+          "source_chunks": 31,
+          "source_serial": "-2016",
+          "split_rank_sha256": "979905160b157d5319b809560860beb3a0b9fbd797899a84d9df8f7066c27b6a"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_lishen40__0813__1c_100_dod"
+    },
+    "1C-20%DOD": {
+      "development_cells": [
+        "smarthealth_lishen40__0608__1c_20_dod",
+        "smarthealth_lishen40__0571__1c_20_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "1C-20%DOD",
+          "eligible_cycles": 1382,
+          "logical_sequence_id": "smarthealth_lishen40__0571__1c_20_dod",
+          "selection": "development",
+          "source_chunks": 19,
+          "source_serial": "-0571",
+          "split_rank_sha256": "76c3b4d46c6d5b42d23fca114bb6303a224bc9dcdd8a5ebb41e6cf70259b55ed"
+        },
+        {
+          "condition": "1C-20%DOD",
+          "eligible_cycles": 1333,
+          "logical_sequence_id": "smarthealth_lishen40__0608__1c_20_dod",
+          "selection": "development",
+          "source_chunks": 19,
+          "source_serial": "-0608",
+          "split_rank_sha256": "0fddfe14c6317ad698887b22980dc2227470f221bb81d69603070cb6b60c8deb"
+        },
+        {
+          "condition": "1C-20%DOD",
+          "eligible_cycles": 1447,
+          "logical_sequence_id": "smarthealth_lishen40__2063__1c_20_dod",
+          "selection": "test",
+          "source_chunks": 18,
+          "source_serial": "-2063",
+          "split_rank_sha256": "ca5c09fe18836d2bb65c8f5c05c5c07e3863901d6df6b39198e206c1d8910980"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_lishen40__2063__1c_20_dod"
+    },
+    "1C-60%DOD": {
+      "development_cells": [
+        "smarthealth_lishen40__0096__1c_60_dod",
+        "smarthealth_lishen40__0176__1c_60_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "1C-60%DOD",
+          "eligible_cycles": 1082,
+          "logical_sequence_id": "smarthealth_lishen40__0096__1c_60_dod",
+          "selection": "development",
+          "source_chunks": 25,
+          "source_serial": "-0096",
+          "split_rank_sha256": "0e524ada60e458af28e4e8e437bf8bb3c00eb467aef63f07d11ae5820ae23a0c"
+        },
+        {
+          "condition": "1C-60%DOD",
+          "eligible_cycles": 1340,
+          "logical_sequence_id": "smarthealth_lishen40__0176__1c_60_dod",
+          "selection": "development",
+          "source_chunks": 25,
+          "source_serial": "-0176",
+          "split_rank_sha256": "e26658c0b091417ffab4634c6f7c6deb535d31a3c2f8688998aac59c1f4659ff"
+        },
+        {
+          "condition": "1C-60%DOD",
+          "eligible_cycles": 1491,
+          "logical_sequence_id": "smarthealth_lishen40__0728__1c_60_dod",
+          "selection": "test",
+          "source_chunks": 25,
+          "source_serial": "-0728",
+          "split_rank_sha256": "fd483b7c080565d5283e207cb7995fe57851808bd05c557f30dbaa656c65111b"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_lishen40__0728__1c_60_dod"
+    },
+    "2C-100%DOD": {
+      "development_cells": [
+        "smarthealth_lishen40__0296__2c_100_dod",
+        "smarthealth_lishen40__0611__2c_100_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "2C-100%DOD",
+          "eligible_cycles": 1451,
+          "logical_sequence_id": "smarthealth_lishen40__0284__2c_100_dod",
+          "selection": "test",
+          "source_chunks": 31,
+          "source_serial": "-0284",
+          "split_rank_sha256": "688bf41cb2e1ac3b7de1b185332bd2d00995bca3ba044b7b3c5fbd0d40a99c24"
+        },
+        {
+          "condition": "2C-100%DOD",
+          "eligible_cycles": 1451,
+          "logical_sequence_id": "smarthealth_lishen40__0296__2c_100_dod",
+          "selection": "development",
+          "source_chunks": 28,
+          "source_serial": "-0296",
+          "split_rank_sha256": "4d681144059d101a2a1f6533aa94f34f5119b1a86279571dd23f221aff640ece"
+        },
+        {
+          "condition": "2C-100%DOD",
+          "eligible_cycles": 1451,
+          "logical_sequence_id": "smarthealth_lishen40__0611__2c_100_dod",
+          "selection": "development",
+          "source_chunks": 29,
+          "source_serial": "-0611",
+          "split_rank_sha256": "56b70cec27009497e33c4593c8492811c51c1fee24fce5cc49acbd44687ced98"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_lishen40__0284__2c_100_dod"
+    },
+    "2C-20%DOD": {
+      "development_cells": [
+        "smarthealth_lishen40__0129__2c_20_dod",
+        "smarthealth_lishen40__0142__2c_20_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "2C-20%DOD",
+          "eligible_cycles": 310,
+          "logical_sequence_id": "smarthealth_lishen40__0129__2c_20_dod",
+          "selection": "development",
+          "source_chunks": 19,
+          "source_serial": "-0129",
+          "split_rank_sha256": "0d499a1e03de64b0679b8441c654800464cd16cc16c08ab898b24a0e649610c2"
+        },
+        {
+          "condition": "2C-20%DOD",
+          "eligible_cycles": 1176,
+          "logical_sequence_id": "smarthealth_lishen40__0142__2c_20_dod",
+          "selection": "development",
+          "source_chunks": 18,
+          "source_serial": "-0142",
+          "split_rank_sha256": "d7e3334315093b87bc2c115b9537384b8cd45ca431567e48c38d74f824478901"
+        },
+        {
+          "condition": "2C-20%DOD",
+          "eligible_cycles": 1209,
+          "logical_sequence_id": "smarthealth_lishen40__0922__2c_20_dod",
+          "selection": "test",
+          "source_chunks": 18,
+          "source_serial": "-0922",
+          "split_rank_sha256": "e06f9e55cf75aef9d53007944d4743a99e3219975691a66b255f0f79c57be1b7"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_lishen40__0922__2c_20_dod"
+    },
+    "2C-60%DOD": {
+      "development_cells": [
+        "smarthealth_lishen40__0034__2c_60_dod",
+        "smarthealth_lishen40__0248__2c_60_dod"
+      ],
+      "discovered_logical_sequences": 3,
+      "eligible_logical_sequences": 3,
+      "logical_sequences": [
+        {
+          "condition": "2C-60%DOD",
+          "eligible_cycles": 1388,
+          "logical_sequence_id": "smarthealth_lishen40__0034__2c_60_dod",
+          "selection": "development",
+          "source_chunks": 18,
+          "source_serial": "-0034",
+          "split_rank_sha256": "92a138d1441bf75f4cab3fbf987a1cb9685ff1566de434764ad5d30efe7685cc"
+        },
+        {
+          "condition": "2C-60%DOD",
+          "eligible_cycles": 1359,
+          "logical_sequence_id": "smarthealth_lishen40__0248__2c_60_dod",
+          "selection": "development",
+          "source_chunks": 19,
+          "source_serial": "-0248",
+          "split_rank_sha256": "b4cfd4d0f997959641b6a37719c8487cff96dea7c055c68657597c76ab820c5f"
+        },
+        {
+          "condition": "2C-60%DOD",
+          "eligible_cycles": 1362,
+          "logical_sequence_id": "smarthealth_lishen40__0661__2c_60_dod",
+          "selection": "test",
+          "source_chunks": 19,
+          "source_serial": "-0661",
+          "split_rank_sha256": "ebdee0355a5bb71673c913653e3d10cc6d99239449c6de517a86e3bb5d9559a7"
+        }
+      ],
+      "manual_confirmation_issue": null,
+      "ranking": {
+        "algorithm": "SHA256",
+        "development_ranks": [
+          0,
+          1
+        ],
+        "held_out_test_rank": 2,
+        "input": "{split_strategy_version}:condition_cell_split:{domain_id}:{condition}:{logical_sequence_id}",
+        "sort_order": "ascending hexadecimal digest"
+      },
+      "required_logical_sequences": 3,
+      "status": "complete",
+      "test_cell": "smarthealth_lishen40__0661__2c_60_dod"
+    }
+  },
+  "dataset": "smarthealth",
+  "development_batteries_by_condition": {
+    "0.3C-100%DOD": [
+      "smarthealth_lishen40__0118__0_3c_100_dod",
+      "smarthealth_lishen40__0448__0_3c_100_dod"
+    ],
+    "0.3C-20%DOD": [
+      "smarthealth_lishen40__0422__0_3c_20_dod",
+      "smarthealth_lishen40__0149__0_3c_20_dod"
+    ],
+    "0.3C-60%DOD": [
+      "smarthealth_lishen40__2061__0_3c_60_dod",
+      "smarthealth_lishen40__2054__0_3c_60_dod"
+    ],
+    "1C-100%DOD": [
+      "smarthealth_lishen40__0291__1c_100_dod",
+      "smarthealth_lishen40__2016__1c_100_dod"
+    ],
+    "1C-20%DOD": [
+      "smarthealth_lishen40__0608__1c_20_dod",
+      "smarthealth_lishen40__0571__1c_20_dod"
+    ],
+    "1C-60%DOD": [
+      "smarthealth_lishen40__0096__1c_60_dod",
+      "smarthealth_lishen40__0176__1c_60_dod"
+    ],
+    "2C-100%DOD": [
+      "smarthealth_lishen40__0296__2c_100_dod",
+      "smarthealth_lishen40__0611__2c_100_dod"
+    ],
+    "2C-20%DOD": [
+      "smarthealth_lishen40__0129__2c_20_dod",
+      "smarthealth_lishen40__0142__2c_20_dod"
+    ],
+    "2C-60%DOD": [
+      "smarthealth_lishen40__0034__2c_60_dod",
+      "smarthealth_lishen40__0248__2c_60_dod"
+    ]
+  },
+  "development_split": {
+    "mode": "mixed_cycle",
+    "random_state": 420,
+    "scope": "all development logical sequences pooled within the battery family",
+    "split_unit": "cycle",
+    "train_ratio": 0.8,
+    "train_val_battery_overlap_expected": true,
+    "val_ratio": 0.2
+  },
+  "domain_id": "smarthealth_lishen40",
+  "logical_sequence_rule": "domain + source serial + C-rate + DOD; no cross-condition merge",
+  "manual_confirmation_conditions": {},
+  "name": "smarthealth_lishen40_condition_stratified_2development_1test_v3",
+  "preprocessing_strategy_version": "smarthealth_cccv_calibration_v2",
+  "schema_version": 3,
+  "selection_rule": "For each condition with exactly three exportable logical sequences, ascending deterministic SHA256 ranking selects ranks 0 and 1 as development and rank 2 as the held-out test. Other inventories are recorded for manual confirmation without a fallback split.",
+  "source_manifest_signature_sha256": "c571567a3bbb8ae18c0095b712ceb8ffad3a918d56068009a98ce35559117313",
+  "split_status": "complete",
+  "split_strategy_version": "smarthealth_condition_cell_split_2development_1test_v3",
+  "strategy_version": "smarthealth_cccv_calibration_v2",
+  "test_batteries_by_condition": {
+    "0.3C-100%DOD": [
+      "smarthealth_lishen40__0337__0_3c_100_dod"
+    ],
+    "0.3C-20%DOD": [
+      "smarthealth_lishen40__0748__0_3c_20_dod"
+    ],
+    "0.3C-60%DOD": [
+      "smarthealth_lishen40__0332__0_3c_60_dod"
+    ],
+    "1C-100%DOD": [
+      "smarthealth_lishen40__0813__1c_100_dod"
+    ],
+    "1C-20%DOD": [
+      "smarthealth_lishen40__2063__1c_20_dod"
+    ],
+    "1C-60%DOD": [
+      "smarthealth_lishen40__0728__1c_60_dod"
+    ],
+    "2C-100%DOD": [
+      "smarthealth_lishen40__0284__2c_100_dod"
+    ],
+    "2C-20%DOD": [
+      "smarthealth_lishen40__0922__2c_20_dod"
+    ],
+    "2C-60%DOD": [
+      "smarthealth_lishen40__0661__2c_60_dod"
+    ]
+  }
+}

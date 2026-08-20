@@ -1,0 +1,52 @@
+{
+  "status": "runnable",
+  "base_config": "raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E1_RawMamba_mit",
+    "task": "e1_raw_soh_learning_single_domain_benchmark",
+    "domain_id": "mit",
+    "dataset_id": "mit",
+    "batches": ["2017-05-12", "2017-06-30", "2018-04-12"],
+    "split_file": "UnifiedRawSOH/splits/mit/mit_paper_physical124_v2_split.json"
+  },
+  "output": {
+    "experiment_id": "e1_raw_soh_learning",
+    "data_id": "mit"
+  },
+  "data": {
+    "data_root": "UnifiedRawSOH/datasets/MIT_raw",
+    "domain_id": "mit",
+    "dataset": "MIT_raw",
+    "nominal_capacity": 1.1,
+    "label_scale_mode": "none",
+    "data_mode": "all_batch_pooled",
+    "require_full_physical_cohort": true,
+    "raw_feature_pairing": "canonical physical IDs/global cycles shared with MIT_features; no legacy aligned table is used",
+    "raw_phase_policy": {
+      "version": "mit_proposed_phase_aware_cccv_v3",
+      "phase_decision": "infer actual persistent CC-to-CV taper before windowing",
+      "cc_voltage_range_V": [3.45, 3.6],
+      "cv_c_rate_range": [0.05, 0.25],
+      "cv_sampling_tolerance_C": 0.002,
+      "cv_endpoint_coverage_C": [0.052, 0.248],
+      "current_normalization": "abs(current_A) / 1.1 Ah",
+      "temperature": "selected source points only; no imputation"
+    }
+  },
+  "normalization": {
+    "mode": "physical_window",
+    "cc_voltage_low": 3.45,
+    "cc_voltage_high": 3.6,
+    "cv_current_low": 0.055,
+    "cv_current_high": 0.275,
+    "cc_current_ref": 1.0,
+    "cv_voltage_ref": 3.6,
+    "cv_voltage_scale": 0.001,
+    "cc_current_mode": "physical",
+    "cv_voltage_mode": "physical",
+    "current_use_abs": true,
+    "temp_room": 25.0,
+    "temp_abs_scale": 20.0,
+    "temp_delta_scale": 10.0
+  }
+}

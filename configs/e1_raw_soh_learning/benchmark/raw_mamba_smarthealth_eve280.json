@@ -1,0 +1,21 @@
+{
+  "status": "runnable",
+  "base_config": "raw_mamba_smarthealth_lishen40.json",
+  "experiment": {
+    "name": "E1_RawMamba_smarthealth_eve280",
+    "domain_id": "smarthealth_eve280",
+    "split_file": "UnifiedRawSOH/splits/smarthealth/smarthealth_eve280_cell_split.json"
+  },
+  "output": {
+    "data_id": "smarthealth_eve280"
+  },
+  "data": {
+    "domain_id": "smarthealth_eve280",
+    "nominal_capacity": 280.0
+  },
+  "normalization": {
+    "cv_current_low": 14.0,
+    "cv_current_high": 70.0,
+    "cc_current_ref": 140.0
+  }
+}

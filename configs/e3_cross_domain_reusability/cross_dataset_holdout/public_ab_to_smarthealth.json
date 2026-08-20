@@ -1,0 +1,29 @@
+{
+  "status": "blocked",
+  "base_config": "../../e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E3_PublicAB_to_SmartHealth",
+    "task": "e3_cross_domain_reusability_cross_dataset_holdout",
+    "domain_id": null,
+    "dataset_id": null,
+    "split_file": null,
+    "batches": [],
+    "loader": "cross_domain_reusability",
+    "source_domain_ids": ["xjtu", "mit"],
+    "target_domain_ids": [
+      "smarthealth_lishen40",
+      "smarthealth_catl280",
+      "smarthealth_eve280"
+    ]
+  },
+  "output": {
+    "experiment_id": "e3_cross_domain_reusability",
+    "model_id": "RawMamba",
+    "data_id": "public_ab_to_smarthealth"
+  },
+  "reusability": {
+    "protocol": "cross_dataset_holdout",
+    "evaluation": "zero_shot"
+  },
+  "blocker": "Generate and validate SmartHealth v2 family-specific RAW/feature products and split provenance first; this E3 cross-domain trainer/protocol also remains intentionally unimplemented."
+}

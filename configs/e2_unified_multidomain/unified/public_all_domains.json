@@ -1,0 +1,56 @@
+{
+  "status": "planned",
+  "base_config": "../../e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E2_Unified_public_all_domains",
+    "version": "UnifiedRawSOH/Paper-v1",
+    "task": "e2_unified_multidomain_raw_soh_learning",
+    "loader": "unified_multi_dataset",
+    "domain_id": null,
+    "dataset_id": null,
+    "split_file": null,
+    "batches": [],
+    "domain_ids": [
+      "xjtu",
+      "mit",
+      "smarthealth_lishen40",
+      "smarthealth_catl280",
+      "smarthealth_eve280"
+    ]
+  },
+  "output": {
+    "experiment_id": "e2_unified_multidomain",
+    "model_id": "RawMamba",
+    "data_id": "public_all_domains"
+  },
+  "data": {
+    "data_root": null,
+    "data_roots": {
+      "xjtu": "UnifiedRawSOH/datasets/XJTU_raw",
+      "mit": "UnifiedRawSOH/datasets/MIT_raw",
+      "smarthealth_lishen40": "UnifiedRawSOH/datasets/SmartHealth_raw",
+      "smarthealth_catl280": "UnifiedRawSOH/datasets/SmartHealth_raw",
+      "smarthealth_eve280": "UnifiedRawSOH/datasets/SmartHealth_raw"
+    },
+    "batches_by_domain": {},
+    "split_files": {
+      "xjtu": "UnifiedRawSOH/splits/xjtu/paper_v1_mixed_split.json",
+      "mit": "UnifiedRawSOH/splits/mit/mit_paper_physical124_v2_split.json",
+      "smarthealth_lishen40": "UnifiedRawSOH/splits/smarthealth/smarthealth_lishen40_cell_split.json",
+      "smarthealth_catl280": "UnifiedRawSOH/splits/smarthealth/smarthealth_catl280_cell_split.json",
+      "smarthealth_eve280": "UnifiedRawSOH/splits/smarthealth/smarthealth_eve280_cell_split.json"
+    },
+    "label_scale_modes": {
+      "xjtu": "auto_capacity_to_soh",
+      "mit": "none",
+      "smarthealth_lishen40": "none",
+      "smarthealth_catl280": "none",
+      "smarthealth_eve280": "none"
+    },
+    "balance_mode": "domain_battery"
+  },
+  "train": {
+    "monitor": "valid_domain_macro_rmse"
+  },
+  "protocol": "SmartHealth v2 family-specific canonical raw products, feature products, and condition-stratified 2-development/1-test logical-cell splits are present. Their source-file overlap, inferred CC/CV boundary, 3.45–3.58 V CC selection, nominal-C-rate 0.25C–0.05C CV selection, and calibration-only SOH are fixed in adjacent provenance files. A condition without exactly three eligible logical sequences remains an explicit manual-confirmation stop, never a fallback split. This all-public Unified configuration is still planned until its formal multi-domain training/selection protocol is intentionally executed."
+}

@@ -1,0 +1,30 @@
+# Python / editor state
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+.vscode/
+
+# Local raw/feature products. They remain available beside the code for
+# training, but are deliberately not versioned or redistributed through Git.
+datasets/XJTU_raw/**
+datasets/XJTU_features/**
+datasets/MIT_raw/**
+datasets/MIT_features/**
+datasets/SmartHealth_raw/**
+datasets/SmartHealth_features/**
+datasets/_legacy_aligned/
+
+# Generated experiment artifacts: checkpoints, per-cycle predictions, logs,
+# copied configs, and summaries stay local by default. Curated paper tables
+# can be exported separately when their data-sharing permissions are clear.
+outputs/**
+!outputs/.gitkeep
+
+# Common local artifacts
+*.log
+*.tmp
+*.swp

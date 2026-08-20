@@ -1,0 +1,83 @@
+{
+  "status": "runnable",
+  "experiment": {
+    "name": "E1_PINN4SOH-noLeak-OnlyF_xjtu",
+    "version": "UnifiedRawSOH/Paper-v1",
+    "task": "e1_raw_soh_learning_handcrafted_reference",
+    "domain_id": "xjtu",
+    "dataset_id": "xjtu_features",
+    "output_root": "UnifiedRawSOH/outputs",
+    "batches": ["2C", "3C", "R2.5", "R3", "RW", "satellite"]
+  },
+  "output": {
+    "paper_version": "Paper-v1",
+    "experiment_id": "e1_raw_soh_learning",
+    "model_id": "PINN4SOH-noLeak-OnlyF",
+    "data_id": "xjtu"
+  },
+  "data": {
+    "type": "stat_features",
+    "data_root": "UnifiedRawSOH/datasets/XJTU_features",
+    "domain_id": "xjtu",
+    "dataset": "XJTU_t_v1",
+    "data_mode": "all_batch_pooled",
+    "split_file": "UnifiedRawSOH/splits/xjtu/paper_v1_mixed_split.json",
+    "num_workers": 0,
+    "drop_3sigma_outliers": true,
+    "sample_mode": "adjacent_x1",
+    "cycle_column": "cycle index",
+    "cycle_index_mode": "pinn4soh_original",
+    "cycle_index_normalization": "not_used_as_model_input",
+    "feature_set": "pinn16_plus_temperature",
+    "feature_source": "UnifiedRawSOH/datasets/XJTU_features canonical local feature product",
+    "nominal_capacity": 2.0,
+    "normalization": "train_valid_minmax",
+    "normalization_scope": "pooled_non_test_train_val_cycles",
+    "normalization_eps": 1e-8,
+    "use_temperature_features": true
+  },
+  "model": {
+    "type": "PINNFOnlyMLP",
+    "input_dim": 24,
+    "encoder_hidden_dim": 60,
+    "encoder_output_dim": 32,
+    "encoder_layers_num": 3,
+    "predictor_hidden_dim": 32,
+    "dropout": 0.2,
+    "activation": "sin",
+    "match_original_pinn_f": true,
+    "uses_cycle_input": false,
+    "uses_pde_or_g_branch": false
+  },
+  "train": {
+    "seed": 42,
+    "device": "cuda",
+    "batch_size": 64,
+    "epochs": 500,
+    "patience": 30,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "grad_clip_norm": 1.0,
+    "loss": "mse",
+    "monitor": "valid_condition_macro_rmse",
+    "scheduler": {
+      "type": "reduce_on_plateau",
+      "mode": "min",
+      "factor": 0.5,
+      "patience": 10,
+      "threshold": 1e-5,
+      "min_lr": 1e-5
+    }
+  },
+  "eval": {
+    "metrics": ["mae", "mape", "mse", "rmse"],
+    "aggregation": "condition_macro_for_selection_with_battery_diagnostics",
+    "save_predictions": true,
+    "save_per_battery_metrics": true,
+    "save_per_condition_metrics": true
+  },
+  "debug": {
+    "debug_num_samples": 0,
+    "deterministic": true
+  }
+}

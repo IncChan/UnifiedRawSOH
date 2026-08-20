@@ -1,0 +1,25 @@
+{
+  "status": "runnable",
+  "base_config": "../benchmark/raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E1_RawMamba_xjtu_temperature_delta_t",
+    "task": "e1_raw_soh_learning_temperature_ablation",
+    "domain_id": "xjtu"
+  },
+  "output": {
+    "experiment_id": "e1_raw_soh_learning",
+    "model_id": "RawMamba-DeltaT",
+    "data_id": "xjtu"
+  },
+  "data": {
+    "use_temperature": true,
+    "use_t0_temperature_meta": false
+  },
+  "model": {
+    "input_dim": 4,
+    "temperature_injection": "input_concat",
+    "temperature_features": "delta",
+    "use_t0_temperature_meta": false,
+    "t0_temperature_meta_dim": 0
+  }
+}

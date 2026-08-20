@@ -1,0 +1,39 @@
+{
+  "name": "xjtu_paper_v1_mixed_battery_4_8_test",
+  "dataset_id": "xjtu",
+  "status": "recommended",
+  "source": "SC_TempMamba_v2/configs/1/mamba/C5B_mixed_all_batch.json and its mixed implementation",
+  "test_batteries_by_condition": {
+    "2C": ["2C_battery-4", "2C_battery-8"],
+    "3C": ["3C_battery-4", "3C_battery-8"],
+    "R2.5": ["R2.5_battery-4", "R2.5_battery-8"],
+    "R3": ["R3_battery-4", "R3_battery-8"],
+    "RW": ["RW_battery-4", "RW_battery-8"],
+    "satellite": ["satellite_battery-4", "satellite_battery-8"]
+  },
+  "test_batteries": [
+    "2C_battery-4", "2C_battery-8",
+    "3C_battery-4", "3C_battery-8",
+    "R2.5_battery-4", "R2.5_battery-8",
+    "R3_battery-4", "R3_battery-8",
+    "RW_battery-4", "RW_battery-8",
+    "satellite_battery-4", "satellite_battery-8"
+  ],
+  "development_split": {
+    "mode": "mixed_cycle",
+    "scope": "per_condition_then_pool",
+    "val_ratio": 0.2,
+    "random_state": 420,
+    "train_val_battery_overlap_expected": true
+  },
+  "counts": {
+    "total_batteries": 55,
+    "test_batteries": 12,
+    "development_batteries": 43
+  },
+  "notes": [
+    "The JSON is the Paper-v1 source of truth for the split; loaders do not infer battery-4/8 from IDs.",
+    "Train and validation are mixed cycle records within each condition, and may contain cycles from the same battery.",
+    "The legacy roles file remains only for historical equivalence checks."
+  ]
+}

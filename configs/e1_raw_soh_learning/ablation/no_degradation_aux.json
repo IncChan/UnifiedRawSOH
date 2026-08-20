@@ -1,0 +1,25 @@
+{
+  "status": "runnable",
+  "base_config": "../benchmark/raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E1_RawMamba_xjtu_no_degradation_aux",
+    "task": "e1_raw_soh_learning_degradation_supervision_ablation",
+    "domain_id": "xjtu"
+  },
+  "output": {
+    "experiment_id": "e1_raw_soh_learning",
+    "model_id": "RawMamba-noDegradationAux",
+    "data_id": "xjtu"
+  },
+  "model": {
+    "use_cycle_prediction": false,
+    "use_predicted_cycle_for_soh": false
+  },
+  "train": {
+    "lambda_cycle": 0.0,
+    "cycle_loss_mode": "disabled"
+  },
+  "data": {
+    "cycle_target_scope": "not_used"
+  }
+}

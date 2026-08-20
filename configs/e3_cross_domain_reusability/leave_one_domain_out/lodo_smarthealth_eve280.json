@@ -1,0 +1,30 @@
+{
+  "status": "blocked",
+  "base_config": "../../e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E3_LODO_to_smarthealth_eve280",
+    "task": "e3_cross_domain_reusability_leave_one_domain_out",
+    "domain_id": null,
+    "dataset_id": null,
+    "split_file": null,
+    "batches": [],
+    "loader": "cross_domain_reusability",
+    "source_domain_ids": [
+      "xjtu",
+      "mit",
+      "smarthealth_lishen40",
+      "smarthealth_catl280"
+    ],
+    "target_domain_id": "smarthealth_eve280"
+  },
+  "output": {
+    "experiment_id": "e3_cross_domain_reusability",
+    "model_id": "RawMamba",
+    "data_id": "lodo_to_smarthealth_eve280"
+  },
+  "reusability": {
+    "protocol": "leave_one_domain_out",
+    "evaluation": "zero_shot"
+  },
+  "blocker": "Generate and validate SmartHealth v2 raw-cycle products, calibration labels, and split provenance first; the E3 trainer itself remains intentionally unimplemented."
+}

@@ -1,0 +1,30 @@
+{
+  "status": "planned",
+  "base_config": "../../e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E3_Adapt_xjtu_to_mit_physical_cell",
+    "task": "e3_cross_domain_reusability_adaptation",
+    "domain_id": null,
+    "dataset_id": null,
+    "split_file": null,
+    "batches": [],
+    "loader": "cross_domain_reusability",
+    "source_domain_ids": ["xjtu"],
+    "target_domain_id": "mit"
+  },
+  "output": {
+    "experiment_id": "e3_cross_domain_reusability",
+    "model_id": "RawMamba",
+    "data_id": "xjtu_to_mit_one_cell"
+  },
+  "reusability": {
+    "protocol": "adaptation",
+    "evaluation": "few_cell",
+    "target_budget": {
+      "unit": "physical_cell_count",
+      "value": 1
+    },
+    "scratch_same_target_budget": true
+  },
+  "blocker": "The adaptation trainer must first make a deterministic target-cell draw from the target development partition and save that draw with the checkpoint provenance."
+}

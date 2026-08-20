@@ -1,0 +1,25 @@
+{
+  "status": "runnable",
+  "base_config": "../benchmark/raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E1_RawMamba_xjtu_temperature_vi_only",
+    "task": "e1_raw_soh_learning_temperature_ablation",
+    "domain_id": "xjtu"
+  },
+  "output": {
+    "experiment_id": "e1_raw_soh_learning",
+    "model_id": "RawMamba-VI",
+    "data_id": "xjtu"
+  },
+  "data": {
+    "use_temperature": false,
+    "use_t0_temperature_meta": false
+  },
+  "model": {
+    "input_dim": 3,
+    "temperature_injection": "none",
+    "temperature_features": "none",
+    "use_t0_temperature_meta": false,
+    "t0_temperature_meta_dim": 0
+  }
+}

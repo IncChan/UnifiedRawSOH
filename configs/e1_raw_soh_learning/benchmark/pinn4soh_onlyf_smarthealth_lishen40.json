@@ -1,0 +1,26 @@
+{
+  "status": "runnable",
+  "base_config": "pinn4soh_onlyf_xjtu.json",
+  "experiment": {
+    "name": "E1_PINN4SOH-noLeak-OnlyF_smarthealth_lishen40",
+    "task": "e1_raw_soh_learning_handcrafted_reference",
+    "domain_id": "smarthealth_lishen40",
+    "dataset_id": "smarthealth_features",
+    "batches": []
+  },
+  "output": {
+    "experiment_id": "e1_raw_soh_learning",
+    "data_id": "smarthealth_lishen40"
+  },
+  "data": {
+    "data_root": "UnifiedRawSOH/datasets/SmartHealth_features",
+    "domain_id": "smarthealth_lishen40",
+    "dataset": "SmartHealth_features",
+    "split_file": "UnifiedRawSOH/splits/smarthealth/smarthealth_lishen40_cell_split.json",
+    "feature_source": "UnifiedRawSOH/datasets/SmartHealth_features canonical CC/CV/calibration-SOH v2",
+    "nominal_capacity": 40.0,
+    "feature_label_column": "SOH",
+    "drop_3sigma_outliers": false,
+    "invalid_cycle_policy": "canonical_phase_window_temperature_calibration_eligible_cycles_only_no_additional_feature_outlier_filter"
+  }
+}

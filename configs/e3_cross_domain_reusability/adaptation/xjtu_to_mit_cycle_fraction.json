@@ -1,0 +1,30 @@
+{
+  "status": "planned",
+  "base_config": "../../e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E3_Adapt_xjtu_to_mit_cycle_fraction",
+    "task": "e3_cross_domain_reusability_adaptation",
+    "domain_id": null,
+    "dataset_id": null,
+    "split_file": null,
+    "batches": [],
+    "loader": "cross_domain_reusability",
+    "source_domain_ids": ["xjtu"],
+    "target_domain_id": "mit"
+  },
+  "output": {
+    "experiment_id": "e3_cross_domain_reusability",
+    "model_id": "RawMamba",
+    "data_id": "xjtu_to_mit_cycle_fraction"
+  },
+  "reusability": {
+    "protocol": "adaptation",
+    "evaluation": "few_shot",
+    "target_budget": {
+      "unit": "cycle_fraction",
+      "value": 0.05
+    },
+    "scratch_same_target_budget": true
+  },
+  "blocker": "XJTU and MIT raw adapters use the common contract (MIT additionally requires a nonempty phase-aware physical124 local export), but a source-checkpoint/target-budget adaptation trainer has not been implemented or validated yet."
+}

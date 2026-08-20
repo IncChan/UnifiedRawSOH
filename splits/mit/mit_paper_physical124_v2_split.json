@@ -1,0 +1,63 @@
+{
+  "name": "mit_paper124_mixed_physical_index_mod5_test",
+  "dataset_id": "mit",
+  "status": "recommended",
+  "source": "MIT public batch source; continuation/cell curation from LoadData.m",
+  "cohort": "paper124",
+  "physical_cell_count": 124,
+  "test_rule": {
+    "type": "physical_id_modulo",
+    "modulus": 5,
+    "remainder": 0,
+    "identity": "physical_cell_id"
+  },
+  "test_batteries": [
+    "mit_p005",
+    "mit_p010",
+    "mit_p015",
+    "mit_p020",
+    "mit_p025",
+    "mit_p030",
+    "mit_p035",
+    "mit_p040",
+    "mit_p045",
+    "mit_p050",
+    "mit_p055",
+    "mit_p060",
+    "mit_p065",
+    "mit_p070",
+    "mit_p075",
+    "mit_p080",
+    "mit_p085",
+    "mit_p090",
+    "mit_p095",
+    "mit_p100",
+    "mit_p105",
+    "mit_p110",
+    "mit_p115",
+    "mit_p120"
+  ],
+  "development_split": {
+    "mode": "mixed_cycle",
+    "scope": "single_domain_pool",
+    "val_ratio": 0.2,
+    "random_state": 420,
+    "train_val_battery_overlap_expected": true
+  },
+  "invalid_cycles": [
+    {
+      "battery_id": "mit_p015",
+      "cycle_id": 39,
+      "source_batch_date": "2017-05-12",
+      "source_cell": 19,
+      "source_cycle": 39,
+      "reason": "source capacity spike: QDischarge=2.8840845 Ah, derived SOH=2.621895 (nominal capacity=1.1 Ah)"
+    }
+  ],
+  "notes": [
+    "The test rule applies to canonical physical IDs (mit_p###), never source file IDs.",
+    "All segments of a continuation cell have one physical_cell_id and therefore one split role.",
+    "The raw and feature products use identical physical IDs, physical cycles, and known-label-QC exclusions.",
+    "Mixed-cycle development keeps train/validation cycle overlap by design; only the test cells are physically held out."
+  ]
+}

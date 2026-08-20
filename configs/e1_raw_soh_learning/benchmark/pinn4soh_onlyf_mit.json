@@ -1,0 +1,26 @@
+{
+  "status": "runnable",
+  "base_config": "pinn4soh_onlyf_xjtu.json",
+  "experiment": {
+    "name": "E1_PINN4SOH-noLeak-OnlyF_mit",
+    "task": "e1_raw_soh_learning_handcrafted_reference",
+    "domain_id": "mit",
+    "dataset_id": "mit_features",
+    "batches": ["2017-05-12", "2017-06-30", "2018-04-12"]
+  },
+  "output": {
+    "experiment_id": "e1_raw_soh_learning",
+    "data_id": "mit"
+  },
+  "data": {
+    "data_root": "UnifiedRawSOH/datasets/MIT_features",
+    "domain_id": "mit",
+    "dataset": "MIT_features",
+    "split_file": "UnifiedRawSOH/splits/mit/mit_paper_physical124_v2_split.json",
+    "feature_source": "UnifiedRawSOH/datasets/MIT_features canonical paired physical-cell export",
+    "nominal_capacity": 1.1,
+    "require_full_physical_cohort": true,
+    "normalization_scope": "pooled_non_test_train_val_cycles",
+    "invalid_cycle_policy": "canonical_physical_known_capacity_spike_removed_then_numeric_all_column_3sigma"
+  }
+}

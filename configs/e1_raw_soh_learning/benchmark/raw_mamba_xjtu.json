@@ -1,0 +1,17 @@
+{
+  "status": "runnable",
+  "base_config": "../../common/xjtu_raw_c5b_base.json",
+  "experiment": {
+    "name": "E1_RawMamba_xjtu",
+    "version": "UnifiedRawSOH/Paper-v1",
+    "task": "e1_raw_soh_learning_single_domain_benchmark",
+    "domain_id": "xjtu",
+    "dataset_id": "xjtu",
+    "loader": "single_domain"
+  },
+  "output": {
+    "experiment_id": "e1_raw_soh_learning",
+    "model_id": "RawMamba",
+    "data_id": "xjtu"
+  }
+}

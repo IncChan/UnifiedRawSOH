@@ -1,0 +1,82 @@
+{
+  "status": "runnable",
+  "base_config": "../../e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json",
+  "experiment": {
+    "name": "E2_Unified_xjtu_mit",
+    "version": "UnifiedRawSOH/Paper-v1",
+    "task": "e2_unified_multidomain_raw_soh_learning",
+    "loader": "unified_multi_dataset",
+    "domain_id": null,
+    "dataset_id": null,
+    "split_file": null,
+    "batches": [],
+    "domain_ids": ["xjtu", "mit"]
+  },
+  "output": {
+    "experiment_id": "e2_unified_multidomain",
+    "model_id": "RawMamba",
+    "data_id": "xjtu+mit"
+  },
+  "data": {
+    "data_root": null,
+    "data_roots": {
+      "xjtu": "UnifiedRawSOH/datasets/XJTU_raw",
+      "mit": "UnifiedRawSOH/datasets/MIT_raw"
+    },
+    "batches_by_domain": {
+      "xjtu": ["2C", "3C", "R2.5", "R3", "RW", "satellite"],
+      "mit": ["2017-05-12", "2017-06-30", "2018-04-12"]
+    },
+    "split_files": {
+      "xjtu": "UnifiedRawSOH/splits/xjtu/paper_v1_mixed_split.json",
+      "mit": "UnifiedRawSOH/splits/mit/mit_paper_physical124_v2_split.json"
+    },
+    "nominal_capacities": {
+      "xjtu": 2.0,
+      "mit": 1.1
+    },
+    "label_scale_modes": {
+      "xjtu": "auto_capacity_to_soh",
+      "mit": "none"
+    },
+    "normalizations": {
+      "xjtu": {
+        "mode": "physical_window",
+        "cc_voltage_low": 4.0,
+        "cc_voltage_high": 4.195,
+        "cv_current_low": 0.1,
+        "cv_current_high": 0.5,
+        "cc_current_ref": 4.0,
+        "cv_voltage_ref": 4.19975,
+        "cv_voltage_scale": 0.001,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      },
+      "mit": {
+        "mode": "physical_window",
+        "cc_voltage_low": 3.45,
+        "cc_voltage_high": 3.6,
+        "cv_current_low": 0.055,
+        "cv_current_high": 0.275,
+        "cc_current_ref": 1.0,
+        "cv_voltage_ref": 3.6,
+        "cv_voltage_scale": 0.001,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      }
+    },
+    "balance_mode": "domain_battery"
+  },
+  "train": {
+    "monitor": "valid_domain_macro_rmse"
+  },
+  "protocol": "xjtu and mit are two battery domains sharing one raw-cycle model. Each domain keeps its own fixed physical normalization and split provenance; domain/battery balancing prevents long-lived batteries or larger domains from dominating training. Metrics are retained per domain and the checkpoint monitor is validation domain-macro RMSE."
+}

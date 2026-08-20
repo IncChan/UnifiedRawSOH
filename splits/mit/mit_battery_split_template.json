@@ -1,0 +1,10 @@
+{
+  "name": "mit_battery_roles_legacy_template",
+  "dataset_id": "mit",
+  "status": "legacy_template",
+  "roles": {
+    "train": [],
+    "val": [],
+    "test": []
+  }
+}
