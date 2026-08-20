@@ -17,6 +17,15 @@ The model sees current-cycle tensors only. Domain metadata is for composition,
 normalization, balancing, split selection, and aggregation; it is not a model
 input.
 
+## Regenerating local products
+
+The source-to-product implementations live in `preprocess/`, not in the
+training adapters. Copy `preprocess/paths.env.example` to the ignored local
+`preprocess/paths.env`, set source/output locations, then use
+`bash preprocess/run_preprocess.sh <domain> <stage> --workers N`. The full
+source contracts, overwrite policy, and source-specific parallelism are in
+`preprocess/README.md`.
+
 ## XJTU — domain xjtu (A)
 
 | Field | Value |

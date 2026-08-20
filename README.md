@@ -19,11 +19,13 @@ input.
         e4_industrial_external/       real enterprise validation interface
         conditional/                  diagnosis-triggered contrastive extension
     datasets/                          adapters, domain registry, manifests
+    preprocess/                        source-to-canonical-product pipelines
     splits/                            data/split provenance
     models/                            phase-specific raw model and Only-F baseline
     trainers/                          E1/E2 training and E3 protocol validation
     evaluation/                        metrics and matched-cycle evaluation
     scripts/                           fixed-setting multi-seed launchers
+    results/                           curated, Git-tracked paper summaries
 
 Outputs are not moved when code paths are reorganized. Historical E1 runtime
 directories remain readable; newly launched runs use:
@@ -87,14 +89,31 @@ Paper-local data names are explicit:
     datasets/MIT_raw        datasets/MIT_features
     datasets/SmartHealth_raw  datasets/SmartHealth_features
 
-Data and runtime outputs are deliberately Git-ignored: a local clone needs
-the dataset products provisioned under the paths above, but GitHub contains
-only code, configs, split definitions, and documentation. Do not force-add
-raw/feature CSVs, checkpoints, per-cycle predictions, or historical runtime
-directories. Read datasets/MANIFEST.md for the raw-cycle contract,
-normalization, physical identities, and split provenance. SmartHealth's
-generated canonical products retain their immutable GB18030 source audit; no
-launcher reparses or synthesizes raw source data.
+All raw/feature data products are deliberately Git-ignored. A local clone
+needs the products provisioned under the paths above, but GitHub contains only
+code, configs, split definitions, documentation, and deliberate paper-level
+summaries under `results/`. Full runtime directories remain under the ignored
+`outputs/` tree: do not force-add raw/feature CSVs, checkpoints, per-cycle
+predictions, or historical run directories. Read datasets/MANIFEST.md for the
+raw-cycle contract, normalization, physical identities, and split provenance.
+SmartHealth's generated canonical products retain their immutable GB18030
+source audit; no launcher reparses or synthesizes raw source data.
+
+## Rebuilding local dataset products
+
+The tracked `preprocess/` directory contains the real XJTU, MIT physical124,
+and SmartHealth v2 source-to-product implementations. Copy
+`preprocess/paths.env.example` to `preprocess/paths.env`, set the three source
+roots, then use the one launcher:
+
+    bash preprocess/run_preprocess.sh xjtu all --workers 4
+    bash preprocess/run_preprocess.sh mit all --workers 4
+    bash preprocess/run_preprocess.sh smarthealth all --workers 8
+
+See `preprocess/README.md` before replacing an existing product or changing a
+worker count. The current `pinn` environment lacks `h5py`, so MIT preprocessing
+requires an environment containing the packages listed in
+`preprocess/requirements.txt`.
 
 The repository does not include a license for third-party datasets. Verify
 each source's redistribution terms before publishing any data-derived artifact

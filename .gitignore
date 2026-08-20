@@ -18,11 +18,15 @@ datasets/SmartHealth_raw/**
 datasets/SmartHealth_features/**
 datasets/_legacy_aligned/
 
-# Generated experiment artifacts: checkpoints, per-cycle predictions, logs,
-# copied configs, and summaries stay local by default. Curated paper tables
-# can be exported separately when their data-sharing permissions are clear.
+# Generated experiment artifacts stay local: checkpoints, per-cycle
+# predictions, logs, copied configs, and full histories do not belong in Git.
+# Publish only deliberate paper-level summaries under results/.
 outputs/**
 !outputs/.gitkeep
+
+# Local machine-specific preprocessing locations. Copy the tracked example
+# before setting source and output directories.
+preprocess/paths.env
 
 # Common local artifacts
 *.log

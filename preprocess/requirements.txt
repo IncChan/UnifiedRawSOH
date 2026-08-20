@@ -1,0 +1,5 @@
+# Preprocessing-only dependencies (training dependencies are separate).
+numpy
+scipy
+h5py
+matplotlib
