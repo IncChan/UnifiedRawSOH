@@ -82,9 +82,9 @@ def default_input_root() -> Path | None:
     value = os.environ.get("MIT_SOURCE_ROOT")
     return Path(value).expanduser() if value else None
 
-# Proposed/canonical raw policy. These are intentionally separate from the
-# historical handcrafted-feature extractor, whose author-defined 3.4--3.595 V
-# and 0.5--0.1 A windows remain unchanged.
+# Proposed/canonical raw policy.  The Paper-v1 physical Only-F export derives
+# its statistics from these accepted rows.  The standalone legacy feature
+# extractor below remains available only for non-canonical historical products.
 MIT_PROPOSED_RAW_POLICY_VERSION = "mit_proposed_phase_aware_cccv_v3"
 MIT_PROPOSED_CC_VOLTAGE_RANGE = (3.45, 3.60)
 MIT_PROPOSED_CV_C_RATE_RANGE = (0.05, 0.25)
@@ -100,7 +100,7 @@ MIT_CV_LOW_COVERAGE_C_RATE = (
     MIT_PROPOSED_CV_C_RATE_RANGE[0] + MIT_CV_SELECTION_TOLERANCE_C
 )
 
-# Keep the same evidence pattern as SmartHealth v2: a CC/CV boundary is a
+# Keep the same evidence pattern as SmartHealth's phase-aware policy: a CC/CV boundary is a
 # persistent current taper near the charge-voltage maximum, not a point that
 # merely happens to fall inside a voltage/current window. MIT stores fewer
 # points per end-of-charge trace, hence the smaller point-count minima.
@@ -162,7 +162,7 @@ def select_proposed_cccv_windows(
 
     The historical MIT archive has no separate CC/CV step label at this
     point.  Therefore a voltage or current predicate alone cannot decide a
-    phase.  This follows the SmartHealth-v2-style persistent-taper decision
+    phase.  This follows the SmartHealth-v3-style persistent-taper decision
     inside the end-of-charge trace and only then applies the CC voltage and
     nominal-C-rate CV windows.
     """

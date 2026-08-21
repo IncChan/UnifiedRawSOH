@@ -8,5 +8,5 @@ xjtu + mit -> smarthealth_lishen40 / smarthealth_catl280 / smarthealth_eve280
 ```
 
 The supplied configuration remains an interface, not a runnable experiment.
-SmartHealth v2 phase/label/split code is ready, but its generated canonical
+SmartHealth v3 phase/label/split code is ready, but its generated canonical
 products still need validation and the E3 trainer itself is not implemented.

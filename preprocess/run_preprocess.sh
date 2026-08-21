@@ -22,14 +22,15 @@ Domains:
 
 Stages:
   xjtu: raw | features | all
-  mit: all                           # canonical physical124 raw + features are one atomic pipeline
+  mit: all                           # canonical physical124 raw + features are one pipeline
   SmartHealth family/all: raw | features | all
   smarthealth_validate: validate
 
 Examples:
   bash preprocess/run_preprocess.sh xjtu all --workers 4
   bash preprocess/run_preprocess.sh mit all --workers 4
-  bash preprocess/run_preprocess.sh smarthealth_lishen40 all --workers 8
+  bash preprocess/run_preprocess.sh smarthealth_lishen40 all --workers 8 --overwrite
+  bash preprocess/run_preprocess.sh smarthealth all --workers 8 --overwrite
   bash preprocess/run_preprocess.sh smarthealth_validate validate
 
 Pass --overwrite only when deliberately replacing an existing domain product.

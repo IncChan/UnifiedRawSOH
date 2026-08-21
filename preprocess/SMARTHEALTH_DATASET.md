@@ -26,11 +26,12 @@ source-cycle numbers.  The source columns include cycle, step number/type,
 time, current, voltage, charge/discharge capacity, and usually temp1_1.
 EVE's first chunk for each logical series lacks temp1_1.
 
-## Canonical v2 policy
+## Canonical v3 policy
 
-The v2 implementation has one RAW entry point and one FEATURE entry point per
-battery family; no command-line entry point can co-process all three families.
-`smarthealth_common.py` supplies only shared parsing and audit rules.
+The v3 implementation has one RAW entry point and one FEATURE entry point per
+battery family. The shared launcher can run all three sequentially, but never
+mixes families in one preprocessing job. `smarthealth_common.py` supplies only
+shared parsing and audit rules.
 
 The source's combined `恒流恒压充电` event is handled in two separate steps:
 
@@ -39,27 +40,33 @@ The source's combined `恒流恒压充电` event is handled in two separate step
 2. select model points only from the inferred partitions: CC `3.45–3.58 V`
    and CV `0.25C–0.05C`, where `C=abs(current_A)/nominal_capacity_Ah`.
 
-`3.58 V` is the v2 SmartHealth CC upper bound. A representative read-only
+`3.58 V` is the v3 SmartHealth CC upper bound. A representative read-only
 audit found stable CC coverage through 3.58 V across LISHEN/CATL/EVE and their
 sampled DOD/C-rate conditions; 3.60 V was often already the taper transition
 or was not stably reached before it. The nominal 3.65 V cutoff is not used as
 the CC endpoint.
 
 Each logical sequence is exactly `domain + source serial + C-rate + DOD`.
-Numeric `-1/-2/...` filename suffixes are chunks of that sequence. Duplicate
-source cycles are selected by boundary success, complete selected-point
-temperature, selected CC/CV point coverage, raw point count, source-row count,
-and earlier chunk. No C-rate/DOD sequences are merged.
+Numeric `-1/-2/...` filename suffixes are chunks of that sequence. The source
+`循环号` is local to a chunk and can reset or overlap, so it is retained only as
+provenance. A source event is identified by `logical_sequence_id + 绝对时间`
+start/end interval; canonical `cycle` is a one-based chronological index over
+all source events in that logical sequence. Only exact time-interval duplicates
+are selected by boundary success, complete selected-point temperature, selected
+CC/CV point coverage, raw point count, source-row count, and earlier chunk. No
+C-rate/DOD sequences are merged.
 
 Temperature must be finite at every selected CC/CV point. EVE chunks without
 `temp1_1` are retained in audit and can lose to a complete duplicate, but are
 never imputed or exported when no valid duplicate exists.
 
-SOH is calibration-based: the principal discharge capacity of reliable,
-periodic full-capacity calibrations forms `Q_ref=median(first three)`. Direct
-calibration labels use `Q_cal/Q_ref`; normal cycles are linearly interpolated
-only between bracketing reliable calibrations. There is no leading/trailing
-extrapolation, nominal-40/280-Ah SOH normalization, RUL, or EOL in v2.
+Capacity labels are calibration-based: the principal discharge capacity of
+reliable, periodic full-capacity calibrations supplies direct labels, while
+normal cycles are linearly interpolated only between bracketing reliable
+calibrations. `Q_ref=median(first three)` remains audit provenance, but the
+Paper experiment target is `label_capacity_Ah / fixed nominal capacity`
+(40 Ah for LISHEN; 280 Ah for CATL/EVE), matching XJTU/MIT. There is no
+leading/trailing extrapolation, RUL, or EOL in v3.
 
 For every condition, exactly three eligible logical sequences are required.
 `smarthealth_condition_cell_split_2development_1test_v3` sorts the stable
@@ -77,9 +84,10 @@ RAW output is family-namespaced under:
     UnifiedRawSOH/datasets/SmartHealth_raw/<domain>/
 
 Each row is an original selected source point (never preprocessing-resampled)
-and carries cell, source serial, logical sequence, condition, cycle, CC/CV
-segment, nominal C-rate, temperature, calibration SOH/label source, and source
-chunk/cycle provenance. Audits are independently named under:
+and carries cell, source serial, logical sequence, condition, canonical cycle,
+CC/CV segment, nominal C-rate, temperature, calibration-derived capacity/label
+source, plus source chunk/local-cycle/absolute-time provenance. Audits are
+independently named under:
 
     UnifiedRawSOH/datasets/SmartHealth_raw/audit/
 
@@ -97,24 +105,23 @@ emitted as one v3 split-schema JSON per family in `UnifiedRawSOH/splits/smarthea
 
 ## Run
 
-After configuring `preprocess/paths.env`, run RAW first, then the matching
-FEATURE job through the standalone launcher:
+After configuring `preprocess/paths.env`, rebuild RAW and the matching FEATURE
+products through the standalone launcher. `--overwrite` replaces only the
+selected family under the existing configured output locations; it does not
+touch the source directory or sibling families:
 
 ```bash
-bash preprocess/run_preprocess.sh smarthealth_lishen40 raw --workers 8
-bash preprocess/run_preprocess.sh smarthealth_catl280 raw --workers 8
-bash preprocess/run_preprocess.sh smarthealth_eve280 raw --workers 8
-
-bash preprocess/run_preprocess.sh smarthealth_lishen40 features
-bash preprocess/run_preprocess.sh smarthealth_catl280 features
-bash preprocess/run_preprocess.sh smarthealth_eve280 features
+bash preprocess/run_preprocess.sh smarthealth all --workers 8 --overwrite
+bash preprocess/run_preprocess.sh smarthealth_validate validate
 ```
 
 RAW scanning and RAW export use a process pool by default, capped at eight
 workers. Scans are partitioned by independent source CSV; export is partitioned
 by logical sequence so every worker owns a distinct canonical output file.
-The audit merge order, raw CSV row order, and split definition are invariant to
-the worker count; the report additionally records the worker count used.
+The audit merge order, canonical time identity, and split definition are
+invariant to worker count; the report additionally records the worker count
+used. Model adapters sort the canonical cycle IDs before use, so source chunk
+file order never becomes a degradation-time order.
 Override the default for available CPU/RAM, for example:
 
 ```bash

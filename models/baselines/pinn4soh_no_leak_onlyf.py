@@ -27,6 +27,10 @@ from UnifiedRawSOH.datasets.splits import (
     resolve_test_batteries,
 )
 from UnifiedRawSOH.datasets.mit import validate_mit_physical_cohort
+from UnifiedRawSOH.datasets.smarthealth import (
+    SMARTHEALTH_CANONICAL_POLICY_VERSION,
+    SMARTHEALTH_NOMINAL_CAPACITY_AH,
+)
 
 
 PINN16_FEATURE_COLUMNS = [
@@ -54,7 +58,7 @@ def _smarthealth_feature_metadata(path):
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         fields = set(reader.fieldnames or ())
-        required = {"domain_id", "condition", "battery_id", "cycle", "SOH"}
+        required = {"domain_id", "condition", "battery_id", "cycle", "capacity"}
         missing = sorted(required - fields)
         if missing:
             raise ValueError(f"Canonical SmartHealth feature file {path} is missing: {missing}")
@@ -317,6 +321,23 @@ def load_feature_file(path, config):
         raw_cycle_id = pd.to_numeric(frame["cycle"], errors="raise").to_numpy(dtype=np.int64)
         cycle_values = raw_cycle_id
     elif is_smarthealth:
+        required_lineage = {
+            "strategy_version",
+            "source_cycle",
+            "source_absolute_start_time",
+            "source_absolute_end_time",
+        }
+        missing_lineage = sorted(required_lineage - set(frame.columns))
+        if missing_lineage:
+            raise ValueError(
+                f"Canonical SmartHealth feature file {path} is missing v3 chronology lineage: "
+                f"{missing_lineage}"
+            )
+        policy_versions = {str(value).strip() for value in frame["strategy_version"].dropna()}
+        if policy_versions != {SMARTHEALTH_CANONICAL_POLICY_VERSION}:
+            raise ValueError(
+                f"Canonical SmartHealth feature policy mismatch in {path}: {sorted(policy_versions)}"
+            )
         logical_ids = {str(item).strip() for item in frame["logical_sequence_id"].dropna()}
         condition, filename_battery_id = parse_file_identity(path)
         if logical_ids != {filename_battery_id}:
@@ -325,6 +346,30 @@ def load_feature_file(path, config):
                 f"filename={filename_battery_id}, rows={sorted(logical_ids)}"
             )
         raw_cycle_id = pd.to_numeric(frame["cycle"], errors="raise").to_numpy(dtype=np.int64)
+        if (
+            np.any(raw_cycle_id <= 0)
+            or len(np.unique(raw_cycle_id)) != len(raw_cycle_id)
+        ):
+            raise ValueError(
+                f"Canonical SmartHealth feature cycle IDs must be unique positive chronological IDs in {path}"
+            )
+        frame = frame.sort_values("cycle", kind="stable").reset_index(drop=True)
+        source_start = pd.to_datetime(
+            frame["source_absolute_start_time"], errors="coerce"
+        )
+        source_end = pd.to_datetime(
+            frame["source_absolute_end_time"], errors="coerce"
+        )
+        if source_start.isna().any() or source_end.isna().any() or (source_end < source_start).any():
+            raise ValueError(
+                f"Canonical SmartHealth feature source-time provenance is invalid in {path}"
+            )
+        intervals = list(zip(source_start.tolist(), source_end.tolist()))
+        if any(current < previous for previous, current in zip(intervals, intervals[1:])):
+            raise ValueError(
+                f"Canonical SmartHealth feature chronology regresses in {path}"
+            )
+        raw_cycle_id = frame["cycle"].to_numpy(dtype=np.int64)
         cycle_values = raw_cycle_id
     else:
         cycle_values = np.arange(len(frame), dtype=np.int64)
@@ -333,7 +378,7 @@ def load_feature_file(path, config):
     frame.insert(frame.shape[1] - 1, cycle_column, cycle_values)
     if bool(data_cfg.get("drop_3sigma_outliers", True)):
         # "All-column" is the historical statistical feature table plus its
-        # capacity label and legacy cycle identifier.  The v2 lineage fields
+        # capacity label and legacy cycle identifier.  The v3 lineage fields
         # are audit metadata, not statistics, and must not alter cleaning.
         cleaning_columns = [
             *PINN16_FEATURE_COLUMNS,
@@ -345,15 +390,32 @@ def load_feature_file(path, config):
     frame = frame.reset_index(drop=True)
     feature_columns = [*PINN16_FEATURE_COLUMNS, *TEMPERATURE_FEATURE_COLUMNS]
     features = frame[feature_columns].to_numpy(dtype=np.float32)
+    target_mode = str(data_cfg.get("feature_target_mode", "")).strip()
     label_column = str(data_cfg.get("feature_label_column", "")).strip()
-    # SmartHealth's canonical feature product carries its already-audited,
-    # per-series SOH label.  Its partial-DOD capacities must not be divided by
-    # 40/280 Ah again, unlike the historical XJTU/MIT feature products.
-    if not label_column and "domain_id" in frame.columns:
-        observed_domains = {str(value).strip() for value in frame["domain_id"].dropna()}
-        if observed_domains and all(value.startswith("smarthealth_") for value in observed_domains):
-            label_column = "SOH"
-    if label_column:
+    if target_mode == "capacity_to_nominal":
+        # SmartHealth and the raw model now share the same fixed-nominal
+        # capacity target.  ``capacity`` is the calibration-derived physical
+        # capacity exported by the matching feature preprocessor, never a
+        # handcrafted feature or an inference input.
+        nominal = float(data_cfg.get("nominal_capacity", 2.0))
+        if not np.isfinite(nominal) or nominal <= 0.0:
+            raise ValueError(f"{path}: nominal_capacity must be finite and positive")
+        if is_smarthealth:
+            expected_nominals = {
+                SMARTHEALTH_NOMINAL_CAPACITY_AH[domain]
+                for domain in observed_domains
+            }
+            if len(expected_nominals) != 1 or not np.isclose(nominal, next(iter(expected_nominals))):
+                raise ValueError(
+                    f"{path}: SmartHealth nominal_capacity={nominal} conflicts with "
+                    f"domain metadata={sorted(expected_nominals)}"
+                )
+        soh = (frame["capacity"].to_numpy(dtype=np.float32) / nominal).reshape(-1, 1)
+    elif target_mode:
+        raise ValueError(
+            f"Unsupported feature_target_mode={target_mode!r}; expected 'capacity_to_nominal' or empty."
+        )
+    elif label_column:
         if label_column not in frame.columns:
             raise ValueError(f"{path} is missing configured feature label column {label_column!r}")
         soh = frame[label_column].to_numpy(dtype=np.float32).reshape(-1, 1)

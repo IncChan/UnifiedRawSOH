@@ -64,7 +64,8 @@ def build_default_registry():
         lambda data_root, **kwargs: SmartHealthRawAdapter(
             data_root,
             domain_id=kwargs.get("domain_id"),
-            label_scale_mode=kwargs.get("label_scale_mode", "none"),
+            nominal_capacity=kwargs.get("nominal_capacity"),
+            label_scale_mode=kwargs.get("label_scale_mode", "label_capacity_to_nominal"),
         ),
     )
     return registry

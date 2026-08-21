@@ -1,6 +1,6 @@
 # MIT physical-cell canonicalization
 
-`run_preprocess.sh mit all` creates the canonical MIT v2 products without
+`run_preprocess.sh mit all` creates the canonical MIT physical-cell products without
 changing the previous 140-source-file archives:
 
 ```bash
@@ -27,9 +27,11 @@ The proposed/canonical **raw** export first infers a persistent CC→CV taper
 near the charge-voltage maximum, then keeps inferred-CC `3.45–3.60 V` and
 inferred-CV nominal `0.25C–0.05C` (`abs(current_A) / 1.1 Ah`).  It records
 the phase decision and nominal C-rate on every raw row.  The paired
-handcrafted feature table deliberately retains the original feature
-extractor's `3.4–3.595 V` / `0.5–0.1 A` definition; this change does not
-redefine the PINN4SOH baseline.
+Only-F feature table retains the validated 16 electrical and 8 temperature statistics, but
+calculates them from those exact accepted raw points. It therefore uses the
+same inferred CC `3.45–3.60 V` and inferred-CV nominal `0.25C–0.05C` signal
+support as RawMamba; it does not apply a second historical window to the HDF5
+source.
 
 The default skips physical cycle 1 once per physical cell.  It does **not**
 skip the first local cycle of a continuation file.  The known source spike

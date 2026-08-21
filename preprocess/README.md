@@ -49,10 +49,9 @@ Use a Python environment with:
 python -m pip install -r preprocess/requirements.txt
 ```
 
-MIT requires `h5py` because the A123 batches are MATLAB v7.3/HDF5. The current
-`pinn` environment was checked and does not provide `h5py`, so it cannot run
-the MIT extractor until that dependency is installed in that environment (or a
-separate preprocessing environment is selected via `PYTHON_BIN`).
+MIT full raw extraction requires `h5py` because the A123 batches are MATLAB
+v7.3/HDF5. Select a preprocessing environment containing the packages in
+`preprocess/requirements.txt` through `PYTHON_BIN` when needed.
 
 ## 3. Commands
 
@@ -64,12 +63,13 @@ feature steps, not all training experiments.
 bash preprocess/run_preprocess.sh xjtu all --workers 4
 
 # MIT: canonical paper124 physical cells; RAW and paired baseline features are
-# generated together so they retain identical physical-cycle identity.
+# generated together from the same accepted phase-aware points.
 bash preprocess/run_preprocess.sh mit all --workers 4
 
-# SmartHealth: process one family or all public SmartHealth families.
-bash preprocess/run_preprocess.sh smarthealth_lishen40 all --workers 8
-bash preprocess/run_preprocess.sh smarthealth all --workers 8
+# SmartHealth: process one family or all public SmartHealth families.  Use
+# --overwrite when replacing the former local-cycle-ID products with v3.
+bash preprocess/run_preprocess.sh smarthealth_lishen40 all --workers 8 --overwrite
+bash preprocess/run_preprocess.sh smarthealth all --workers 8 --overwrite
 
 # Validate existing/generated SmartHealth raw, feature, provenance, and splits.
 bash preprocess/run_preprocess.sh smarthealth_validate validate
@@ -100,7 +100,7 @@ or policy mismatch.
 | Source | Parallel unit | Recommendation |
 | --- | --- | --- |
 | XJTU RAW and features | One independent `.mat` battery file per process. | Start with 2–4 workers; workers write disjoint CSVs and the aggregate report is restored to source order. |
-| MIT physical124 | One physical cell per spawned HDF5 process. | Start with 2–4 workers. `--workers 1` is the debugging mode. |
+| MIT physical124 RAW + paired features | One physical cell per spawned HDF5 process. | Start with 2–4 workers. `--workers 1` is the debugging mode. |
 | SmartHealth RAW | Independent source CSV scans, then one logical-sequence export per worker. | Start with 4–8 workers depending on RAM and storage throughput. |
 | SmartHealth features | Canonical-RAW-only serial feature pass. | It intentionally does not reopen source CSVs or use the RAW worker pool. |
 
@@ -118,13 +118,16 @@ to be invariant to worker completion order.
 - **MIT:** `paper124` continuation-aware physical identities. Infer actual
   CC/CV phase first, then use inferred CC `3.45–3.60 V` and inferred CV
   `abs(current_A)/1.1 Ah = 0.25C–0.05C` with ±`0.002C` selection tolerance.
-  The Only-F product keeps its historical `3.4–3.595 V` / `0.5–0.1 A`
-  handcrafted-feature windows.
+  The Only-F product retains its validated 16 electrical + 8 temperature
+  statistic definitions, but computes them from those same accepted canonical
+  raw rows.
 - **SmartHealth:** family-specific `smarthealth_lishen40`,
   `smarthealth_catl280`, and `smarthealth_eve280`; infer CC→CV first, then use
   CC `3.45–3.58 V` and nominal-C-rate CV `0.25C–0.05C` with ±`0.002C`
-  tolerance. Labels are direct calibration or bounded calibration interpolation
-  only.
+  tolerance. Source-local `循环号` is provenance only: v3 derives the canonical
+  chronology from each logical sequence's `绝对时间` start/end interval before
+  calibration labels are assigned. Labels are direct calibration or bounded
+  calibration interpolation only.
 
 See `MIT_PHYSICAL_DATASET.md` and `SMARTHEALTH_DATASET.md` for the detailed
 identity, label, phase, and audit contracts.

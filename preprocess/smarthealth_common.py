@@ -25,6 +25,7 @@ import sys
 from collections import Counter, defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from statistics import median
 from typing import Callable, Iterable, Iterator, Mapping, Sequence
@@ -33,20 +34,25 @@ import numpy as np
 
 
 SOURCE_ENCODING = "gb18030"
-POLICY_VERSION = "smarthealth_cccv_calibration_v2"
+# v3 differs materially from v2: numbered source chunks are no longer merged
+# by their local ``循环号``.  Every canonical cycle is ordered by the source
+# ``绝对时间`` and retains that local number only as provenance.
+POLICY_VERSION = "smarthealth_cccv_calibration_v3"
 SPLIT_STRATEGY_VERSION = "smarthealth_condition_cell_split_2development_1test_v3"
 CHARGE_STEP = "恒流恒压充电"
 DISCHARGE_STEP = "恒流放电"
-SOURCE_REQUIRED_COLUMNS = {
+SOURCE_POINT_REQUIRED_COLUMNS = (
     "循环号",
     "工步号",
     "工步类型",
     "时间",
+    "绝对时间",
     "电流(A)",
     "电压(V)",
     "充电容量(Ah)",
     "放电容量(Ah)",
-}
+)
+SOURCE_REQUIRED_COLUMNS = set(SOURCE_POINT_REQUIRED_COLUMNS)
 
 
 @dataclass(frozen=True)
@@ -94,7 +100,7 @@ EVE280_CONFIG = DomainConfig(
 
 # This is intentionally versioned evidence, rather than a runtime choice made
 # from a particular train/test subset.  It documents the small, read-only
-# representative-source audit that preceded v2 implementation.
+# representative-source audit that preceded the canonical implementation.
 CC_UPPER_BOUND_AUDIT = {
     "decision": "3.58 V",
     "rejected_candidate": "3.60 V",
@@ -152,6 +158,8 @@ RAW_COLUMNS = [
     "chunk_id",
     "source_file_part",
     "source_cycle",
+    "source_absolute_start_time",
+    "source_absolute_end_time",
     "source_step_id",
     "strategy_version",
     "phase_policy_version",
@@ -223,6 +231,8 @@ FEATURE_PREFIX_COLUMNS = [
     "chunk_id",
     "source_file_part",
     "source_cycle",
+    "source_absolute_start_time",
+    "source_absolute_end_time",
     "strategy_version",
     "phase_policy_version",
 ]
@@ -236,11 +246,14 @@ CYCLE_PROVENANCE_COLUMNS = [
     "source_series",
     "condition",
     "cycle",
+    "source_cycle",
     "source_file",
     "chunk_id",
     "source_file_part",
     "source_file_size_bytes",
     "source_file_mtime_ns",
+    "source_absolute_start_time",
+    "source_absolute_end_time",
     "source_rows",
     "source_charge_event_count",
     "source_discharge_event_count",
@@ -272,7 +285,7 @@ CYCLE_PROVENANCE_COLUMNS = [
     "boundary_detection_reason",
     "candidate_eligible",
     "candidate_eligibility_reason",
-    "candidate_count_for_cycle",
+    "candidate_count_for_event",
     "selected_candidate",
     "selection_reason",
     "cycle_discharge_capacity_Ah",
@@ -305,8 +318,8 @@ CELL_PROVENANCE_COLUMNS = [
     "nominal_capacity_Ah",
     "source_chunk_count",
     "source_cycle_candidates",
-    "unique_source_cycles",
-    "duplicate_source_cycles",
+    "unique_source_events",
+    "duplicate_timestamp_candidates",
     "phase_eligible_cycles",
     "direct_calibration_cycles",
     "interpolated_label_cycles",
@@ -342,6 +355,9 @@ SOURCE_FILE_AUDIT_COLUMNS = [
     "temperature_column_present",
     "source_cycle_count",
     "source_row_count",
+    "malformed_rows_skipped",
+    "malformed_row_reason_counts",
+    "malformed_row_examples",
     "nul_characters_removed",
     "boundary_status_counts",
     "candidate_eligible_cycles",
@@ -384,6 +400,7 @@ class Point:
     step_id: str
     step_type: str
     time_text: str
+    absolute_time: datetime
     current_a: float
     voltage_v: float
     charge_capacity_ah: float
@@ -429,14 +446,20 @@ class PhaseResult:
 @dataclass
 class CycleCandidate:
     identity: SourceIdentity
-    cycle: int
+    source_cycle: int
+    source_absolute_start_time: datetime
+    source_absolute_end_time: datetime
     source_rows: int
     source_temperature_column_present: bool
     phase: PhaseResult
     cycle_discharge_capacity_ah: float
     candidate_eligible: bool
     candidate_eligibility_reason: str
-    candidate_count_for_cycle: int = 0
+    # ``cycle`` is assigned only after source events have been ordered by
+    # absolute timestamp.  Source-local cycle numbers are not globally unique
+    # across continuation chunks.
+    canonical_cycle: int | None = None
+    candidate_count_for_event: int = 0
     selected_candidate: bool = False
     selection_reason: str = ""
     calibration_direct_candidate: bool = False
@@ -453,13 +476,20 @@ class CycleCandidate:
     raw_rows_written: int = 0
 
 
+# A source-local ``循环号`` is not a physical identity: it is reused after
+# continuation chunks.  An event is therefore identified by its sequence plus
+# its complete source wall-clock interval.  The interval avoids collapsing two
+# distinct events should a source export reuse the same start timestamp.
+SourceEventKey = tuple[str, datetime, datetime]
+
+
 @dataclass
 class CellSummary:
     identity: SourceIdentity
     source_chunk_count: int = 0
     source_cycle_candidates: int = 0
-    unique_source_cycles: int = 0
-    duplicate_source_cycles: int = 0
+    unique_source_events: int = 0
+    duplicate_timestamp_candidates: int = 0
     phase_eligible_cycles: int = 0
     direct_calibration_cycles: int = 0
     interpolated_label_cycles: int = 0
@@ -515,6 +545,56 @@ def source_cycle(value: str, path: Path, source_row_index: int) -> int:
             f"Invalid source cycle {value!r} in {path} at source row {source_row_index}"
         )
     return int(number)
+
+
+def source_absolute_time(value: str, path: Path, source_row_index: int) -> datetime:
+    """Parse a source ``绝对时间`` cell into a timezone-naive local datetime.
+
+    SmartHealth files use local wall-clock timestamps such as
+    ``2022-10-26 21:04:23``. A few exports use slash separators, ``T``, or
+    non-zero-padded month/day/hour/minute fields (for example
+    ``2022/8/4 8:27``). A missing/unparseable timestamp is unsafe because it
+    would reintroduce the old local-cycle ordering bug, so fail the source scan
+    explicitly.
+    """
+
+    text = str(value).strip().replace("/", "-").replace("T", " ")
+    if not text:
+        raise ValueError(
+            f"Missing source absolute time in {path} at source row {source_row_index}"
+        )
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        parsed = None
+        # ``strptime`` accepts unpadded numeric fields for these directives,
+        # whereas ``fromisoformat`` deliberately requires ISO zero-padding.
+        for layout in (
+            "%Y-%m-%d %H:%M:%S.%f",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %H:%M",
+        ):
+            try:
+                parsed = datetime.strptime(text, layout)
+                break
+            except ValueError:
+                continue
+        if parsed is None:
+            raise ValueError(
+                f"Invalid source absolute time {value!r} in {path} at source row {source_row_index}"
+            )
+    if parsed.tzinfo is not None:
+        # All current source files are local-time strings.  Keeping a timezone
+        # here would make naive/aware datetime ordering fail unpredictably.
+        parsed = parsed.replace(tzinfo=None)
+    return parsed
+
+
+def format_source_absolute_time(value: datetime) -> str:
+    """Stable CSV/provenance serialization for a parsed source timestamp."""
+
+    timespec = "microseconds" if value.microsecond else "seconds"
+    return value.isoformat(sep=" ", timespec=timespec)
 
 
 def duration_seconds(value: str) -> float:
@@ -838,7 +918,7 @@ def principal_discharge_capacity(points: Sequence[Point]) -> float:
 
 def candidate_from_points(
     identity: SourceIdentity,
-    cycle: int,
+    source_cycle_id: int,
     points: Sequence[Point],
     source_temperature_column_present: bool,
     args: argparse.Namespace,
@@ -846,6 +926,11 @@ def candidate_from_points(
     phase = split_combined_charge(points, args)
     select_model_windows(phase, identity.config, args)
     discharge_capacity = principal_discharge_capacity(points)
+    source_times = [point.absolute_time for point in points]
+    if not source_times:
+        raise ValueError(
+            f"No source timestamps for {identity.relative_path}, source cycle {source_cycle_id}"
+        )
     reasons: list[str] = []
     if phase.status != "ok":
         reasons.append(phase.reason)
@@ -860,7 +945,9 @@ def candidate_from_points(
         reasons.append("invalid_principal_discharge_capacity")
     candidate = CycleCandidate(
         identity=identity,
-        cycle=cycle,
+        source_cycle=source_cycle_id,
+        source_absolute_start_time=min(source_times),
+        source_absolute_end_time=max(source_times),
         source_rows=len(points),
         source_temperature_column_present=source_temperature_column_present,
         phase=phase,
@@ -910,7 +997,10 @@ def visit_cycles(
     """Stream one GB18030 source CSV, yielding contiguous source cycles.
 
     Literal NUL characters are removed before CSV tokenization and their count
-    is returned to the source-file audit.
+    is returned to the source-file audit. A non-empty but truncated source row
+    with no complete point-level record is skipped, while its reason and row
+    index remain in that audit. It is never repaired or assigned a fabricated
+    timestamp.
     """
 
     with identity.path.open("r", encoding=SOURCE_ENCODING, newline="") as handle:
@@ -935,11 +1025,40 @@ def visit_cycles(
         seen: set[int] = set()
         source_row_count = 0
         source_cycle_count = 0
+        malformed_rows_skipped = 0
+        malformed_row_reason_counts: Counter[str] = Counter()
+        malformed_row_examples: list[str] = []
         for source_row_index, row in enumerate(reader):
             if not row or not any(field.strip() for field in row):
                 continue
             source_row_count += 1
-            cycle = source_cycle(value(row, "循环号"), identity.path, source_row_index)
+            point_values = {
+                name: value(row, name) for name in SOURCE_POINT_REQUIRED_COLUMNS
+            }
+            missing_values = [
+                name for name, source_value in point_values.items() if not source_value
+            ]
+            if missing_values:
+                malformed_rows_skipped += 1
+                reason = "missing_required_point_values:" + "|".join(missing_values)
+                malformed_row_reason_counts[reason] += 1
+                if len(malformed_row_examples) < 10:
+                    malformed_row_examples.append(f"{source_row_index}:{reason}")
+                continue
+            try:
+                cycle = source_cycle(
+                    point_values["循环号"], identity.path, source_row_index
+                )
+                absolute_time = source_absolute_time(
+                    point_values["绝对时间"], identity.path, source_row_index
+                )
+            except ValueError:
+                malformed_rows_skipped += 1
+                reason = "invalid_cycle_or_absolute_time"
+                malformed_row_reason_counts[reason] += 1
+                if len(malformed_row_examples) < 10:
+                    malformed_row_examples.append(f"{source_row_index}:{reason}")
+                continue
             if current_cycle is None:
                 current_cycle = cycle
             elif cycle != current_cycle:
@@ -956,13 +1075,14 @@ def visit_cycles(
                 Point(
                     source_row_index=source_row_index,
                     cycle=cycle,
-                    step_id=value(row, "工步号"),
-                    step_type=value(row, "工步类型"),
-                    time_text=value(row, "时间"),
-                    current_a=to_float(value(row, "电流(A)")),
-                    voltage_v=to_float(value(row, "电压(V)")),
-                    charge_capacity_ah=to_float(value(row, "充电容量(Ah)")),
-                    discharge_capacity_ah=to_float(value(row, "放电容量(Ah)")),
+                    step_id=point_values["工步号"],
+                    step_type=point_values["工步类型"],
+                    time_text=point_values["时间"],
+                    absolute_time=absolute_time,
+                    current_a=to_float(point_values["电流(A)"]),
+                    voltage_v=to_float(point_values["电压(V)"]),
+                    charge_capacity_ah=to_float(point_values["充电容量(Ah)"]),
+                    discharge_capacity_ah=to_float(point_values["放电容量(Ah)"]),
                     temperature_c=(
                         to_float(value(row, "temp1_1")) if has_temperature else math.nan
                     ),
@@ -980,6 +1100,11 @@ def visit_cycles(
         "temperature_column_present": has_temperature,
         "source_cycle_count": source_cycle_count,
         "source_row_count": source_row_count,
+        "malformed_rows_skipped": malformed_rows_skipped,
+        "malformed_row_reason_counts": json.dumps(
+            dict(sorted(malformed_row_reason_counts.items())), ensure_ascii=False
+        ),
+        "malformed_row_examples": "|".join(malformed_row_examples),
         "nul_characters_removed": sanitized_lines.nul_characters_removed,
     }
 
@@ -1020,6 +1145,9 @@ def scan_one_source(
             "temperature_column_present": info["temperature_column_present"],
             "source_cycle_count": info["source_cycle_count"],
             "source_row_count": info["source_row_count"],
+            "malformed_rows_skipped": info["malformed_rows_skipped"],
+            "malformed_row_reason_counts": info["malformed_row_reason_counts"],
+            "malformed_row_examples": info["malformed_row_examples"],
             "nul_characters_removed": info["nul_characters_removed"],
             "boundary_status_counts": json.dumps(
                 dict(sorted(boundary_counts.items())), ensure_ascii=False
@@ -1032,13 +1160,16 @@ def scan_one_source(
 def scan_sources(
     identities: Sequence[SourceIdentity], args: argparse.Namespace
 ) -> tuple[
-    dict[tuple[str, int], list[CycleCandidate]],
+    dict[SourceEventKey, list[CycleCandidate]],
     dict[str, CellSummary],
     list[dict[str, object]],
 ]:
     """Process-independent scan, merged in inventory order for reproducibility."""
 
-    candidates: dict[tuple[str, int], list[CycleCandidate]] = defaultdict(list)
+    # A source ``循环号`` is local to a numbered CSV chunk and can reset or
+    # overlap after a continuation.  The complete source time interval is the
+    # event identity; exact interval duplicates are reconciled later.
+    candidates: dict[SourceEventKey, list[CycleCandidate]] = defaultdict(list)
     cells: dict[str, CellSummary] = {}
     file_audit: list[dict[str, object]] = []
 
@@ -1050,14 +1181,22 @@ def scan_sources(
         cell.source_chunk_count += 1
         cell.source_cycle_candidates += len(result.candidates)
         for candidate in result.candidates:
-            candidates[(identity.logical_sequence_id, candidate.cycle)].append(candidate)
+            candidates[
+                (
+                    identity.logical_sequence_id,
+                    candidate.source_absolute_start_time,
+                    candidate.source_absolute_end_time,
+                )
+            ].append(candidate)
         file_audit.append(result.audit_row)
         nul_count = int(result.audit_row["nul_characters_removed"])
+        malformed_count = int(result.audit_row["malformed_rows_skipped"])
         print(
             f"[scan {source_index}/{len(identities)}] {identity.relative_path}: "
             f"{result.audit_row['source_cycle_count']} cycles, "
             f"{result.audit_row['candidate_eligible_cycles']} phase/window eligible"
-            + (f"; sanitized {nul_count} NUL characters" if nul_count else ""),
+            + (f"; sanitized {nul_count} NUL characters" if nul_count else "")
+            + (f"; skipped {malformed_count} malformed row(s)" if malformed_count else ""),
             flush=True,
         )
 
@@ -1106,40 +1245,97 @@ def candidate_quality_key(candidate: CycleCandidate) -> tuple[object, ...]:
     )
 
 
+def chronological_candidate_key(candidate: CycleCandidate) -> tuple[object, ...]:
+    """Deterministic physical ordering for one logical SmartHealth sequence."""
+
+    return (
+        candidate.source_absolute_start_time,
+        candidate.source_absolute_end_time,
+        candidate.identity.relative_path,
+        candidate.source_cycle,
+    )
+
+
 def resolve_duplicate_candidates(
-    candidates: Mapping[tuple[str, int], Sequence[CycleCandidate]],
+    candidates: Mapping[SourceEventKey, Sequence[CycleCandidate]],
     cells: Mapping[str, CellSummary],
-) -> dict[tuple[str, int], CycleCandidate]:
-    selected: dict[tuple[str, int], CycleCandidate] = {}
+) -> dict[SourceEventKey, CycleCandidate]:
+    """Select only exact-time-interval duplicate source events.
+
+    Different chunks frequently reuse the same source-cycle number at
+    different dates.  They are distinct physical events and must both remain
+    in the canonical sequence.  Quality ranking is therefore restricted to
+    candidates with the same logical sequence and source absolute-time
+    interval.
+    """
+
+    selected: dict[SourceEventKey, CycleCandidate] = {}
     by_cell: dict[str, list[CycleCandidate]] = defaultdict(list)
-    for key, same_cycle in sorted(candidates.items()):
-        ordered = sorted(same_cycle, key=candidate_quality_key)
+    for key, same_event in sorted(candidates.items()):
+        ordered = sorted(same_event, key=candidate_quality_key)
         winner = ordered[0]
-        winner.candidate_count_for_cycle = len(ordered)
+        winner.candidate_count_for_event = len(ordered)
         winner.selected_candidate = True
         winner.selection_reason = (
-            "unique_source_cycle"
+            "unique_source_time_interval_event"
             if len(ordered) == 1
-            else "quality_rank:boundary,temperature,selected_cccv_points,label_eligibility,charge_points,source_rows,earlier_chunk"
+            else "duplicate_source_time_interval_quality_rank:boundary,temperature,selected_cccv_points,label_eligibility,charge_points,source_rows,earlier_chunk"
         )
         for candidate in ordered[1:]:
-            candidate.candidate_count_for_cycle = len(ordered)
-            candidate.selection_reason = "duplicate_source_cycle_not_selected"
+            candidate.candidate_count_for_event = len(ordered)
+            candidate.selection_reason = "duplicate_source_time_interval_not_selected"
             candidate.output_status = "not_selected"
             candidate.output_reason = "lower_duplicate_candidate_quality"
         selected[key] = winner
         by_cell[winner.identity.logical_sequence_id].append(winner)
 
     for logical_sequence_id, cell in cells.items():
-        series = sorted(by_cell.get(logical_sequence_id, []), key=lambda item: item.cycle)
-        cell.unique_source_cycles = len(series)
-        cell.duplicate_source_cycles = sum(
-            len(same_cycle) > 1
-            for (candidate_cell, _), same_cycle in candidates.items()
+        series = sorted(by_cell.get(logical_sequence_id, []), key=chronological_candidate_key)
+        cell.unique_source_events = len(series)
+        cell.duplicate_timestamp_candidates = sum(
+            len(same_event) > 1
+            for (candidate_cell, _, _), same_event in candidates.items()
             if candidate_cell == logical_sequence_id
         )
         cell.phase_eligible_cycles = sum(candidate.candidate_eligible for candidate in series)
     return selected
+
+
+def assign_chronological_cycle_ids(
+    selected_events: Mapping[SourceEventKey, CycleCandidate],
+    candidates: Mapping[SourceEventKey, Sequence[CycleCandidate]],
+) -> dict[tuple[str, int], CycleCandidate]:
+    """Assign one-based canonical cycle IDs after source-time ordering.
+
+    ``source_cycle`` remains the untouched local ID from a GB18030 CSV.  The
+    exported ``cycle`` is instead a unique chronological index within the
+    logical sequence.  Every exact-time-interval duplicate (including a
+    rejected one) receives the winner's canonical ID in provenance.
+    """
+
+    by_cell: dict[str, list[tuple[SourceEventKey, CycleCandidate]]] = defaultdict(list)
+    for event_key, candidate in selected_events.items():
+        by_cell[candidate.identity.logical_sequence_id].append((event_key, candidate))
+
+    selected: dict[tuple[str, int], CycleCandidate] = {}
+    for logical_sequence_id, events_for_cell in by_cell.items():
+        ordered = sorted(events_for_cell, key=lambda item: chronological_candidate_key(item[1]))
+        for canonical_cycle, (event_key, winner) in enumerate(ordered, start=1):
+            for candidate in candidates[event_key]:
+                candidate.canonical_cycle = canonical_cycle
+            key = (logical_sequence_id, canonical_cycle)
+            if key in selected:
+                raise RuntimeError(f"Duplicate canonical SmartHealth cycle identity: {key}")
+            selected[key] = winner
+    return selected
+
+
+def canonical_cycle_id(candidate: CycleCandidate) -> int:
+    if candidate.canonical_cycle is None:
+        raise RuntimeError(
+            "SmartHealth candidate has no canonical cycle ID; assign chronological IDs first"
+        )
+    return int(candidate.canonical_cycle)
 
 
 def _calibration_reason(candidate: CycleCandidate) -> str:
@@ -1160,14 +1356,20 @@ def label_calibration_soh(
     selected: Mapping[tuple[str, int], CycleCandidate],
     cells: Mapping[str, CellSummary],
 ) -> None:
-    """Attach direct/interpolated calibration SOH without any extrapolation."""
+    """Attach calibration capacities and fixed-nominal SOH without extrapolation.
+
+    ``reference_calibration_capacity_ah`` remains auditable provenance for the
+    early reliable calibration sequence.  It is not the Paper target
+    denominator: all SmartHealth families use their fixed nominal capacity,
+    matching the XJTU and MIT target convention.
+    """
 
     by_cell: dict[str, list[CycleCandidate]] = defaultdict(list)
     for candidate in selected.values():
         by_cell[candidate.identity.logical_sequence_id].append(candidate)
 
     for logical_sequence_id, cell in cells.items():
-        series = sorted(by_cell.get(logical_sequence_id, []), key=lambda item: item.cycle)
+        series = sorted(by_cell.get(logical_sequence_id, []), key=chronological_candidate_key)
         direct: list[CycleCandidate] = []
         for candidate in series:
             reason = _calibration_reason(candidate)
@@ -1192,9 +1394,9 @@ def label_calibration_soh(
             raise ValueError(f"Invalid calibration reference for {logical_sequence_id}")
         cell.reference_calibration_capacity_ah = reference
         cell.reference_calibration_cycle_count = 3
-        cell.first_calibration_cycle = direct[0].cycle
-        cell.last_calibration_cycle = direct[-1].cycle
-        direct_by_cycle = {candidate.cycle: candidate for candidate in direct}
+        cell.first_calibration_cycle = canonical_cycle_id(direct[0])
+        cell.last_calibration_cycle = canonical_cycle_id(direct[-1])
+        direct_by_cycle = {canonical_cycle_id(candidate): candidate for candidate in direct}
 
         for candidate in series:
             candidate.reference_calibration_capacity_ah = reference
@@ -1203,12 +1405,13 @@ def label_calibration_soh(
                 candidate.output_reason = candidate.candidate_eligibility_reason
                 cell.excluded_selected_cycles += 1
                 continue
-            if candidate.cycle in direct_by_cycle:
+            candidate_cycle = canonical_cycle_id(candidate)
+            if candidate_cycle in direct_by_cycle:
                 label_capacity = candidate.cycle_discharge_capacity_ah
                 label_source = "calibration_direct"
             else:
-                left = [item for item in direct if item.cycle < candidate.cycle]
-                right = [item for item in direct if item.cycle > candidate.cycle]
+                left = [item for item in direct if canonical_cycle_id(item) < candidate_cycle]
+                right = [item for item in direct if canonical_cycle_id(item) > candidate_cycle]
                 if not left:
                     candidate.output_status = "excluded"
                     candidate.output_reason = "no_calibration_before_cycle_no_extrapolation"
@@ -1220,12 +1423,14 @@ def label_calibration_soh(
                     cell.excluded_selected_cycles += 1
                     continue
                 lower, upper = left[-1], right[0]
-                fraction = (candidate.cycle - lower.cycle) / (upper.cycle - lower.cycle)
+                lower_cycle = canonical_cycle_id(lower)
+                upper_cycle = canonical_cycle_id(upper)
+                fraction = (candidate_cycle - lower_cycle) / (upper_cycle - lower_cycle)
                 label_capacity = lower.cycle_discharge_capacity_ah + fraction * (
                     upper.cycle_discharge_capacity_ah - lower.cycle_discharge_capacity_ah
                 )
                 label_source = "calibration_interpolated"
-            soh = label_capacity / reference
+            soh = label_capacity / candidate.identity.config.nominal_capacity_ah
             if not math.isfinite(soh) or soh <= 0:
                 candidate.output_status = "excluded"
                 candidate.output_reason = "invalid_soh_after_calibration_label"
@@ -1505,7 +1710,7 @@ def make_raw_row(
         "logical_sequence_id": identity.logical_sequence_id,
         "source_series": identity.source_series,
         "condition": identity.condition,
-        "cycle": candidate.cycle,
+        "cycle": canonical_cycle_id(candidate),
         "SOH": candidate.soh,
         "label_source": candidate.label_source,
         "cycle_discharge_capacity_Ah": candidate.cycle_discharge_capacity_ah,
@@ -1532,7 +1737,13 @@ def make_raw_row(
         "source_file": identity.relative_path,
         "chunk_id": identity.chunk_id,
         "source_file_part": identity.chunk_id,
-        "source_cycle": candidate.cycle,
+        "source_cycle": candidate.source_cycle,
+        "source_absolute_start_time": format_source_absolute_time(
+            candidate.source_absolute_start_time
+        ),
+        "source_absolute_end_time": format_source_absolute_time(
+            candidate.source_absolute_end_time
+        ),
         "source_step_id": point.step_id,
         "strategy_version": POLICY_VERSION,
         "phase_policy_version": POLICY_VERSION,
@@ -1559,13 +1770,13 @@ def export_one_logical_sequence(
     candidates_by_source_cycle: dict[tuple[str, int], CycleCandidate] = {}
     wanted_by_source: dict[str, set[int]] = defaultdict(set)
     for candidate in selected_candidates:
-        key = (candidate.identity.relative_path, candidate.cycle)
+        key = (candidate.identity.relative_path, candidate.source_cycle)
         if key in candidates_by_source_cycle:
             raise RuntimeError(
                 f"Duplicate export task identity for {logical_sequence_id}: {key}"
             )
         candidates_by_source_cycle[key] = candidate
-        wanted_by_source[candidate.identity.relative_path].add(candidate.cycle)
+        wanted_by_source[candidate.identity.relative_path].add(candidate.source_cycle)
     if not candidates_by_source_cycle:
         raise RuntimeError(f"No selected cycles to export for {logical_sequence_id}")
 
@@ -1584,25 +1795,35 @@ def export_one_logical_sequence(
                     continue
                 source_files_with_selected_cycles += 1
 
-                def callback(cycle: int, points: list[Point], has_temperature: bool) -> None:
+                def callback(source_cycle_id: int, points: list[Point], has_temperature: bool) -> None:
                     del has_temperature
-                    if cycle not in wanted:
+                    if source_cycle_id not in wanted:
                         return
                     candidate = candidates_by_source_cycle.get(
-                        (identity.relative_path, cycle)
+                        (identity.relative_path, source_cycle_id)
                     )
                     if candidate is None:
                         return
+                    observed_start = min(point.absolute_time for point in points)
+                    observed_end = max(point.absolute_time for point in points)
+                    if (
+                        observed_start != candidate.source_absolute_start_time
+                        or observed_end != candidate.source_absolute_end_time
+                    ):
+                        raise RuntimeError(
+                            "Non-reproducible source time-interval identity in "
+                            f"{identity.relative_path}, source cycle {source_cycle_id}"
+                        )
                     phase = _selected_phase_for_export(points, identity.config, args)
                     if not _same_phase_summary(candidate.phase, phase):
                         raise RuntimeError(
                             "Non-reproducible CC/CV decision in "
-                            f"{identity.relative_path}, cycle {cycle}"
+                            f"{identity.relative_path}, source cycle {source_cycle_id}"
                         )
                     if not phase.selected_cc or not phase.selected_cv:
                         raise RuntimeError(
                             "Selected CC/CV window became empty in "
-                            f"{identity.relative_path}, cycle {cycle}"
+                            f"{identity.relative_path}, source cycle {source_cycle_id}"
                         )
                     time_zero = duration_seconds(phase.cc[0].time_text)
                     rows = 0
@@ -1623,13 +1844,19 @@ def export_one_logical_sequence(
                                 )
                             )
                             rows += 1
-                    raw_rows_by_cycle[cycle] = rows
+                    canonical_cycle = canonical_cycle_id(candidate)
+                    if canonical_cycle in raw_rows_by_cycle:
+                        raise RuntimeError(
+                            f"Duplicate canonical cycle during export for {logical_sequence_id}: "
+                            f"{canonical_cycle}"
+                        )
+                    raw_rows_by_cycle[canonical_cycle] = rows
 
                 visit_cycles(identity, callback)
         missing = sorted(
-            cycle
-            for _, cycle in candidates_by_source_cycle
-            if cycle not in raw_rows_by_cycle
+            canonical_cycle_id(candidate)
+            for candidate in candidates_by_source_cycle.values()
+            if canonical_cycle_id(candidate) not in raw_rows_by_cycle
         )
         if missing:
             raise RuntimeError(
@@ -1667,7 +1894,7 @@ def export_raw_products(
         (
             logical_sequence_id,
             identities_by_cell[logical_sequence_id],
-            sorted(candidates, key=lambda item: item.cycle),
+            sorted(candidates, key=canonical_cycle_id),
             raw_domain_directory / f"{logical_sequence_id}.csv",
         )
         for logical_sequence_id, candidates in sorted(pending_by_cell.items())
@@ -1723,7 +1950,7 @@ def export_raw_products(
                     merge(next_index, pending.pop(next_index))
                     next_index += 1
     missing = [
-        (candidate.identity.logical_sequence_id, candidate.cycle)
+        (candidate.identity.logical_sequence_id, canonical_cycle_id(candidate))
         for candidate in selected.values()
         if candidate.output_status == "selected_pending_export"
     ]
@@ -1744,12 +1971,19 @@ def candidate_provenance(candidate: CycleCandidate) -> dict[str, object]:
         "logical_sequence_id": identity.logical_sequence_id,
         "source_series": identity.source_series,
         "condition": identity.condition,
-        "cycle": candidate.cycle,
+        "cycle": canonical_cycle_id(candidate),
+        "source_cycle": candidate.source_cycle,
         "source_file": identity.relative_path,
         "chunk_id": identity.chunk_id,
         "source_file_part": identity.chunk_id,
         "source_file_size_bytes": identity.file_size_bytes,
         "source_file_mtime_ns": identity.file_mtime_ns,
+        "source_absolute_start_time": format_source_absolute_time(
+            candidate.source_absolute_start_time
+        ),
+        "source_absolute_end_time": format_source_absolute_time(
+            candidate.source_absolute_end_time
+        ),
         "source_rows": candidate.source_rows,
         "source_charge_event_count": phase.charge_event_count,
         "source_discharge_event_count": phase.discharge_event_count,
@@ -1781,7 +2015,7 @@ def candidate_provenance(candidate: CycleCandidate) -> dict[str, object]:
         "boundary_detection_reason": phase.reason,
         "candidate_eligible": candidate.candidate_eligible,
         "candidate_eligibility_reason": candidate.candidate_eligibility_reason,
-        "candidate_count_for_cycle": candidate.candidate_count_for_cycle,
+        "candidate_count_for_event": candidate.candidate_count_for_event,
         "selected_candidate": candidate.selected_candidate,
         "selection_reason": candidate.selection_reason,
         "cycle_discharge_capacity_Ah": candidate.cycle_discharge_capacity_ah,
@@ -1817,8 +2051,8 @@ def cell_provenance(cell: CellSummary) -> dict[str, object]:
         "nominal_capacity_Ah": identity.config.nominal_capacity_ah,
         "source_chunk_count": cell.source_chunk_count,
         "source_cycle_candidates": cell.source_cycle_candidates,
-        "unique_source_cycles": cell.unique_source_cycles,
-        "duplicate_source_cycles": cell.duplicate_source_cycles,
+        "unique_source_events": cell.unique_source_events,
+        "duplicate_timestamp_candidates": cell.duplicate_timestamp_candidates,
         "phase_eligible_cycles": cell.phase_eligible_cycles,
         "direct_calibration_cycles": cell.direct_calibration_cycles,
         "interpolated_label_cycles": cell.interpolated_label_cycles,
@@ -1843,7 +2077,7 @@ def build_raw_report(
     config: DomainConfig,
     input_root: Path,
     identities: Sequence[SourceIdentity],
-    candidates: Mapping[tuple[str, int], Sequence[CycleCandidate]],
+    candidates: Mapping[SourceEventKey, Sequence[CycleCandidate]],
     cells: Mapping[str, CellSummary],
     split_path: Path,
     split_payload: Mapping[str, object],
@@ -1865,9 +2099,9 @@ def build_raw_report(
         by_condition[condition] = {
             "source_files": len(source_identity),
             "logical_sequences": len(condition_cells),
-            "duplicate_cycle_candidates": sum(
+            "duplicate_timestamp_candidates": sum(
                 max(0, len(value) - 1)
-                for (logical_sequence_id, _), value in candidates.items()
+                for (logical_sequence_id, _, _), value in candidates.items()
                 if any(cell.identity.logical_sequence_id == logical_sequence_id for cell in condition_cells)
             ),
             "boundary_success": sum(candidate.phase.status == "ok" for candidate in condition_selected),
@@ -1904,7 +2138,7 @@ def build_raw_report(
             ),
         }
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "strategy_version": POLICY_VERSION,
         "preprocessing_strategy_version": POLICY_VERSION,
         "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -1920,12 +2154,13 @@ def build_raw_report(
             "scan_parallelization": "independent source CSV process workers",
             "export_parallelization": "one worker-owned CSV per logical sequence",
             "merge_order": "source inventory/logical sequence order; canonical data and split are worker-count invariant",
+            "canonical_cycle_identity": "logical_sequence_id + source absolute-time interval order; source_cycle remains provenance only",
         },
         "source_manifest_signature_sha256": inventory_signature(identities),
         "source_files": len(identities),
         "logical_sequences": len(cells),
-        "unique_logical_sequence_cycles": len(candidates),
-        "duplicate_cycle_candidates": sum(max(0, len(value) - 1) for value in candidates.values()),
+        "unique_source_events": len(candidates),
+        "duplicate_timestamp_candidates": sum(max(0, len(value) - 1) for value in candidates.values()),
         "boundary_detection_success": sum(candidate.phase.status == "ok" for candidate in selected),
         "boundary_detection_failure": sum(candidate.phase.status != "ok" for candidate in selected),
         "cc_window_coverage": sum(candidate.phase.cc_window_complete for candidate in selected),
@@ -1962,11 +2197,12 @@ def build_raw_report(
             "temperature": "all selected CC/CV points must have finite source temperature; no imputation",
         },
         "soh_policy": {
-            "reference": "median of first three reliable calibration discharge capacities",
+            "target": "calibration-derived label capacity / fixed nominal family capacity",
+            "reference": "median of first three reliable calibration discharge capacities; provenance only, not the target denominator",
             "direct": "calibration_direct",
             "interpolation": "linear only between direct calibration cycles; no leading/trailing extrapolation",
             "excluded": "partial-DOD discharge capacity / nominal capacity is never an SOH label",
-            "rul_eol": "not generated in v2",
+            "rul_eol": "not generated in v3",
         },
         "split_file": str(split_path),
     }
@@ -2077,7 +2313,8 @@ def run_raw_preprocessing(config: DomainConfig, argv: Sequence[str] | None = Non
         flush=True,
     )
     candidates, cells, source_audit = scan_sources(identities, args)
-    selected = resolve_duplicate_candidates(candidates, cells)
+    selected_events = resolve_duplicate_candidates(candidates, cells)
+    selected = assign_chronological_cycle_ids(selected_events, candidates)
     label_calibration_soh(selected, cells)
     split_payload = assign_split_roles(config, cells, signature)
     apply_split_roles_to_candidates(
@@ -2141,7 +2378,7 @@ def run_raw_preprocessing(config: DomainConfig, argv: Sequence[str] | None = Non
     write_json(
         raw_domain_directory / raw_manifest_name,
         {
-            "schema_version": 3,
+            "schema_version": 4,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -2157,6 +2394,10 @@ def run_raw_preprocessing(config: DomainConfig, argv: Sequence[str] | None = Non
                 "scan_parallelization": "independent source CSV process workers",
                 "export_parallelization": "one worker-owned CSV per logical sequence",
                 "worker_count_invariant_data_contract": True,
+            },
+            "cycle_identity": {
+                "canonical_cycle": "one-based chronological index within logical_sequence_id, ordered by source_absolute_start_time then source_absolute_end_time",
+                "source_cycle": "untouched local source 循环号; provenance only and not globally unique across chunks",
             },
             "raw_schema": RAW_COLUMNS,
             "audit_files": {name: str(path) for name, path in audit_paths.items()},
@@ -2263,6 +2504,8 @@ def _raw_required_fields() -> set[str]:
         "source_file",
         "chunk_id",
         "source_cycle",
+        "source_absolute_start_time",
+        "source_absolute_end_time",
         "strategy_version",
     }
 
@@ -2294,6 +2537,8 @@ def _feature_row_from_raw_cycle(
             row["source_file"],
             row["chunk_id"],
             row["source_cycle"],
+            row["source_absolute_start_time"],
+            row["source_absolute_end_time"],
             row["strategy_version"],
             row["split_role"],
             row["split_status"],
@@ -2357,6 +2602,8 @@ def _feature_row_from_raw_cycle(
         "chunk_id": int(float(first["chunk_id"])),
         "source_file_part": str(first.get("source_file_part", first["chunk_id"])),
         "source_cycle": int(float(first["source_cycle"])),
+        "source_absolute_start_time": str(first["source_absolute_start_time"]),
+        "source_absolute_end_time": str(first["source_absolute_end_time"]),
         "strategy_version": str(first["strategy_version"]),
         "phase_policy_version": str(first.get("phase_policy_version", first["strategy_version"])),
         "voltage mean": safe_mean(cc_v),
@@ -2415,6 +2662,9 @@ def _load_exported_cycle_provenance(
         "domain_id",
         "logical_sequence_id",
         "cycle",
+        "source_cycle",
+        "source_absolute_start_time",
+        "source_absolute_end_time",
         "selected_candidate",
         "output_status",
         "raw_rows_written",
@@ -2556,7 +2806,7 @@ def run_feature_extraction(config: DomainConfig, argv: Sequence[str] | None = No
     write_json(
         feature_domain_directory / pointer_name,
         {
-            "schema_version": 3,
+            "schema_version": 4,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -2577,7 +2827,7 @@ def run_feature_extraction(config: DomainConfig, argv: Sequence[str] | None = No
     write_json(
         feature_domain_directory / report_name,
         {
-            "schema_version": 3,
+            "schema_version": 4,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,

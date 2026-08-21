@@ -33,6 +33,13 @@
       "smarthealth_eve280": "UnifiedRawSOH/datasets/SmartHealth_raw"
     },
     "batches_by_domain": {},
+    "nominal_capacities": {
+      "xjtu": 2.0,
+      "mit": 1.1,
+      "smarthealth_lishen40": 40.0,
+      "smarthealth_catl280": 280.0,
+      "smarthealth_eve280": 280.0
+    },
     "split_files": {
       "xjtu": "UnifiedRawSOH/splits/xjtu/paper_v1_mixed_split.json",
       "mit": "UnifiedRawSOH/splits/mit/mit_paper_physical124_v2_split.json",
@@ -43,14 +50,14 @@
     "label_scale_modes": {
       "xjtu": "auto_capacity_to_soh",
       "mit": "none",
-      "smarthealth_lishen40": "none",
-      "smarthealth_catl280": "none",
-      "smarthealth_eve280": "none"
+      "smarthealth_lishen40": "label_capacity_to_nominal",
+      "smarthealth_catl280": "label_capacity_to_nominal",
+      "smarthealth_eve280": "label_capacity_to_nominal"
     },
     "balance_mode": "domain_battery"
   },
   "train": {
     "monitor": "valid_domain_macro_rmse"
   },
-  "protocol": "SmartHealth v2 family-specific canonical raw products, feature products, and condition-stratified 2-development/1-test logical-cell splits are present. Their source-file overlap, inferred CC/CV boundary, 3.45–3.58 V CC selection, nominal-C-rate 0.25C–0.05C CV selection, and calibration-only SOH are fixed in adjacent provenance files. A condition without exactly three eligible logical sequences remains an explicit manual-confirmation stop, never a fallback split. This all-public Unified configuration is still planned until its formal multi-domain training/selection protocol is intentionally executed."
+  "protocol": "E2 requires SmartHealth v3 family-specific canonical raw products, feature products, and condition-stratified 2-development/1-test logical-cell splits. Their source-time event identity, inferred CC/CV boundary, 3.45–3.58 V CC selection, nominal-C-rate 0.25C–0.05C CV selection, and calibration-derived label_capacity_Ah are fixed in adjacent provenance files. The unified target is label_capacity_Ah / fixed domain nominal capacity (40 Ah for LISHEN; 280 Ah for CATL/EVE), consistent with XJTU/MIT. A condition without exactly three eligible logical sequences remains an explicit manual-confirmation stop, never a fallback split. This all-public Unified configuration is still planned until its formal multi-domain training/selection protocol is intentionally executed."
 }

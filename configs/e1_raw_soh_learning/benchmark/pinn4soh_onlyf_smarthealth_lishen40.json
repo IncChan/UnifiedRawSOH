@@ -17,9 +17,10 @@
     "domain_id": "smarthealth_lishen40",
     "dataset": "SmartHealth_features",
     "split_file": "UnifiedRawSOH/splits/smarthealth/smarthealth_lishen40_cell_split.json",
-    "feature_source": "UnifiedRawSOH/datasets/SmartHealth_features canonical CC/CV/calibration-SOH v2",
+    "feature_source": "UnifiedRawSOH/datasets/SmartHealth_features canonical CC/CV/calibration-capacity v3",
     "nominal_capacity": 40.0,
-    "feature_label_column": "SOH",
+    "feature_target_mode": "capacity_to_nominal",
+    "target_label_policy": "calibration-derived capacity / fixed nominal capacity, matched to RawMamba",
     "drop_3sigma_outliers": false,
     "invalid_cycle_policy": "canonical_phase_window_temperature_calibration_eligible_cycles_only_no_additional_feature_outlier_filter"
   }

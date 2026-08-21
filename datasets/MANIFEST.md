@@ -80,30 +80,39 @@ actual CC/CV phase first, retain CC `3.45–3.60 V`, and retain CV
 (endpoint coverage `0.248C→0.052C`). The
 launcher rejects header-only/incomplete exports before it starts multi-seed
 training; it does not use a legacy v1 source as a fallback. The historical
-handcrafted MIT feature extractor remains at its original author-defined
-windows and is not changed by this raw-policy update.
+handcrafted MIT statistic definitions are retained, but the canonical Only-F
+feature table is regenerated directly from the same accepted raw CC/CV points
+as RawMamba.
 
 ## SmartHealth — domains C1/C2/C3
 
 The external SmartHealth source has 1,128 GB18030 CSV chunks and 45
-filename-level logical series. Its completed canonical conversion is
-`smarthealth_cccv_calibration_v2`. The source and generated products are
-local-only; this repository records their contract but does not redistribute
-them.
+filename-level logical series. The current code contract is
+`smarthealth_cccv_calibration_v3`; any local v2 raw/feature/split products
+must be regenerated before SmartHealth training. The source and generated
+products are local-only; this repository records their contract but does not
+redistribute them.
 
 | Domain | Source files / series | Temperature-header audit | Canonical status |
 |---|---:|---|---|
-| smarthealth_lishen40 (C1) | 629 / 27 | `temp1_1` in audited headers | 27 canonical raw + 27 feature logical-sequence files |
-| smarthealth_catl280 (C2) | 200 / 9 | `temp1_1` in audited headers | 9 canonical raw + 9 feature logical-sequence files |
-| smarthealth_eve280 (C3) | 299 / 9 | 9 chunks lack `temp1_1` | 9 canonical raw + 9 feature logical-sequence files; missing-T candidates excluded |
+| smarthealth_lishen40 (C1) | 629 / 27 | `temp1_1` in audited headers | v3 regeneration pending |
+| smarthealth_catl280 (C2) | 200 / 9 | `temp1_1` in audited headers | v3 regeneration pending |
+| smarthealth_eve280 (C3) | 299 / 9 | 9 chunks lack `temp1_1` | v3 regeneration pending; missing-T candidates remain excluded |
 
 Canonical raw files are namespaced under
 `datasets/SmartHealth_raw/<domain>`; matching features are under
-`datasets/SmartHealth_features/<domain>`; explicit v2 family splits are in
-`splits/smarthealth`. Each raw cycle preserves source-file/chunk/cycle,
-logical-sequence identity, inferred boundary, selected window, calibration
-label, and policy version. Per-family audit companions live in
+`datasets/SmartHealth_features/<domain>`; explicit v3 family splits are in
+`splits/smarthealth`. Each raw cycle preserves source-file/chunk/local-cycle,
+`绝对时间` start/end, the chronological canonical cycle, logical-sequence
+identity, inferred boundary, selected window, calibration label, and policy
+version. Per-family audit companions live in
 `datasets/SmartHealth_raw/audit/`.
+
+The calibration pipeline produces `label_capacity_Ah` directly or by
+between-calibration interpolation. Paper RawMamba and Only-F experiments both
+use `label_capacity_Ah / fixed nominal capacity` as the target: 40 Ah for C1,
+280 Ah for C2/C3. The historical per-sequence `Q_ref` remains provenance only;
+it is not the E1/E2 target denominator.
 
 C-rate and DOD are operating/aging conditions inside their manufacturer/model
 domain, not separate domains. The preprocessor deliberately avoids a

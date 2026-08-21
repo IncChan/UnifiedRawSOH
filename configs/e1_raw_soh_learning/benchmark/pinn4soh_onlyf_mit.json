@@ -17,7 +17,7 @@
     "domain_id": "mit",
     "dataset": "MIT_features",
     "split_file": "UnifiedRawSOH/splits/mit/mit_paper_physical124_v2_split.json",
-    "feature_source": "UnifiedRawSOH/datasets/MIT_features canonical paired physical-cell export",
+    "feature_source": "UnifiedRawSOH/datasets/MIT_features phase-aware Only-F statistics derived from the canonical raw CC/CV rows",
     "nominal_capacity": 1.1,
     "require_full_physical_cohort": true,
     "normalization_scope": "pooled_non_test_train_val_cycles",

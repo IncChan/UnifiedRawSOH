@@ -1,8 +1,8 @@
-"""SmartHealth source audit and v2 canonical raw-cycle adapter.
+"""SmartHealth source audit and v3 time-ordered canonical raw-cycle adapter.
 
 The GB18030 source has a combined ``恒流恒压充电`` step and is audit-only when
-supplied directly.  The three family-specific v2 RAW preprocessors write the
-validated boundary, selected CC/CV windows, calibration-derived SOH, and
+supplied directly.  The three family-specific v3 RAW preprocessors write the
+validated boundary, selected CC/CV windows, calibration-derived capacity, and
 cell/cycle provenance that this adapter consumes.
 """
 
@@ -12,6 +12,7 @@ import csv
 import math
 import re
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +25,7 @@ SMARTHEALTH_REQUIRED_COLUMNS = {
     "循环号",
     "工步号",
     "工步类型",
+    "绝对时间",
     "电流(A)",
     "电压(V)",
     "充电容量(Ah)",
@@ -40,7 +42,7 @@ SMARTHEALTH_NOMINAL_CAPACITY_AH = {
     "smarthealth_catl280": 280.0,
     "smarthealth_eve280": 280.0,
 }
-SMARTHEALTH_CANONICAL_POLICY_VERSION = "smarthealth_cccv_calibration_v2"
+SMARTHEALTH_CANONICAL_POLICY_VERSION = "smarthealth_cccv_calibration_v3"
 SMARTHEALTH_CC_VOLTAGE_RANGE = (3.45, 3.58)
 SMARTHEALTH_CV_C_RATE_RANGE = (0.05, 0.25)
 SMARTHEALTH_CV_SELECTION_TOLERANCE_C = 0.002
@@ -59,6 +61,7 @@ SMARTHEALTH_PROCESSED_REQUIRED_COLUMNS = {
     "logical_sequence_id",
     "cycle",
     "SOH",
+    "label_capacity_Ah",
     "label_source",
     "split_role",
     "split_status",
@@ -75,6 +78,8 @@ SMARTHEALTH_PROCESSED_REQUIRED_COLUMNS = {
     "source_file",
     "chunk_id",
     "source_cycle",
+    "source_absolute_start_time",
+    "source_absolute_end_time",
     "strategy_version",
     "phase_policy_version",
     "cc_voltage_low_V",
@@ -82,6 +87,31 @@ SMARTHEALTH_PROCESSED_REQUIRED_COLUMNS = {
     "cv_c_rate_low",
     "cv_c_rate_high",
 }
+
+
+def _parse_source_absolute_time(value: str, path: Path) -> datetime:
+    text = str(value).strip().replace("/", "-").replace("T", " ")
+    if not text:
+        raise ValueError(f"Canonical SmartHealth row lacks source absolute time: {path}")
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        parsed = None
+        for layout in (
+            "%Y-%m-%d %H:%M:%S.%f",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %H:%M",
+        ):
+            try:
+                parsed = datetime.strptime(text, layout)
+                break
+            except ValueError:
+                continue
+        if parsed is None:
+            raise ValueError(
+                f"Invalid canonical SmartHealth source absolute time {value!r}: {path}"
+            )
+    return parsed.replace(tzinfo=None) if parsed.tzinfo is not None else parsed
 
 
 def list_smarthealth_csv_files(data_root: str | Path) -> list[Path]:
@@ -169,16 +199,42 @@ def list_smarthealth_raw_files(
     return files
 
 
-def _processed_soh(raw_soh: float, label_scale_mode: str) -> tuple[float, float, str]:
-    """Canonical exports already contain a dimensionless SOH label."""
+def _processed_soh(
+    exported_soh: float,
+    label_capacity_ah: float | None,
+    nominal_capacity_ah: float,
+    label_scale_mode: str,
+) -> tuple[float, float, str]:
+    """Resolve the experiment target from a canonical SmartHealth export.
+
+    ``label_capacity_Ah`` remains calibration-derived: it is direct at a
+    reliable calibration discharge or interpolated only between bracketing
+    reliable calibrations.  Paper experiments use that physical capacity with
+    the same fixed nominal-capacity denominator as XJTU and MIT.  The old
+    per-series exported SOH remains readable only for backward compatibility.
+    """
 
     mode = str(label_scale_mode or "none")
+    if mode == "label_capacity_to_nominal":
+        if label_capacity_ah is None or not math.isfinite(float(label_capacity_ah)):
+            raise ValueError(
+                "SmartHealth label_scale_mode='label_capacity_to_nominal' requires "
+                "a finite label_capacity_Ah in every canonical row."
+            )
+        if not math.isfinite(float(nominal_capacity_ah)) or float(nominal_capacity_ah) <= 0.0:
+            raise ValueError("SmartHealth nominal capacity must be finite and positive.")
+        return (
+            float(label_capacity_ah) / float(nominal_capacity_ah),
+            float(nominal_capacity_ah),
+            "label_capacity_to_nominal",
+        )
     if mode not in {"none", "auto_capacity_to_soh", "exported_soh_direct"}:
         raise ValueError(
-            "SmartHealth canonical SOH is already dimensionless; use "
-            "label_scale_mode='none' or 'auto_capacity_to_soh'."
+            "Unsupported SmartHealth label_scale_mode. Use 'label_capacity_to_nominal' "
+            "for Paper experiments or 'none'/'exported_soh_direct' only to reproduce "
+            "the historical exported label."
         )
-    return float(raw_soh), 1.0, "exported_soh_direct"
+    return float(exported_soh), 1.0, "exported_soh_direct"
 
 
 def _validate_canonical_phase_row(
@@ -251,12 +307,14 @@ def _validate_canonical_phase_row(
 def read_smarthealth_raw_file(
     path: str | Path,
     domain_id: str | None = None,
-    label_scale_mode: str = "none",
+    label_scale_mode: str = "label_capacity_to_nominal",
 ) -> list[dict]:
     """Read one canonical per-logical-cell SmartHealth raw CSV."""
 
     path = Path(path)
-    grouped: dict[int, list[tuple[str, float, float, float, float, float]]] = {}
+    label_scale_mode = str(label_scale_mode or "none")
+    requires_label_capacity = label_scale_mode == "label_capacity_to_nominal"
+    grouped: dict[int, list[tuple[str, float, float, float, float, float, float]]] = {}
     cycle_provenance: dict[int, dict] = {}
     battery_ids: set[str] = set()
     domains: set[str] = set()
@@ -267,10 +325,18 @@ def read_smarthealth_raw_file(
         missing = sorted(SMARTHEALTH_PROCESSED_REQUIRED_COLUMNS - fields)
         if missing:
             raise ValueError(f"Canonical SmartHealth raw file {path} is missing: {missing}")
+        if requires_label_capacity and "label_capacity_Ah" not in fields:
+            raise ValueError(
+                f"Canonical SmartHealth raw file {path} lacks label_capacity_Ah required "
+                "by label_scale_mode='label_capacity_to_nominal'."
+            )
         for row in reader:
             try:
                 cycle = int(float(row["cycle"]))
                 segment = str(row["segment"]).strip().upper()
+                label_capacity_ah = (
+                    float(row["label_capacity_Ah"]) if requires_label_capacity else math.nan
+                )
                 item = (
                     segment,
                     float(row["relative_time"]),
@@ -278,12 +344,15 @@ def read_smarthealth_raw_file(
                     float(row["current_A"]),
                     float(row["temperature_C"]),
                     float(row["SOH"]),
+                    label_capacity_ah,
                 )
             except (KeyError, TypeError, ValueError) as exc:
                 raise ValueError(f"Invalid canonical SmartHealth row in {path}: {row}") from exc
             if segment not in {"CC", "CV"}:
                 raise ValueError(f"Unexpected segment {segment!r} in {path}")
-            if not all(math.isfinite(value) for value in item[1:]):
+            if not all(math.isfinite(value) for value in item[1:6]) or (
+                requires_label_capacity and not math.isfinite(label_capacity_ah)
+            ):
                 raise ValueError(
                     f"Canonical SmartHealth export has a non-finite model value in {path}, cycle {cycle}"
                 )
@@ -316,6 +385,8 @@ def read_smarthealth_raw_file(
                 "source_file": str(row.get("source_file", "")).strip(),
                 "chunk_id": str(row.get("chunk_id", "")).strip(),
                 "source_cycle": int(float(row.get("source_cycle", cycle))),
+                "source_absolute_start_time": str(row["source_absolute_start_time"]).strip(),
+                "source_absolute_end_time": str(row["source_absolute_end_time"]).strip(),
                 "strategy_version": str(row["strategy_version"]).strip(),
                 "split_role": str(row["split_role"]).strip(),
                 "split_status": str(row["split_status"]).strip(),
@@ -335,8 +406,31 @@ def read_smarthealth_raw_file(
     battery_id = next(iter(battery_ids))
     current_domain = next(iter(domains))
     condition = next(iter(conditions))
+    canonical_cycles = sorted(grouped)
+    if not canonical_cycles or canonical_cycles[0] <= 0:
+        raise ValueError(
+            f"SmartHealth canonical cycle IDs must be positive chronological IDs in {path}"
+        )
     records = []
-    for order, cycle in enumerate(sorted(grouped)):
+    previous_source_interval: tuple[datetime, datetime] | None = None
+    for order, cycle in enumerate(canonical_cycles):
+        source_start = _parse_source_absolute_time(
+            cycle_provenance[cycle]["source_absolute_start_time"], path
+        )
+        source_end = _parse_source_absolute_time(
+            cycle_provenance[cycle]["source_absolute_end_time"], path
+        )
+        if source_end < source_start:
+            raise ValueError(f"SmartHealth source timestamp interval is reversed in {path}, cycle {cycle}")
+        source_interval = (source_start, source_end)
+        if (
+            previous_source_interval is not None
+            and source_interval < previous_source_interval
+        ):
+            raise ValueError(
+                f"SmartHealth canonical cycle chronology regresses in {path}, cycle {cycle}"
+            )
+        previous_source_interval = source_interval
         rows = sorted(grouped[cycle], key=lambda item: item[1])
         segment = np.asarray([item[0] for item in rows], dtype=object)
         cv_positions = np.flatnonzero(segment == "CV")
@@ -351,7 +445,17 @@ def read_smarthealth_raw_file(
         values = np.asarray([item[5] for item in rows], dtype=np.float32)
         if not np.allclose(values, values[0], rtol=1e-5, atol=1e-6):
             raise ValueError(f"SOH is not constant within {path} cycle {cycle}")
-        soh, factor, mode = _processed_soh(float(values[0]), label_scale_mode)
+        capacity_values = np.asarray([item[6] for item in rows], dtype=np.float32)
+        if requires_label_capacity and not np.allclose(
+            capacity_values, capacity_values[0], rtol=1e-5, atol=1e-6
+        ):
+            raise ValueError(f"label_capacity_Ah is not constant within {path} cycle {cycle}")
+        nominal_capacity = SMARTHEALTH_NOMINAL_CAPACITY_AH[current_domain]
+        label_capacity = float(capacity_values[0]) if requires_label_capacity else None
+        soh, factor, mode = _processed_soh(
+            float(values[0]), label_capacity, nominal_capacity, label_scale_mode
+        )
+        raw_target = float(label_capacity) if requires_label_capacity else float(values[0])
         records.append(
             {
                 "dataset_id": "smarthealth",
@@ -366,9 +470,12 @@ def read_smarthealth_raw_file(
                 "current": np.asarray([item[3] for item in rows], dtype=np.float32),
                 "temperature": np.asarray([item[4] for item in rows], dtype=np.float32),
                 "soh": soh,
-                "soh_raw": float(values[0]),
+                "soh_raw": raw_target,
                 "soh_scale_factor": factor,
                 "soh_scale_mode": mode,
+                "label_capacity_ah": label_capacity,
+                "exported_soh": float(values[0]),
+                "nominal_capacity": float(nominal_capacity),
                 "label_source": str(cycle_provenance[cycle]["label_source"]),
                 "source_file": str(path),
                 **cycle_provenance[cycle],
@@ -383,7 +490,7 @@ def load_smarthealth_raw_records(
     data_root: str | Path,
     domain_id: str | None = None,
     batch: str | None = None,
-    label_scale_mode: str = "none",
+    label_scale_mode: str = "label_capacity_to_nominal",
 ) -> list[dict]:
     """Load canonical records, optionally filtering by one source condition."""
 
@@ -414,9 +521,23 @@ class SmartHealthRawAdapter:
 
     dataset_id = "smarthealth"
 
-    def __init__(self, data_root, domain_id=None, label_scale_mode="none", **_kwargs):
+    def __init__(
+        self,
+        data_root,
+        domain_id=None,
+        nominal_capacity=None,
+        label_scale_mode="label_capacity_to_nominal",
+        **_kwargs,
+    ):
         self.data_root = Path(data_root)
         self.domain_id = None if domain_id is None else str(domain_id)
+        if nominal_capacity is not None and self.domain_id in SMARTHEALTH_NOMINAL_CAPACITY_AH:
+            expected = SMARTHEALTH_NOMINAL_CAPACITY_AH[self.domain_id]
+            if not math.isclose(float(nominal_capacity), expected, rel_tol=0.0, abs_tol=1e-9):
+                raise ValueError(
+                    f"SmartHealth nominal_capacity={nominal_capacity} conflicts with "
+                    f"{self.domain_id} metadata ({expected} Ah)"
+                )
         self.label_scale_mode = str(label_scale_mode)
         self.raw_terminal_signals = bool(
             list_smarthealth_raw_files(self.data_root, domain_id=self.domain_id)

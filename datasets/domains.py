@@ -129,7 +129,7 @@ MIT_NORMALIZATION = {
     "temp_delta_scale": 10.0,
 }
 
-# SmartHealth v2 first infers CC/CV inside the source's combined charge step.
+# SmartHealth v3 first infers CC/CV inside the source's combined charge step.
 # It then exports 3.45--3.58 V from inferred CC and nominal-C-rate
 # 0.25C--0.05C from inferred CV.  These are fixed physical protocol windows,
 # not train/validation-fitted statistics.
@@ -214,7 +214,7 @@ def build_default_domain_registry() -> BatteryDomainRegistry:
             notes=(
                 "Uses continuation-aware mit_p### physical-cell identities.",
                 "Proposed raw uses phase-aware CC 3.45--3.60 V and nominal-capacity "
-                "CV 0.25C--0.05C; the historical handcrafted-feature definition is unchanged.",
+                "CV 0.25C--0.05C; canonical Only-F statistics use the same selected rows.",
             ),
         )
     )

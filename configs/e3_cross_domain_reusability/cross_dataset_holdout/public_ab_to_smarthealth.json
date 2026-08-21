@@ -25,5 +25,5 @@
     "protocol": "cross_dataset_holdout",
     "evaluation": "zero_shot"
   },
-  "blocker": "Generate and validate SmartHealth v2 family-specific RAW/feature products and split provenance first; this E3 cross-domain trainer/protocol also remains intentionally unimplemented."
+  "blocker": "Generate and validate SmartHealth v3 family-specific RAW/feature products and split provenance first; this E3 cross-domain trainer/protocol also remains intentionally unimplemented."
 }

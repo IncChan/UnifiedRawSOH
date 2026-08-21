@@ -41,7 +41,9 @@ Current stable IDs:
 - MIT: the phase-aware continuation-aware physical124 protocol uses
   `mit_proposed_phase_aware_cccv_v3`: infer phase before selecting CC
   `3.45–3.60 V` and nominal-C-rate CV `0.25C–0.05C` (±0.002C sampling
-  tolerance, so sampled coverage is accepted at 0.248C–0.052C); the handcrafted feature definition is unchanged. The launcher
+  tolerance, so sampled coverage is accepted at 0.248C–0.052C). Its paired
+  Only-F table retains the validated 24-statistic definition but is rebuilt
+  from the same accepted raw CC/CV rows. The launcher
   physical-cell extractor accepts `--workers N`; workers use isolated spawned
   HDF5 readers and aggregate provenance remains physical-index ordered.
   rejects a header-only/incomplete Paper-local export rather than reverting to

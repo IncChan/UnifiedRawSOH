@@ -1,0 +1,763 @@
+{
+  "raw_root": "/data1/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/SmartHealth_raw",
+  "event_filter": "selected_candidate=true and output_status=exported",
+  "label": "label_capacity_Ah",
+  "domains": {
+    "smarthealth_lishen40": {
+      "domain_id": "smarthealth_lishen40",
+      "label": "label_capacity_Ah",
+      "description": "Selected/exported canonical capacity labels; no chronology reconstruction.",
+      "conditions": {
+        "0.3C-20%DOD": {
+          "cells": {
+            "smarthealth_lishen40__0748__0_3c_20_dod": {
+              "source_serial": "-0748",
+              "split_role": "test",
+              "exported_cycles": 1086,
+              "cycle_range": [
+                10,
+                1110
+              ],
+              "label_capacity_Ah_range": [
+                40.07952,
+                42.31064
+              ],
+              "calibration_direct_cycles": 107,
+              "calibration_interpolated_cycles": 979
+            },
+            "smarthealth_lishen40__0149__0_3c_20_dod": {
+              "source_serial": "-0149",
+              "split_role": "development",
+              "exported_cycles": 1095,
+              "cycle_range": [
+                10,
+                1120
+              ],
+              "label_capacity_Ah_range": [
+                40.03292,
+                42.18362
+              ],
+              "calibration_direct_cycles": 108,
+              "calibration_interpolated_cycles": 987
+            },
+            "smarthealth_lishen40__0422__0_3c_20_dod": {
+              "source_serial": "-0422",
+              "split_role": "development",
+              "exported_cycles": 1094,
+              "cycle_range": [
+                10,
+                1120
+              ],
+              "label_capacity_Ah_range": [
+                39.99993,
+                42.13156
+              ],
+              "calibration_direct_cycles": 107,
+              "calibration_interpolated_cycles": 987
+            }
+          }
+        },
+        "0.3C-60%DOD": {
+          "cells": {
+            "smarthealth_lishen40__0332__0_3c_60_dod": {
+              "source_serial": "-0332",
+              "split_role": "test",
+              "exported_cycles": 592,
+              "cycle_range": [
+                13,
+                604
+              ],
+              "label_capacity_Ah_range": [
+                39.72551,
+                41.85885
+              ],
+              "calibration_direct_cycles": 60,
+              "calibration_interpolated_cycles": 532
+            },
+            "smarthealth_lishen40__2054__0_3c_60_dod": {
+              "source_serial": "-2054",
+              "split_role": "development",
+              "exported_cycles": 591,
+              "cycle_range": [
+                10,
+                601
+              ],
+              "label_capacity_Ah_range": [
+                39.82994,
+                42.00329
+              ],
+              "calibration_direct_cycles": 58,
+              "calibration_interpolated_cycles": 533
+            },
+            "smarthealth_lishen40__2061__0_3c_60_dod": {
+              "source_serial": "-2061",
+              "split_role": "development",
+              "exported_cycles": 591,
+              "cycle_range": [
+                10,
+                601
+              ],
+              "label_capacity_Ah_range": [
+                39.92924,
+                42.04561
+              ],
+              "calibration_direct_cycles": 59,
+              "calibration_interpolated_cycles": 532
+            }
+          }
+        },
+        "0.3C-100%DOD": {
+          "cells": {
+            "smarthealth_lishen40__0337__0_3c_100_dod": {
+              "source_serial": "-0337",
+              "split_role": "test",
+              "exported_cycles": 945,
+              "cycle_range": [
+                1,
+                945
+              ],
+              "label_capacity_Ah_range": [
+                1.43244,
+                42.32797
+              ],
+              "calibration_direct_cycles": 945,
+              "calibration_interpolated_cycles": 0
+            },
+            "smarthealth_lishen40__0118__0_3c_100_dod": {
+              "source_serial": "-0118",
+              "split_role": "development",
+              "exported_cycles": 940,
+              "cycle_range": [
+                1,
+                942
+              ],
+              "label_capacity_Ah_range": [
+                39.33363,
+                42.24581
+              ],
+              "calibration_direct_cycles": 940,
+              "calibration_interpolated_cycles": 0
+            },
+            "smarthealth_lishen40__0448__0_3c_100_dod": {
+              "source_serial": "-0448",
+              "split_role": "development",
+              "exported_cycles": 948,
+              "cycle_range": [
+                1,
+                949
+              ],
+              "label_capacity_Ah_range": [
+                5.24103,
+                42.23344
+              ],
+              "calibration_direct_cycles": 948,
+              "calibration_interpolated_cycles": 0
+            }
+          }
+        },
+        "1C-20%DOD": {
+          "cells": {
+            "smarthealth_lishen40__2063__1c_20_dod": {
+              "source_serial": "-2063",
+              "split_role": "test",
+              "exported_cycles": 1792,
+              "cycle_range": [
+                9,
+                1849
+              ],
+              "label_capacity_Ah_range": [
+                39.73018,
+                42.4021
+              ],
+              "calibration_direct_cycles": 173,
+              "calibration_interpolated_cycles": 1619
+            },
+            "smarthealth_lishen40__0571__1c_20_dod": {
+              "source_serial": "-0571",
+              "split_role": "development",
+              "exported_cycles": 1758,
+              "cycle_range": [
+                10,
+                1851
+              ],
+              "label_capacity_Ah_range": [
+                39.72228,
+                42.44886
+              ],
+              "calibration_direct_cycles": 175,
+              "calibration_interpolated_cycles": 1583
+            },
+            "smarthealth_lishen40__0608__1c_20_dod": {
+              "source_serial": "-0608",
+              "split_role": "development",
+              "exported_cycles": 1712,
+              "cycle_range": [
+                10,
+                1791
+              ],
+              "label_capacity_Ah_range": [
+                39.63643,
+                42.38276
+              ],
+              "calibration_direct_cycles": 167,
+              "calibration_interpolated_cycles": 1545
+            }
+          }
+        },
+        "1C-60%DOD": {
+          "cells": {
+            "smarthealth_lishen40__0728__1c_60_dod": {
+              "source_serial": "-0728",
+              "split_role": "test",
+              "exported_cycles": 1831,
+              "cycle_range": [
+                20,
+                1850
+              ],
+              "label_capacity_Ah_range": [
+                38.70401,
+                42.29565
+              ],
+              "calibration_direct_cycles": 179,
+              "calibration_interpolated_cycles": 1652
+            },
+            "smarthealth_lishen40__0096__1c_60_dod": {
+              "source_serial": "-0096",
+              "split_role": "development",
+              "exported_cycles": 1717,
+              "cycle_range": [
+                9,
+                1849
+              ],
+              "label_capacity_Ah_range": [
+                38.71579,
+                42.40691
+              ],
+              "calibration_direct_cycles": 169,
+              "calibration_interpolated_cycles": 1548
+            },
+            "smarthealth_lishen40__0176__1c_60_dod": {
+              "source_serial": "-0176",
+              "split_role": "development",
+              "exported_cycles": 1841,
+              "cycle_range": [
+                9,
+                1849
+              ],
+              "label_capacity_Ah_range": [
+                38.79956,
+                42.36329
+              ],
+              "calibration_direct_cycles": 180,
+              "calibration_interpolated_cycles": 1661
+            }
+          }
+        },
+        "1C-100%DOD": {
+          "cells": {
+            "smarthealth_lishen40__0813__1c_100_dod": {
+              "source_serial": "-0813",
+              "split_role": "test",
+              "exported_cycles": 1847,
+              "cycle_range": [
+                1,
+                1851
+              ],
+              "label_capacity_Ah_range": [
+                32.69196,
+                42.52749
+              ],
+              "calibration_direct_cycles": 1847,
+              "calibration_interpolated_cycles": 0
+            },
+            "smarthealth_lishen40__0291__1c_100_dod": {
+              "source_serial": "-0291",
+              "split_role": "development",
+              "exported_cycles": 1829,
+              "cycle_range": [
+                1,
+                1831
+              ],
+              "label_capacity_Ah_range": [
+                38.20344,
+                42.53861
+              ],
+              "calibration_direct_cycles": 1829,
+              "calibration_interpolated_cycles": 0
+            },
+            "smarthealth_lishen40__2016__1c_100_dod": {
+              "source_serial": "-2016",
+              "split_role": "development",
+              "exported_cycles": 1847,
+              "cycle_range": [
+                1,
+                1851
+              ],
+              "label_capacity_Ah_range": [
+                33.78729,
+                42.35626
+              ],
+              "calibration_direct_cycles": 1847,
+              "calibration_interpolated_cycles": 0
+            }
+          }
+        },
+        "2C-20%DOD": {
+          "cells": {
+            "smarthealth_lishen40__0922__2c_20_dod": {
+              "source_serial": "-0922",
+              "split_role": "test",
+              "exported_cycles": 1458,
+              "cycle_range": [
+                40,
+                1852
+              ],
+              "label_capacity_Ah_range": [
+                39.64938,
+                42.29096
+              ],
+              "calibration_direct_cycles": 140,
+              "calibration_interpolated_cycles": 1318
+            },
+            "smarthealth_lishen40__0129__2c_20_dod": {
+              "source_serial": "-0129",
+              "split_role": "development",
+              "exported_cycles": 531,
+              "cycle_range": [
+                10,
+                1842
+              ],
+              "label_capacity_Ah_range": [
+                39.39637,
+                42.3741
+              ],
+              "calibration_direct_cycles": 70,
+              "calibration_interpolated_cycles": 461
+            },
+            "smarthealth_lishen40__0142__2c_20_dod": {
+              "source_serial": "-0142",
+              "split_role": "development",
+              "exported_cycles": 1473,
+              "cycle_range": [
+                20,
+                1852
+              ],
+              "label_capacity_Ah_range": [
+                39.51869,
+                42.36869
+              ],
+              "calibration_direct_cycles": 150,
+              "calibration_interpolated_cycles": 1323
+            }
+          }
+        },
+        "2C-60%DOD": {
+          "cells": {
+            "smarthealth_lishen40__0661__2c_60_dod": {
+              "source_serial": "-0661",
+              "split_role": "test",
+              "exported_cycles": 1501,
+              "cycle_range": [
+                10,
+                1850
+              ],
+              "label_capacity_Ah_range": [
+                36.83849,
+                42.47443
+              ],
+              "calibration_direct_cycles": 145,
+              "calibration_interpolated_cycles": 1356
+            },
+            "smarthealth_lishen40__0034__2c_60_dod": {
+              "source_serial": "-0034",
+              "split_role": "development",
+              "exported_cycles": 1445,
+              "cycle_range": [
+                10,
+                1851
+              ],
+              "label_capacity_Ah_range": [
+                36.37786,
+                42.35489
+              ],
+              "calibration_direct_cycles": 139,
+              "calibration_interpolated_cycles": 1306
+            },
+            "smarthealth_lishen40__0248__2c_60_dod": {
+              "source_serial": "-0248",
+              "split_role": "development",
+              "exported_cycles": 1476,
+              "cycle_range": [
+                10,
+                1851
+              ],
+              "label_capacity_Ah_range": [
+                36.26812,
+                42.44057
+              ],
+              "calibration_direct_cycles": 144,
+              "calibration_interpolated_cycles": 1332
+            }
+          }
+        },
+        "2C-100%DOD": {
+          "cells": {
+            "smarthealth_lishen40__0284__2c_100_dod": {
+              "source_serial": "-0284",
+              "split_role": "test",
+              "exported_cycles": 2958,
+              "cycle_range": [
+                80,
+                3037
+              ],
+              "label_capacity_Ah_range": [
+                23.89369,
+                41.47824
+              ],
+              "calibration_direct_cycles": 2958,
+              "calibration_interpolated_cycles": 0
+            },
+            "smarthealth_lishen40__0296__2c_100_dod": {
+              "source_serial": "-0296",
+              "split_role": "development",
+              "exported_cycles": 2865,
+              "cycle_range": [
+                78,
+                3000
+              ],
+              "label_capacity_Ah_range": [
+                3.22258,
+                41.69927
+              ],
+              "calibration_direct_cycles": 2865,
+              "calibration_interpolated_cycles": 0
+            },
+            "smarthealth_lishen40__0611__2c_100_dod": {
+              "source_serial": "-0611",
+              "split_role": "development",
+              "exported_cycles": 2789,
+              "cycle_range": [
+                78,
+                2975
+              ],
+              "label_capacity_Ah_range": [
+                4.04557,
+                41.70376
+              ],
+              "calibration_direct_cycles": 2789,
+              "calibration_interpolated_cycles": 0
+            }
+          }
+        }
+      }
+    },
+    "smarthealth_catl280": {
+      "domain_id": "smarthealth_catl280",
+      "label": "label_capacity_Ah",
+      "description": "Selected/exported canonical capacity labels; no chronology reconstruction.",
+      "conditions": {
+        "0.5C-20%DOD": {
+          "cells": {
+            "smarthealth_catl280__001cb310000009b960504693__0_5c_20_dod": {
+              "source_serial": "001CB310000009B960504693",
+              "split_role": "test",
+              "exported_cycles": 527,
+              "cycle_range": [
+                10,
+                1670
+              ],
+              "label_capacity_Ah_range": [
+                285.20104,
+                300.27787
+              ],
+              "calibration_direct_cycles": 167,
+              "calibration_interpolated_cycles": 360
+            },
+            "smarthealth_catl280__001cb310000009b960502899__0_5c_20_dod": {
+              "source_serial": "001CB310000009B960502899",
+              "split_role": "development",
+              "exported_cycles": 409,
+              "cycle_range": [
+                10,
+                1670
+              ],
+              "label_capacity_Ah_range": [
+                285.86425,
+                300.35975
+              ],
+              "calibration_direct_cycles": 167,
+              "calibration_interpolated_cycles": 242
+            },
+            "smarthealth_catl280__001cb310000009b960505535__0_5c_20_dod": {
+              "source_serial": "001CB310000009B960505535",
+              "split_role": "development",
+              "exported_cycles": 418,
+              "cycle_range": [
+                10,
+                1670
+              ],
+              "label_capacity_Ah_range": [
+                285.49939,
+                300.31128
+              ],
+              "calibration_direct_cycles": 167,
+              "calibration_interpolated_cycles": 251
+            }
+          }
+        },
+        "0.5C-60%DOD": {
+          "cells": {
+            "smarthealth_catl280__001cb310000009b960504699__0_5c_60_dod": {
+              "source_serial": "001CB310000009B960504699",
+              "split_role": "test",
+              "exported_cycles": 997,
+              "cycle_range": [
+                2,
+                1000
+              ],
+              "label_capacity_Ah_range": [
+                279.03654,
+                295.45875
+              ],
+              "calibration_direct_cycles": 100,
+              "calibration_interpolated_cycles": 897
+            },
+            "smarthealth_catl280__001cb310000009b960503821__0_5c_60_dod": {
+              "source_serial": "001CB310000009B960503821",
+              "split_role": "development",
+              "exported_cycles": 991,
+              "cycle_range": [
+                10,
+                1000
+              ],
+              "label_capacity_Ah_range": [
+                280.09074,
+                298.63513
+              ],
+              "calibration_direct_cycles": 100,
+              "calibration_interpolated_cycles": 891
+            },
+            "smarthealth_catl280__001cb310000009b960504966__0_5c_60_dod": {
+              "source_serial": "001CB310000009B960504966",
+              "split_role": "development",
+              "exported_cycles": 982,
+              "cycle_range": [
+                10,
+                991
+              ],
+              "label_capacity_Ah_range": [
+                280.67815,
+                298.68906
+              ],
+              "calibration_direct_cycles": 99,
+              "calibration_interpolated_cycles": 883
+            }
+          }
+        },
+        "0.5C-100%DOD": {
+          "cells": {
+            "smarthealth_catl280__001cb310000009b970504296__0_5c_100_dod": {
+              "source_serial": "001CB310000009B970504296",
+              "split_role": "test",
+              "exported_cycles": 719,
+              "cycle_range": [
+                1,
+                719
+              ],
+              "label_capacity_Ah_range": [
+                279.72358,
+                299.34901
+              ],
+              "calibration_direct_cycles": 719,
+              "calibration_interpolated_cycles": 0
+            },
+            "smarthealth_catl280__001cb310000009b960502763__0_5c_100_dod": {
+              "source_serial": "001CB310000009B960502763",
+              "split_role": "development",
+              "exported_cycles": 728,
+              "cycle_range": [
+                1,
+                729
+              ],
+              "label_capacity_Ah_range": [
+                278.40978,
+                298.35398
+              ],
+              "calibration_direct_cycles": 728,
+              "calibration_interpolated_cycles": 0
+            },
+            "smarthealth_catl280__001cb310000009b960504870__0_5c_100_dod": {
+              "source_serial": "001CB310000009B960504870",
+              "split_role": "development",
+              "exported_cycles": 729,
+              "cycle_range": [
+                1,
+                729
+              ],
+              "label_capacity_Ah_range": [
+                279.15876,
+                298.84762
+              ],
+              "calibration_direct_cycles": 729,
+              "calibration_interpolated_cycles": 0
+            }
+          }
+        }
+      }
+    },
+    "smarthealth_eve280": {
+      "domain_id": "smarthealth_eve280",
+      "label": "label_capacity_Ah",
+      "description": "Selected/exported canonical capacity labels; no chronology reconstruction.",
+      "conditions": {
+        "0.5C-20%DOD": {
+          "cells": {
+            "smarthealth_eve280__04qcb76717200jb5h0002297__0_5c_20_dod": {
+              "source_serial": "04QCB76717200JB5H0002297",
+              "split_role": "test",
+              "exported_cycles": 161,
+              "cycle_range": [
+                1062,
+                1857
+              ],
+              "label_capacity_Ah_range": [
+                264.43653,
+                268.28165
+              ],
+              "calibration_direct_cycles": 81,
+              "calibration_interpolated_cycles": 80
+            },
+            "smarthealth_eve280__04qcb76718400jb640004290__0_5c_20_dod": {
+              "source_serial": "04QCB76718400JB640004290",
+              "split_role": "development",
+              "exported_cycles": 256,
+              "cycle_range": [
+                121,
+                1860
+              ],
+              "label_capacity_Ah_range": [
+                262.72188,
+                276.52715
+              ],
+              "calibration_direct_cycles": 81,
+              "calibration_interpolated_cycles": 175
+            },
+            "smarthealth_eve280__04qcb76718400jb640005123__0_5c_20_dod": {
+              "source_serial": "04QCB76718400JB640005123",
+              "split_role": "development",
+              "exported_cycles": 1646,
+              "cycle_range": [
+                13,
+                1855
+              ],
+              "label_capacity_Ah_range": [
+                262.67912,
+                278.32577
+              ],
+              "calibration_direct_cycles": 172,
+              "calibration_interpolated_cycles": 1474
+            }
+          }
+        },
+        "0.5C-60%DOD": {
+          "cells": {
+            "smarthealth_eve280__04qcb76718400jb640003611__0_5c_60_dod": {
+              "source_serial": "04QCB76718400JB640003611",
+              "split_role": "test",
+              "exported_cycles": 1735,
+              "cycle_range": [
+                43,
+                1795
+              ],
+              "label_capacity_Ah_range": [
+                253.86646,
+                277.22122
+              ],
+              "calibration_direct_cycles": 173,
+              "calibration_interpolated_cycles": 1562
+            },
+            "smarthealth_eve280__04qcb76717100jb5g0000730__0_5c_60_dod": {
+              "source_serial": "04QCB76717100JB5G0000730",
+              "split_role": "development",
+              "exported_cycles": 1802,
+              "cycle_range": [
+                23,
+                1847
+              ],
+              "label_capacity_Ah_range": [
+                254.76954,
+                279.04364
+              ],
+              "calibration_direct_cycles": 178,
+              "calibration_interpolated_cycles": 1624
+            },
+            "smarthealth_eve280__04qcb76718400jb640003859__0_5c_60_dod": {
+              "source_serial": "04QCB76718400JB640003859",
+              "split_role": "development",
+              "exported_cycles": 1797,
+              "cycle_range": [
+                33,
+                1849
+              ],
+              "label_capacity_Ah_range": [
+                253.27454,
+                275.80022
+              ],
+              "calibration_direct_cycles": 175,
+              "calibration_interpolated_cycles": 1622
+            }
+          }
+        },
+        "0.5C-100%DOD": {
+          "cells": {
+            "smarthealth_eve280__04qcb76716600jb630005726__0_5c_100_dod": {
+              "source_serial": "04QCB76716600JB630005726",
+              "split_role": "test",
+              "exported_cycles": 1349,
+              "cycle_range": [
+                4,
+                1362
+              ],
+              "label_capacity_Ah_range": [
+                47.9068,
+                281.04374
+              ],
+              "calibration_direct_cycles": 1349,
+              "calibration_interpolated_cycles": 0
+            },
+            "smarthealth_eve280__04qcb76718400jb630001092__0_5c_100_dod": {
+              "source_serial": "04QCB76718400JB630001092",
+              "split_role": "development",
+              "exported_cycles": 1341,
+              "cycle_range": [
+                4,
+                1349
+              ],
+              "label_capacity_Ah_range": [
+                237.32704,
+                280.34251
+              ],
+              "calibration_direct_cycles": 1341,
+              "calibration_interpolated_cycles": 0
+            },
+            "smarthealth_eve280__04qcb76718400jb630001859__0_5c_100_dod": {
+              "source_serial": "04QCB76718400JB630001859",
+              "split_role": "development",
+              "exported_cycles": 1401,
+              "cycle_range": [
+                4,
+                1410
+              ],
+              "label_capacity_Ah_range": [
+                257.52899,
+                277.505
+              ],
+              "calibration_direct_cycles": 1401,
+              "calibration_interpolated_cycles": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}

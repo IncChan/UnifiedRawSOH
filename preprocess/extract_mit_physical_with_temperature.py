@@ -12,9 +12,10 @@ modified.  This script writes a new, provenance-rich pair of directories:
 * point-level CC/CV records with a global physical ``cycle``;
 * statistical features with the same physical ID/cycle and source lineage.
 
-The proposed raw product has its own phase-aware CC/CV policy.  The paired
-handcrafted feature table deliberately keeps the original feature extractor's
-window definition and is not redefined by the proposed raw policy.
+The paired Only-F table is computed from exactly the phase-aware CC/CV points
+written to the canonical raw product.  It preserves the validated 24
+statistic definitions, but it does not reopen the source archive and apply a
+separate historical voltage/current window.
 
 The first physical cycle is skipped by default once per physical cell.  In
 particular, the first local cycle in a continuation segment is retained: it
@@ -50,13 +51,11 @@ from extract_mit_cycle_raw_with_temperature import (
     MITRawBatch,
     extract_cycle_rows,
     find_all_batch_files,
-    parse_float_pair,
     row_has_nonfinite as raw_row_has_nonfinite,
 )
 from extract_mit_features_with_temperature import (
     FEATURE_COLUMNS,
-    MITBatch,
-    extract_cycle_features,
+    extract_phase_aware_features_from_raw_rows,
     row_has_nonfinite as feature_row_has_nonfinite,
 )
 from mit_physical_provenance import (
@@ -136,27 +135,23 @@ REPORT_COLUMNS = [
     "feature_file",
 ]
 
-# HDF5 objects must never be inherited from the parent process.  Each spawned
-# worker opens its own read-only MIT raw/feature handles once, then processes
-# multiple physical cells with those handles.  This avoids HDF5 fork hazards
-# and eliminates the much larger overhead of reopening all six source files
-# for every physical-cell task.
+# HDF5 objects must never be inherited from the parent process. Each spawned
+# worker opens its own read-only raw-source handles once, then processes
+# multiple physical cells. Only-F statistics are derived from the emitted raw
+# rows, so no second HDF5 feature reader exists. This avoids HDF5 fork hazards
+# and eliminates the overhead of reopening all source files per cell.
 _WORKER_ARGS: argparse.Namespace | None = None
 _WORKER_RAW_BATCHES: Dict[str, MITRawBatch] | None = None
-_WORKER_FEATURE_BATCHES: Dict[str, MITBatch] | None = None
 
 
 def _close_worker_batches() -> None:
     """Close worker-local HDF5 handles before a process exits."""
 
-    global _WORKER_RAW_BATCHES, _WORKER_FEATURE_BATCHES
-    for batches in (_WORKER_RAW_BATCHES, _WORKER_FEATURE_BATCHES):
-        if batches is None:
-            continue
-        for batch in batches.values():
+    global _WORKER_RAW_BATCHES
+    if _WORKER_RAW_BATCHES is not None:
+        for batch in _WORKER_RAW_BATCHES.values():
             batch.close()
     _WORKER_RAW_BATCHES = None
-    _WORKER_FEATURE_BATCHES = None
 
 
 def _initialise_physical_worker(
@@ -164,14 +159,11 @@ def _initialise_physical_worker(
 ) -> None:
     """Initialise an isolated read-only HDF5 cache for one worker process."""
 
-    global _WORKER_ARGS, _WORKER_RAW_BATCHES, _WORKER_FEATURE_BATCHES
+    global _WORKER_ARGS, _WORKER_RAW_BATCHES
     _close_worker_batches()
     _WORKER_ARGS = args
     _WORKER_RAW_BATCHES = {
         date: MITRawBatch(path) for date, path in batch_paths.items()
-    }
-    _WORKER_FEATURE_BATCHES = {
-        date: MITBatch(path) for date, path in batch_paths.items()
     }
     atexit.register(_close_worker_batches)
 
@@ -184,14 +176,12 @@ def _process_physical_worker(
     if (
         _WORKER_ARGS is None
         or _WORKER_RAW_BATCHES is None
-        or _WORKER_FEATURE_BATCHES is None
     ):
         raise RuntimeError("MIT physical worker was not initialised")
     return _process_physical_cell(
         _WORKER_ARGS,
         physical,
         _WORKER_RAW_BATCHES,
-        _WORKER_FEATURE_BATCHES,
     )
 
 
@@ -385,7 +375,6 @@ def _process_physical_cell(
     args: argparse.Namespace,
     physical: PhysicalCell,
     raw_batches: Mapping[str, MITRawBatch],
-    feature_batches: Mapping[str, MITBatch],
 ) -> Tuple[Dict[str, object], Dict[str, object], List[Dict[str, object]]]:
     """Write raw/features for one physical cell and return audit metadata."""
 
@@ -426,7 +415,6 @@ def _process_physical_cell(
 
         for info, source in zip(segment_info, physical.source_segments):
             raw_batch = raw_batches[source.batch_date]
-            feature_batch = feature_batches[source.batch_date]
             cell_index = source.cell - 1
             local_capacities = np.asarray(raw_batch.capacity_series(cell_index), dtype=float)
             source_cycle_count = int(info["used_cycle_count"])
@@ -502,22 +490,15 @@ def _process_physical_cell(
                             f"{source.source_file_identity} source cycle {source_cycle}"
                         ) from exc
 
-                # A feature without an accessible raw terminal signal cannot be
-                # evaluated against the raw path.  Keeping the common support
-                # makes physical-cycle matched evaluation exact rather than
-                # capacity-order inferred.
+                # Only-F receives exactly the raw model's accepted CC/CV
+                # points.  We deliberately derive statistics from
+                # ``output_rows`` rather than reopening source HDF5 data with
+                # a second voltage/current predicate.  Keeping the common
+                # support also makes physical-cycle matched evaluation exact.
                 if not raw_cycle_written:
                     continue
                 try:
-                    feature = extract_cycle_features(
-                        batch=feature_batch,
-                        cell_index=cell_index,
-                        cycle=source_cycle,
-                        capacity_series=local_capacities,
-                        cc_voltage_range=args.feature_cc_voltage_range,
-                        cv_current_range=args.feature_cv_current_range,
-                        cv_slope_current_range=args.cv_slope_current_range,
-                    )
+                    feature = extract_phase_aware_features_from_raw_rows(output_rows)
                     if args.drop_nonfinite_rows and feature_row_has_nonfinite(feature):
                         metrics["skipped_nonfinite_feature_rows"] += 1
                         continue
@@ -571,10 +552,10 @@ def _process_physical_cell(
                     ],
                     "current_normalization": "abs(current_A) / nominal_capacity_Ah",
                 },
-                "feature_baseline_windows": {
-                    "cc_voltage_range_V": list(args.feature_cc_voltage_range),
-                    "cv_current_range_A": list(args.feature_cv_current_range),
-                    "cv_slope_current_range_A": list(args.cv_slope_current_range),
+                "feature_windows": {
+                    "source": "same selected phase-aware raw rows",
+                    "cc_voltage_range_V": list(MIT_PROPOSED_CC_VOLTAGE_RANGE),
+                    "cv_c_rate_range": list(MIT_PROPOSED_CV_C_RATE_RANGE),
                 },
                 "metrics": metrics,
             },
@@ -599,14 +580,8 @@ def _process_cells_serial(
             date: stack.enter_context(MITRawBatch(path))
             for date, path in batch_paths.items()
         }
-        feature_batches = {
-            date: stack.enter_context(MITBatch(path))
-            for date, path in batch_paths.items()
-        }
         for physical in physical_cells:
-            yield physical, _process_physical_cell(
-                args, physical, raw_batches, feature_batches
-            )
+            yield physical, _process_physical_cell(args, physical, raw_batches)
 
 
 def _process_cells_parallel(
@@ -819,10 +794,10 @@ def _write_metadata(
                 ],
                 "current_normalization": "abs(current_A) / nominal_capacity_Ah",
             },
-            "feature_baseline_windows": {
-                "cc_voltage_range_V": list(args.feature_cc_voltage_range),
-                "cv_current_range_A": list(args.feature_cv_current_range),
-                "cv_slope_current_range_A": list(args.cv_slope_current_range),
+            "feature_windows": {
+                "source": "same selected phase-aware raw rows",
+                "cc_voltage_range_V": list(MIT_PROPOSED_CC_VOLTAGE_RANGE),
+                "cv_c_rate_range": list(MIT_PROPOSED_CV_C_RATE_RANGE),
             },
         },
         "physical_cells": list(provenance_rows),
@@ -930,31 +905,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--drop-nonfinite-rows", action=argparse.BooleanOptionalAction, default=True
-    )
-    parser.add_argument(
-        "--feature-cc-voltage-range",
-        "--cc-voltage-range",
-        dest="feature_cc_voltage_range",
-        type=parse_float_pair,
-        default=[3.4, 3.595],
-        help=(
-            "legacy handcrafted-feature CC window; the proposed raw CC window "
-            "is fixed at 3.45,3.60"
-        ),
-    )
-    parser.add_argument(
-        "--feature-cv-current-range",
-        "--cv-current-range",
-        dest="feature_cv_current_range",
-        type=parse_float_pair,
-        default=[0.5, 0.1],
-        help=(
-            "legacy handcrafted-feature CV-current window; the proposed raw CV "
-            "window is fixed at nominal 0.25C,0.05C"
-        ),
-    )
-    parser.add_argument(
-        "--cv-slope-current-range", type=parse_float_pair, default=[0.5, 0.1]
     )
     parser.add_argument("--nominal-capacity", type=float, default=1.1)
     parser.add_argument(

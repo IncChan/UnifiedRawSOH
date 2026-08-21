@@ -4,7 +4,7 @@ import math
 import os
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Mapping, Optional, Sequence
 
 import h5py
 import numpy as np
@@ -250,6 +250,102 @@ def slice_data(data: Dict[str, np.ndarray], indices: np.ndarray) -> Dict[str, np
     return {key: np.asarray(value)[indices] for key, value in data.items()}
 
 
+def _window_features(
+    cc: Mapping[str, np.ndarray],
+    cv: Mapping[str, np.ndarray],
+    capacity_ah: float,
+    *,
+    cv_slope: Mapping[str, np.ndarray] | None = None,
+) -> Dict[str, float]:
+    """Compute the validated Only-F statistics from already selected points.
+
+    The function intentionally contains no phase detection or window
+    selection.  It is shared by the legacy standalone extractor and the
+    canonical physical-cell export, whose inputs have already been selected
+    by the raw phase-aware contract.
+    """
+
+    if cv_slope is None:
+        cv_slope = cv
+    cc_t = np.asarray(cc["time_min"], dtype=float) * 60
+    cv_t = np.asarray(cv["time_min"], dtype=float) * 60
+    cv_t_slope = np.asarray(cv_slope["time_min"], dtype=float) * 60
+
+    return {
+        "voltage mean": safe_mean(np.asarray(cc["voltage_V"], dtype=float)),
+        "voltage std": safe_std(np.asarray(cc["voltage_V"], dtype=float)),
+        "voltage kurtosis": safe_kurtosis(np.asarray(cc["voltage_V"], dtype=float)),
+        "voltage skewness": safe_skewness(np.asarray(cc["voltage_V"], dtype=float)),
+        "CC Q": delta_quantity(np.asarray(cc["capacity_Ah"], dtype=float)),
+        "CC charge time": delta_time(cc_t),
+        "voltage slope": safe_slope(cc_t, np.asarray(cc["voltage_V"], dtype=float)),
+        "voltage entropy": safe_entropy(np.asarray(cc["voltage_V"], dtype=float)),
+        "T_CC_mean": safe_mean(np.asarray(cc["temperature_C"], dtype=float)),
+        "T_CC_max": safe_max(np.asarray(cc["temperature_C"], dtype=float)),
+        "T_CC_delta": delta_quantity(np.asarray(cc["temperature_C"], dtype=float)),
+        "T_CC_slope": safe_slope(cc_t, np.asarray(cc["temperature_C"], dtype=float)),
+        "current mean": safe_mean(np.asarray(cv["current_A"], dtype=float)),
+        "current std": safe_std(np.asarray(cv["current_A"], dtype=float)),
+        "current kurtosis": safe_kurtosis(np.asarray(cv["current_A"], dtype=float)),
+        "current skewness": safe_skewness(np.asarray(cv["current_A"], dtype=float)),
+        "CV Q": delta_quantity(np.asarray(cv["capacity_Ah"], dtype=float)),
+        "CV charge time": delta_time(cv_t),
+        "current slope": safe_slope(
+            cv_t_slope, np.asarray(cv_slope["current_A"], dtype=float)
+        ),
+        "current entropy": safe_entropy(np.asarray(cv["current_A"], dtype=float)),
+        "T_CV_mean": safe_mean(np.asarray(cv["temperature_C"], dtype=float)),
+        "T_CV_max": safe_max(np.asarray(cv["temperature_C"], dtype=float)),
+        "T_CV_delta": delta_quantity(np.asarray(cv["temperature_C"], dtype=float)),
+        "T_CV_slope": safe_slope(cv_t, np.asarray(cv["temperature_C"], dtype=float)),
+        "capacity": float(capacity_ah),
+    }
+
+
+def _selected_raw_segment(
+    rows: Sequence[Mapping[str, object]], segment: str
+) -> Dict[str, np.ndarray]:
+    """Materialize one already-selected raw phase in point order."""
+
+    selected = sorted(
+        (row for row in rows if str(row["segment"]).strip() == segment),
+        key=lambda row: int(float(row["segment_point_index"])),
+    )
+    if not selected:
+        raise ValueError(f"canonical MIT cycle has no selected {segment} points")
+    raw_to_feature_key = {
+        "relative_time_min": "time_min",
+        "voltage_V": "voltage_V",
+        "current_A": "current_A",
+        "charge_capacity_Ah": "capacity_Ah",
+        "temperature_C": "temperature_C",
+    }
+    return {
+        feature_key: np.asarray([float(row[raw_key]) for row in selected], dtype=float)
+        for raw_key, feature_key in raw_to_feature_key.items()
+    }
+
+
+def extract_phase_aware_features_from_raw_rows(
+    rows: Sequence[Mapping[str, object]],
+) -> Dict[str, float]:
+    """Build Only-F statistics from exactly the canonical raw CC/CV points.
+
+    ``rows`` must describe one physical cycle from ``datasets/MIT_raw`` after
+    its actual CC/CV phase has been inferred and the paper windows selected:
+    CC 3.45--3.60 V and CV 0.25C--0.05C.  This helper never re-applies a
+    broader historical voltage/current window.
+    """
+
+    if not rows:
+        raise ValueError("cannot derive MIT features from an empty raw cycle")
+    return _window_features(
+        _selected_raw_segment(rows, "CC"),
+        _selected_raw_segment(rows, "CV"),
+        capacity_ah=float(rows[0]["capacity_Ah"]),
+    )
+
+
 def extract_cycle_features(
     batch: MITBatch,
     cell_index: int,
@@ -259,41 +355,22 @@ def extract_cycle_features(
     cv_current_range: Sequence[float],
     cv_slope_current_range: Sequence[float],
 ) -> Dict[str, float]:
+    """Legacy direct-HDF5 feature extraction for non-canonical products.
+
+    The Paper-v1 physical MIT product uses
+    :func:`extract_phase_aware_features_from_raw_rows` instead, so its
+    statistics inherit the canonical raw model's phase-aware selected points.
+    """
+
     cc = batch.cc_stage(cell_index, cycle, cc_voltage_range)
     cv = batch.cv_stage(cell_index, cycle, cv_current_range)
     cv_slope = batch.cv_stage(cell_index, cycle, cv_slope_current_range)
-
-    cc_t = cc["time_min"] * 60
-    cv_t = cv["time_min"] * 60
-    cv_t_slope = cv_slope["time_min"] * 60
-
-    return {
-        "voltage mean": safe_mean(cc["voltage_V"]),
-        "voltage std": safe_std(cc["voltage_V"]),
-        "voltage kurtosis": safe_kurtosis(cc["voltage_V"]),
-        "voltage skewness": safe_skewness(cc["voltage_V"]),
-        "CC Q": delta_quantity(cc["capacity_Ah"]),
-        "CC charge time": delta_time(cc_t),
-        "voltage slope": safe_slope(cc_t, cc["voltage_V"]),
-        "voltage entropy": safe_entropy(cc["voltage_V"]),
-        "T_CC_mean": safe_mean(cc["temperature_C"]),
-        "T_CC_max": safe_max(cc["temperature_C"]),
-        "T_CC_delta": delta_quantity(cc["temperature_C"]),
-        "T_CC_slope": safe_slope(cc_t, cc["temperature_C"]),
-        "current mean": safe_mean(cv["current_A"]),
-        "current std": safe_std(cv["current_A"]),
-        "current kurtosis": safe_kurtosis(cv["current_A"]),
-        "current skewness": safe_skewness(cv["current_A"]),
-        "CV Q": delta_quantity(cv["capacity_Ah"]),
-        "CV charge time": delta_time(cv_t),
-        "current slope": safe_slope(cv_t_slope, cv_slope["current_A"]),
-        "current entropy": safe_entropy(cv["current_A"]),
-        "T_CV_mean": safe_mean(cv["temperature_C"]),
-        "T_CV_max": safe_max(cv["temperature_C"]),
-        "T_CV_delta": delta_quantity(cv["temperature_C"]),
-        "T_CV_slope": safe_slope(cv_t, cv["temperature_C"]),
-        "capacity": float(capacity_series[cycle - 1]),
-    }
+    return _window_features(
+        cc,
+        cv,
+        capacity_ah=float(capacity_series[cycle - 1]),
+        cv_slope=cv_slope,
+    )
 
 
 def write_csv(rows: List[Dict[str, float]], output_csv: Path) -> None:

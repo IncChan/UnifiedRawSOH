@@ -7,9 +7,9 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 # additional command-line arguments. It intentionally does not inherit a
 # terminal DOMAIN variable, so the selected config and output directory agree.
 # Change only this line for the E1 battery domain to train.
-DOMAIN="xjtu"  # choices: xjtu, mit, smarthealth_lishen40, smarthealth_catl280, smarthealth_eve280
+DOMAIN="mit"  # choices: xjtu, mit, smarthealth_lishen40, smarthealth_catl280, smarthealth_eve280
 SEEDS="42 52 62"
-GPU_IDS="0"
+GPU_IDS="2"
 MAX_PARALLEL="3"
 PYTHON_BIN="${PYTHON_BIN:-/home/chenyanxi/.conda/envs/pinn/bin/python}"
 export SEEDS GPU_IDS MAX_PARALLEL PYTHON_BIN

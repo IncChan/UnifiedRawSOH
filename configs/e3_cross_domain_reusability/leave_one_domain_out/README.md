@@ -9,6 +9,6 @@ xjtu + mit + smarthealth_lishen40 + smarthealth_catl280
     -> smarthealth_eve280
 ```
 
-Its current status is blocked because generated SmartHealth v2 canonical
+Its current status is blocked because generated SmartHealth v3 canonical
 products still need validation and the E3 trainer is not implemented. Once
 available, add analogous JSON configs by changing only source/target lists.

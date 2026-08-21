@@ -38,9 +38,9 @@ directories remain readable; newly launched runs use:
 |---|---|---|
 | xjtu | A | raw + Only-F runnable |
 | mit | B | phase-aware physical124 protocol; launcher requires a nonempty local raw/feature export |
-| smarthealth_lishen40 | C1 | canonical CC/CV/SOH raw + Only-F runnable |
-| smarthealth_catl280 | C2 | canonical CC/CV/SOH raw + Only-F runnable |
-| smarthealth_eve280 | C3 | canonical CC/CV/SOH raw + Only-F runnable |
+| smarthealth_lishen40 | C1 | canonical CC/CV/calibration-capacity raw + Only-F runnable |
+| smarthealth_catl280 | C2 | canonical CC/CV/calibration-capacity raw + Only-F runnable |
+| smarthealth_eve280 | C3 | canonical CC/CV/calibration-capacity raw + Only-F runnable |
 
 C-rate and DOD are conditions inside a SmartHealth battery domain rather than
 additional domains.
@@ -102,7 +102,7 @@ source audit; no launcher reparses or synthesizes raw source data.
 ## Rebuilding local dataset products
 
 The tracked `preprocess/` directory contains the real XJTU, MIT physical124,
-and SmartHealth v2 source-to-product implementations. Copy
+and SmartHealth v3 source-to-product implementations. Copy
 `preprocess/paths.env.example` to `preprocess/paths.env`, set the three source
 roots, then use the one launcher:
 
@@ -111,9 +111,8 @@ roots, then use the one launcher:
     bash preprocess/run_preprocess.sh smarthealth all --workers 8
 
 See `preprocess/README.md` before replacing an existing product or changing a
-worker count. The current `pinn` environment lacks `h5py`, so MIT preprocessing
-requires an environment containing the packages listed in
-`preprocess/requirements.txt`.
+worker count. Full MIT raw extraction requires an environment containing the
+packages listed in `preprocess/requirements.txt`.
 
 The repository does not include a license for third-party datasets. Verify
 each source's redistribution terms before publishing any data-derived artifact

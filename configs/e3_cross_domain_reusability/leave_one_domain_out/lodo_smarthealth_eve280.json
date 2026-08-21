@@ -26,5 +26,5 @@
     "protocol": "leave_one_domain_out",
     "evaluation": "zero_shot"
   },
-  "blocker": "Generate and validate SmartHealth v2 raw-cycle products, calibration labels, and split provenance first; the E3 trainer itself remains intentionally unimplemented."
+  "blocker": "Generate and validate SmartHealth v3 raw-cycle products, calibration labels, and split provenance first; the E3 trainer itself remains intentionally unimplemented."
 }

@@ -136,7 +136,8 @@ XJTU and the continuation-aware 124 physical-cell MIT protocol use the same
 common raw-cycle contract and retain fixed physical normalization and split
 provenance. MIT's launcher rejects an incomplete local v3 phase-aware export;
 it never falls back to a historical raw/feature-aligned table. Their paired
-Only-F feature sources remain separate.
+Only-F implementation remains independent, while its MIT statistics are
+calculated from the same phase-aware accepted CC/CV points as the raw model.
 
 SmartHealth has generated canonical raw and Only-F feature products with the
 underlying GB18030 point-level source and representative CC boundary audited.

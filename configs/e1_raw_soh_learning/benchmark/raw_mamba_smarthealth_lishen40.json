@@ -20,10 +20,11 @@
     "domain_id": "smarthealth_lishen40",
     "dataset": "SmartHealth_raw",
     "nominal_capacity": 40.0,
-    "label_scale_mode": "none",
+    "label_scale_mode": "label_capacity_to_nominal",
+    "target_label_policy": "calibration-derived label_capacity_Ah / fixed 40 Ah nominal capacity; per-series Q_ref remains provenance only",
     "data_mode": "all_batch_pooled",
     "raw_phase_policy": {
-      "version": "smarthealth_cccv_calibration_v2",
+      "version": "smarthealth_cccv_calibration_v3",
       "phase_decision": "persistent current taper inside the combined charge step before windowing",
       "cc_voltage_range_V": [3.45, 3.58],
       "cv_c_rate_range": [0.05, 0.25],

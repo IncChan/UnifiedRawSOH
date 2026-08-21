@@ -1,0 +1,2032 @@
+{
+  "description": "Original, full principal combined-charge events from SmartHealth source CSVs. No canonical raw files, source-cycle deduplication, SOH labels, or model windows are used.",
+  "source_root": "/data1/chenyanxi/lb_project/datasets/SmartHealth",
+  "event_identity": "source_file + source_cycle; repeated/reset cycle numbers remain separate events",
+  "principal_charge_selection": "longest contiguous 恒流恒压充电 event per source cycle",
+  "cc_cv_annotation": "existing persistent-taper source policy, used only for diagnostics",
+  "resample_points_per_full_charge_event": 256,
+  "workers": 4,
+  "domains": {
+    "smarthealth_lishen40": {
+      "domain_id": "smarthealth_lishen40",
+      "source_files": 629,
+      "source_cycles": 44970,
+      "principal_charge_events": 44736,
+      "conditions": {
+        "0.3C-20%DOD": {
+          "source_files": 48,
+          "source_cycles": 3359,
+          "principal_charge_events": 3359,
+          "trajectory_events": 3359,
+          "valid_cc_cv_boundary_events": 3311,
+          "valid_cc_cv_boundary_fraction": 0.9857100327478416,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 3186,
+            "fraction_of_valid_boundaries": 0.9622470552703111
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 0,
+            "fraction_of_valid_boundaries": 0.0
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 3311,
+            "mean": 0.9718383003860219,
+            "std": 0.005161134300157825,
+            "min": 0.938026981450253,
+            "max": 0.992715643599538
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 3311,
+            "mean": 3.5858979462398057,
+            "std": 0.004667423298394645,
+            "min": 3.5748,
+            "max": 3.5987
+          },
+          "skipped_source_cycles": {
+            "boundary_no_persistent_taper_near_charge_voltage_max": 48
+          },
+          "source_serial_cells": {
+            "smarthealth_lishen40__0149__0_3c_20_dod": {
+              "source_files": 16,
+              "source_cycles": 1120,
+              "principal_charge_events": 1120,
+              "trajectory_events": 1120,
+              "valid_cc_cv_boundary_events": 1104,
+              "valid_cc_cv_boundary_fraction": 0.9857142857142858,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1091,
+                "fraction_of_valid_boundaries": 0.9882246376811594
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1104,
+                "mean": 0.9718814922313596,
+                "std": 0.005216921606673698,
+                "min": 0.938026981450253,
+                "max": 0.9925286845148092
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1104,
+                "mean": 3.5864677536231877,
+                "std": 0.004568444066486059,
+                "min": 3.576,
+                "max": 3.5987
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 16
+              }
+            },
+            "smarthealth_lishen40__0422__0_3c_20_dod": {
+              "source_files": 16,
+              "source_cycles": 1120,
+              "principal_charge_events": 1120,
+              "trajectory_events": 1120,
+              "valid_cc_cv_boundary_events": 1103,
+              "valid_cc_cv_boundary_fraction": 0.9848214285714286,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1075,
+                "fraction_of_valid_boundaries": 0.9746146872166818
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1103,
+                "mean": 0.9718313722042993,
+                "std": 0.004960865223681975,
+                "min": 0.9520169851380043,
+                "max": 0.9925978774636582
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1103,
+                "mean": 3.586120761559383,
+                "std": 0.004654446841394711,
+                "min": 3.5766,
+                "max": 3.598
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 17
+              }
+            },
+            "smarthealth_lishen40__0748__0_3c_20_dod": {
+              "source_files": 16,
+              "source_cycles": 1119,
+              "principal_charge_events": 1119,
+              "trajectory_events": 1119,
+              "valid_cc_cv_boundary_events": 1104,
+              "valid_cc_cv_boundary_fraction": 0.9865951742627346,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1020,
+                "fraction_of_valid_boundaries": 0.9239130434782609
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1104,
+                "mean": 0.9718020304468815,
+                "std": 0.005299094432889766,
+                "min": 0.9588808817295464,
+                "max": 0.992715643599538
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1104,
+                "mean": 3.585105525362318,
+                "std": 0.004670935834955693,
+                "min": 3.5748,
+                "max": 3.5987
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 15
+              }
+            }
+          }
+        },
+        "0.3C-60%DOD": {
+          "source_files": 48,
+          "source_cycles": 1812,
+          "principal_charge_events": 1812,
+          "trajectory_events": 1812,
+          "valid_cc_cv_boundary_events": 1810,
+          "valid_cc_cv_boundary_fraction": 0.9988962472406181,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 1810,
+            "fraction_of_valid_boundaries": 1.0
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 3,
+            "fraction_of_valid_boundaries": 0.0016574585635359116
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 1810,
+            "mean": 0.9845351698651027,
+            "std": 0.023066441192903395,
+            "min": 0.0057990957342244935,
+            "max": 0.992260475046704
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 1810,
+            "mean": 3.5928027624309387,
+            "std": 0.0021378780963684464,
+            "min": 3.5807,
+            "max": 3.6011
+          },
+          "skipped_source_cycles": {
+            "boundary_no_persistent_taper_near_charge_voltage_max": 2
+          },
+          "source_serial_cells": {
+            "smarthealth_lishen40__0332__0_3c_60_dod": {
+              "source_files": 16,
+              "source_cycles": 605,
+              "principal_charge_events": 605,
+              "trajectory_events": 605,
+              "valid_cc_cv_boundary_events": 605,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 605,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 3,
+                "fraction_of_valid_boundaries": 0.0049586776859504135
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 605,
+                "mean": 0.9834975773184776,
+                "std": 0.039827734441354734,
+                "min": 0.0057990957342244935,
+                "max": 0.9920350814390549
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 605,
+                "mean": 3.5928676033057854,
+                "std": 0.0021815170339162617,
+                "min": 3.5844,
+                "max": 3.6011
+              },
+              "skipped_source_cycles": {}
+            },
+            "smarthealth_lishen40__2054__0_3c_60_dod": {
+              "source_files": 16,
+              "source_cycles": 604,
+              "principal_charge_events": 604,
+              "trajectory_events": 604,
+              "valid_cc_cv_boundary_events": 603,
+              "valid_cc_cv_boundary_fraction": 0.9983443708609272,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 603,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 603,
+                "mean": 0.9849004248286495,
+                "std": 0.0014252358971152494,
+                "min": 0.9683017785427424,
+                "max": 0.9917805771464308
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 603,
+                "mean": 3.592467661691542,
+                "std": 0.0021276663702449717,
+                "min": 3.5832,
+                "max": 3.5984
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1
+              }
+            },
+            "smarthealth_lishen40__2061__0_3c_60_dod": {
+              "source_files": 16,
+              "source_cycles": 603,
+              "principal_charge_events": 603,
+              "trajectory_events": 603,
+              "valid_cc_cv_boundary_events": 602,
+              "valid_cc_cv_boundary_fraction": 0.9983416252072969,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 602,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 602,
+                "mean": 0.9852120714393368,
+                "std": 0.001362214456835042,
+                "min": 0.9722063037249283,
+                "max": 0.992260475046704
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 602,
+                "mean": 3.593073255813954,
+                "std": 0.002057875003207926,
+                "min": 3.5807,
+                "max": 3.5984
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1
+              }
+            }
+          }
+        },
+        "0.3C-100%DOD": {
+          "source_files": 111,
+          "source_cycles": 2837,
+          "principal_charge_events": 2837,
+          "trajectory_events": 2837,
+          "valid_cc_cv_boundary_events": 2834,
+          "valid_cc_cv_boundary_fraction": 0.99894254494184,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 2834,
+            "fraction_of_valid_boundaries": 1.0
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 0,
+            "fraction_of_valid_boundaries": 0.0
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 2834,
+            "mean": 0.983901434025415,
+            "std": 0.0020406490141611226,
+            "min": 0.9540661304736372,
+            "max": 0.9930771278956244
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 2834,
+            "mean": 3.5963328158080428,
+            "std": 0.0010246517143930696,
+            "min": 3.5875,
+            "max": 3.5999
+          },
+          "skipped_source_cycles": {
+            "boundary_no_persistent_taper_near_charge_voltage_max": 2,
+            "boundary_nonpositive_charge_current": 1
+          },
+          "source_serial_cells": {
+            "smarthealth_lishen40__0118__0_3c_100_dod": {
+              "source_files": 37,
+              "source_cycles": 943,
+              "principal_charge_events": 943,
+              "trajectory_events": 943,
+              "valid_cc_cv_boundary_events": 941,
+              "valid_cc_cv_boundary_fraction": 0.9978791092258749,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 941,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 941,
+                "mean": 0.9838141190053193,
+                "std": 0.0024992072696420177,
+                "min": 0.9540661304736372,
+                "max": 0.9930771278956244
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 941,
+                "mean": 3.596507863974496,
+                "std": 0.0010684748323273002,
+                "min": 3.5875,
+                "max": 3.5999
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1,
+                "boundary_nonpositive_charge_current": 1
+              }
+            },
+            "smarthealth_lishen40__0337__0_3c_100_dod": {
+              "source_files": 37,
+              "source_cycles": 945,
+              "principal_charge_events": 945,
+              "trajectory_events": 945,
+              "valid_cc_cv_boundary_events": 945,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 945,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 945,
+                "mean": 0.983692073948331,
+                "std": 0.001783190884986159,
+                "min": 0.9648139641708774,
+                "max": 0.9929015084294588
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 945,
+                "mean": 3.5961094179894184,
+                "std": 0.001016325042183986,
+                "min": 3.5875,
+                "max": 3.5999
+              },
+              "skipped_source_cycles": {}
+            },
+            "smarthealth_lishen40__0448__0_3c_100_dod": {
+              "source_files": 37,
+              "source_cycles": 949,
+              "principal_charge_events": 949,
+              "trajectory_events": 949,
+              "valid_cc_cv_boundary_events": 948,
+              "valid_cc_cv_boundary_fraction": 0.9989462592202318,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 948,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 948,
+                "mean": 0.9841968018595441,
+                "std": 0.0017148446569670238,
+                "min": 0.9705610926541159,
+                "max": 0.9929827678095576
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 948,
+                "mean": 3.596381751054853,
+                "std": 0.0009451152952984215,
+                "min": 3.5875,
+                "max": 3.5993
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1
+              }
+            }
+          }
+        },
+        "1C-20%DOD": {
+          "source_files": 56,
+          "source_cycles": 5493,
+          "principal_charge_events": 5493,
+          "trajectory_events": 5493,
+          "valid_cc_cv_boundary_events": 5490,
+          "valid_cc_cv_boundary_fraction": 0.9994538503549972,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 1425,
+            "fraction_of_valid_boundaries": 0.25956284153005466
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 3,
+            "fraction_of_valid_boundaries": 0.000546448087431694
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 5490,
+            "mean": 0.899788314175975,
+            "std": 0.021234514887898785,
+            "min": 0.8418719211822661,
+            "max": 0.9923607915324436
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 5490,
+            "mean": 3.5792001457194913,
+            "std": 0.006894394384199177,
+            "min": 3.5698,
+            "max": 3.6005
+          },
+          "skipped_source_cycles": {
+            "boundary_combined_charge_too_short": 1,
+            "boundary_no_persistent_taper_near_charge_voltage_max": 2
+          },
+          "source_serial_cells": {
+            "smarthealth_lishen40__0571__1c_20_dod": {
+              "source_files": 19,
+              "source_cycles": 1852,
+              "principal_charge_events": 1852,
+              "trajectory_events": 1852,
+              "valid_cc_cv_boundary_events": 1851,
+              "valid_cc_cv_boundary_fraction": 0.9994600431965442,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 560,
+                "fraction_of_valid_boundaries": 0.302539168017288
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 1,
+                "fraction_of_valid_boundaries": 0.0005402485143165856
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1851,
+                "mean": 0.8995508612369743,
+                "std": 0.021367580423591267,
+                "min": 0.8463063956370848,
+                "max": 0.9920977671597905
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1851,
+                "mean": 3.579542085359266,
+                "std": 0.006938012626678116,
+                "min": 3.5701,
+                "max": 3.6005
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1
+              }
+            },
+            "smarthealth_lishen40__0608__1c_20_dod": {
+              "source_files": 19,
+              "source_cycles": 1792,
+              "principal_charge_events": 1792,
+              "trajectory_events": 1792,
+              "valid_cc_cv_boundary_events": 1791,
+              "valid_cc_cv_boundary_fraction": 0.9994419642857143,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 447,
+                "fraction_of_valid_boundaries": 0.24958123953098826
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 1,
+                "fraction_of_valid_boundaries": 0.0005583472920156337
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1791,
+                "mean": 0.9005690530997369,
+                "std": 0.02112972908120708,
+                "min": 0.8489531405782652,
+                "max": 0.9923607915324436
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1791,
+                "mean": 3.5789969290898944,
+                "std": 0.006867338809902146,
+                "min": 3.5701,
+                "max": 3.6005
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1
+              }
+            },
+            "smarthealth_lishen40__2063__1c_20_dod": {
+              "source_files": 18,
+              "source_cycles": 1849,
+              "principal_charge_events": 1849,
+              "trajectory_events": 1849,
+              "valid_cc_cv_boundary_events": 1848,
+              "valid_cc_cv_boundary_fraction": 0.9994591671173607,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 418,
+                "fraction_of_valid_boundaries": 0.2261904761904762
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 1,
+                "fraction_of_valid_boundaries": 0.0005411255411255411
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1848,
+                "mean": 0.8992694948998019,
+                "std": 0.02118047207167421,
+                "min": 0.8418719211822661,
+                "max": 0.9914725838987714
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1848,
+                "mean": 3.5790545995670984,
+                "std": 0.006863736382357602,
+                "min": 3.5698,
+                "max": 3.6002
+              },
+              "skipped_source_cycles": {
+                "boundary_combined_charge_too_short": 1
+              }
+            }
+          }
+        },
+        "1C-60%DOD": {
+          "source_files": 75,
+          "source_cycles": 5548,
+          "principal_charge_events": 5548,
+          "trajectory_events": 5548,
+          "valid_cc_cv_boundary_events": 5547,
+          "valid_cc_cv_boundary_fraction": 0.9998197548666186,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 5502,
+            "fraction_of_valid_boundaries": 0.991887506760411
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 1426,
+            "fraction_of_valid_boundaries": 0.25707589688119703
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 5547,
+            "mean": 0.9417007673163775,
+            "std": 0.03569481126282803,
+            "min": 0.027488546438983758,
+            "max": 0.9919167518349903
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 5547,
+            "mean": 3.5939546962321987,
+            "std": 0.005459960707330933,
+            "min": 3.5714,
+            "max": 3.6018
+          },
+          "skipped_source_cycles": {
+            "boundary_no_persistent_taper_near_charge_voltage_max": 1
+          },
+          "source_serial_cells": {
+            "smarthealth_lishen40__0096__1c_60_dod": {
+              "source_files": 25,
+              "source_cycles": 1849,
+              "principal_charge_events": 1849,
+              "trajectory_events": 1849,
+              "valid_cc_cv_boundary_events": 1849,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1849,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 1425,
+                "fraction_of_valid_boundaries": 0.7706868577609519
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1849,
+                "mean": 0.9296032232512949,
+                "std": 0.05717049970957637,
+                "min": 0.027488546438983758,
+                "max": 0.9919167518349903
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1849,
+                "mean": 3.5996636560302875,
+                "std": 0.0018494291384244636,
+                "min": 3.5884,
+                "max": 3.6018
+              },
+              "skipped_source_cycles": {}
+            },
+            "smarthealth_lishen40__0176__1c_60_dod": {
+              "source_files": 25,
+              "source_cycles": 1849,
+              "principal_charge_events": 1849,
+              "trajectory_events": 1849,
+              "valid_cc_cv_boundary_events": 1849,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1825,
+                "fraction_of_valid_boundaries": 0.9870200108166577
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 1,
+                "fraction_of_valid_boundaries": 0.0005408328826392645
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1849,
+                "mean": 0.9457176206877711,
+                "std": 0.014032393709822828,
+                "min": 0.8176382660687593,
+                "max": 0.9918533604887984
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1849,
+                "mean": 3.591308004326662,
+                "std": 0.004804656878724835,
+                "min": 3.5723,
+                "max": 3.6002
+              },
+              "skipped_source_cycles": {}
+            },
+            "smarthealth_lishen40__0728__1c_60_dod": {
+              "source_files": 25,
+              "source_cycles": 1850,
+              "principal_charge_events": 1850,
+              "trajectory_events": 1850,
+              "valid_cc_cv_boundary_events": 1849,
+              "valid_cc_cv_boundary_fraction": 0.9994594594594595,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1828,
+                "fraction_of_valid_boundaries": 0.9886425094645754
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1849,
+                "mean": 0.9497814580100654,
+                "std": 0.011366674865522173,
+                "min": 0.8391038696537678,
+                "max": 0.9911947353786263
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1849,
+                "mean": 3.590892428339642,
+                "std": 0.0037354668085904396,
+                "min": 3.5714,
+                "max": 3.5999
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1
+              }
+            }
+          }
+        },
+        "1C-100%DOD": {
+          "source_files": 92,
+          "source_cycles": 5619,
+          "principal_charge_events": 5619,
+          "trajectory_events": 5619,
+          "valid_cc_cv_boundary_events": 5614,
+          "valid_cc_cv_boundary_fraction": 0.999110161950525,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 5603,
+            "fraction_of_valid_boundaries": 0.9980406127538297
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 1,
+            "fraction_of_valid_boundaries": 0.00017812611328820805
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 5614,
+            "mean": 0.9383861515788996,
+            "std": 0.018482524082980508,
+            "min": 0.8059326294620413,
+            "max": 0.9883379159950697
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 5614,
+            "mean": 3.594994638403989,
+            "std": 0.002363004881606463,
+            "min": 3.5773,
+            "max": 3.6002
+          },
+          "skipped_source_cycles": {
+            "boundary_no_persistent_taper_near_charge_voltage_max": 5
+          },
+          "source_serial_cells": {
+            "smarthealth_lishen40__0291__1c_100_dod": {
+              "source_files": 30,
+              "source_cycles": 1831,
+              "principal_charge_events": 1831,
+              "trajectory_events": 1831,
+              "valid_cc_cv_boundary_events": 1830,
+              "valid_cc_cv_boundary_fraction": 0.9994538503549972,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1828,
+                "fraction_of_valid_boundaries": 0.9989071038251366
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 1,
+                "fraction_of_valid_boundaries": 0.000546448087431694
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1830,
+                "mean": 0.9362994369539932,
+                "std": 0.019855051082885832,
+                "min": 0.8059326294620413,
+                "max": 0.9871637564889099
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1830,
+                "mean": 3.5959075409836068,
+                "std": 0.0023573969081813633,
+                "min": 3.5788,
+                "max": 3.6002
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1
+              }
+            },
+            "smarthealth_lishen40__0813__1c_100_dod": {
+              "source_files": 31,
+              "source_cycles": 1851,
+              "principal_charge_events": 1851,
+              "trajectory_events": 1851,
+              "valid_cc_cv_boundary_events": 1850,
+              "valid_cc_cv_boundary_fraction": 0.9994597514856834,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1847,
+                "fraction_of_valid_boundaries": 0.9983783783783784
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1850,
+                "mean": 0.9394731454312688,
+                "std": 0.018049402104740583,
+                "min": 0.839563862928349,
+                "max": 0.9877736707421098
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1850,
+                "mean": 3.5945432432432427,
+                "std": 0.0023444080160557866,
+                "min": 3.5779,
+                "max": 3.5996
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1
+              }
+            },
+            "smarthealth_lishen40__2016__1c_100_dod": {
+              "source_files": 31,
+              "source_cycles": 1937,
+              "principal_charge_events": 1937,
+              "trajectory_events": 1937,
+              "valid_cc_cv_boundary_events": 1934,
+              "valid_cc_cv_boundary_fraction": 0.9984512132163139,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1928,
+                "fraction_of_valid_boundaries": 0.9968976215098242
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1934,
+                "mean": 0.9393208719184526,
+                "std": 0.017344316210099357,
+                "min": 0.834625322997416,
+                "max": 0.9883379159950697
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1934,
+                "mean": 3.5945626163391924,
+                "std": 0.0021266063561282003,
+                "min": 3.5773,
+                "max": 3.5987
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 3
+              }
+            }
+          }
+        },
+        "2C-20%DOD": {
+          "source_files": 55,
+          "source_cycles": 5648,
+          "principal_charge_events": 5648,
+          "trajectory_events": 5648,
+          "valid_cc_cv_boundary_events": 5641,
+          "valid_cc_cv_boundary_fraction": 0.9987606232294618,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 2754,
+            "fraction_of_valid_boundaries": 0.48821131005140933
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 1306,
+            "fraction_of_valid_boundaries": 0.23151923417833717
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 5641,
+            "mean": 0.668997744504327,
+            "std": 0.3050629994011292,
+            "min": 0.02631578947368421,
+            "max": 0.992464415294446
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 5641,
+            "mean": 3.584715015068251,
+            "std": 0.011790234483749062,
+            "min": 3.5661,
+            "max": 3.6021
+          },
+          "skipped_source_cycles": {
+            "boundary_combined_charge_too_short": 1,
+            "boundary_no_persistent_taper_near_charge_voltage_max": 6
+          },
+          "source_serial_cells": {
+            "smarthealth_lishen40__0129__2c_20_dod": {
+              "source_files": 19,
+              "source_cycles": 1943,
+              "principal_charge_events": 1943,
+              "trajectory_events": 1943,
+              "valid_cc_cv_boundary_events": 1942,
+              "valid_cc_cv_boundary_fraction": 0.9994853319608852,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1930,
+                "fraction_of_valid_boundaries": 0.9938208032955715
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 1306,
+                "fraction_of_valid_boundaries": 0.6725025746652935
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1942,
+                "mean": 0.3650501109052498,
+                "std": 0.3572292677254452,
+                "min": 0.02631578947368421,
+                "max": 0.992464415294446
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1942,
+                "mean": 3.597616117404739,
+                "std": 0.005769971160719165,
+                "min": 3.577,
+                "max": 3.6021
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1
+              }
+            },
+            "smarthealth_lishen40__0142__2c_20_dod": {
+              "source_files": 18,
+              "source_cycles": 1853,
+              "principal_charge_events": 1853,
+              "trajectory_events": 1853,
+              "valid_cc_cv_boundary_events": 1851,
+              "valid_cc_cv_boundary_fraction": 0.9989206691851052,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 425,
+                "fraction_of_valid_boundaries": 0.2296056185845489
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1851,
+                "mean": 0.8284448736275091,
+                "std": 0.031053149157644143,
+                "min": 0.5178571428571429,
+                "max": 0.9891606448026682
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1851,
+                "mean": 3.577922744462453,
+                "std": 0.007882793921652337,
+                "min": 3.5661,
+                "max": 3.5999
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 2
+              }
+            },
+            "smarthealth_lishen40__0922__2c_20_dod": {
+              "source_files": 18,
+              "source_cycles": 1852,
+              "principal_charge_events": 1852,
+              "trajectory_events": 1852,
+              "valid_cc_cv_boundary_events": 1848,
+              "valid_cc_cv_boundary_fraction": 0.9978401727861771,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 399,
+                "fraction_of_valid_boundaries": 0.2159090909090909
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1848,
+                "mean": 0.8286999460424205,
+                "std": 0.030863823752241736,
+                "min": 0.7914893617021277,
+                "max": 0.9890524379024839
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1848,
+                "mean": 3.5779609848484855,
+                "std": 0.007769738061834356,
+                "min": 3.5661,
+                "max": 3.5999
+              },
+              "skipped_source_cycles": {
+                "boundary_combined_charge_too_short": 1,
+                "boundary_no_persistent_taper_near_charge_voltage_max": 3
+              }
+            }
+          }
+        },
+        "2C-60%DOD": {
+          "source_files": 56,
+          "source_cycles": 5552,
+          "principal_charge_events": 5552,
+          "trajectory_events": 5552,
+          "valid_cc_cv_boundary_events": 5551,
+          "valid_cc_cv_boundary_fraction": 0.9998198847262247,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 5547,
+            "fraction_of_valid_boundaries": 0.9992794091154746
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 1232,
+            "fraction_of_valid_boundaries": 0.22194199243379573
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 5551,
+            "mean": 0.8423004569947942,
+            "std": 0.1805373792302356,
+            "min": 0.019897160742231166,
+            "max": 0.9906718269326188
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 5551,
+            "mean": 3.5937664024500076,
+            "std": 0.005065264988541874,
+            "min": 3.576,
+            "max": 3.6018
+          },
+          "skipped_source_cycles": {
+            "boundary_no_persistent_taper_near_charge_voltage_max": 1
+          },
+          "source_serial_cells": {
+            "smarthealth_lishen40__0034__2c_60_dod": {
+              "source_files": 18,
+              "source_cycles": 1851,
+              "principal_charge_events": 1851,
+              "trajectory_events": 1851,
+              "valid_cc_cv_boundary_events": 1851,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1851,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 460,
+                "fraction_of_valid_boundaries": 0.2485143165856294
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1851,
+                "mean": 0.8431313582179779,
+                "std": 0.18380859367350194,
+                "min": 0.04102920723226704,
+                "max": 0.9860832999599519
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1851,
+                "mean": 3.595161696380334,
+                "std": 0.004271907295633607,
+                "min": 3.585,
+                "max": 3.6018
+              },
+              "skipped_source_cycles": {}
+            },
+            "smarthealth_lishen40__0248__2c_60_dod": {
+              "source_files": 19,
+              "source_cycles": 1851,
+              "principal_charge_events": 1851,
+              "trajectory_events": 1851,
+              "valid_cc_cv_boundary_events": 1851,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1849,
+                "fraction_of_valid_boundaries": 0.9989195029713668
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 393,
+                "fraction_of_valid_boundaries": 0.21231766612641814
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1851,
+                "mean": 0.7856628420910857,
+                "std": 0.23697794447216589,
+                "min": 0.019897160742231166,
+                "max": 0.9906718269326188
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1851,
+                "mean": 3.593214640734737,
+                "std": 0.005309909049640079,
+                "min": 3.576,
+                "max": 3.6018
+              },
+              "skipped_source_cycles": {}
+            },
+            "smarthealth_lishen40__0661__2c_60_dod": {
+              "source_files": 19,
+              "source_cycles": 1850,
+              "principal_charge_events": 1850,
+              "trajectory_events": 1850,
+              "valid_cc_cv_boundary_events": 1849,
+              "valid_cc_cv_boundary_fraction": 0.9994594594594595,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1847,
+                "fraction_of_valid_boundaries": 0.9989183342347214
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 379,
+                "fraction_of_valid_boundaries": 0.20497566252028124
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1849,
+                "mean": 0.8981675348869801,
+                "std": 0.038434378509254304,
+                "min": 0.06819984139571768,
+                "max": 0.9901028907398334
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1849,
+                "mean": 3.592921957815034,
+                "std": 0.0052502248800690415,
+                "min": 3.577,
+                "max": 3.6015
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1
+              }
+            }
+          }
+        },
+        "2C-100%DOD": {
+          "source_files": 88,
+          "source_cycles": 9102,
+          "principal_charge_events": 8868,
+          "trajectory_events": 8868,
+          "valid_cc_cv_boundary_events": 8866,
+          "valid_cc_cv_boundary_fraction": 0.9997744700045106,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 8866,
+            "fraction_of_valid_boundaries": 1.0
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 2517,
+            "fraction_of_valid_boundaries": 0.2838935258290097
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 8866,
+            "mean": 0.7996906415171763,
+            "std": 0.1975782012698777,
+            "min": 0.020087336244541485,
+            "max": 0.9882182720132286
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 8866,
+            "mean": 3.5977651364764283,
+            "std": 0.002888479368262264,
+            "min": 3.5856,
+            "max": 3.6018
+          },
+          "skipped_source_cycles": {
+            "boundary_combined_charge_too_short": 1,
+            "boundary_no_persistent_taper_near_charge_voltage_max": 1,
+            "no_combined_charge_event": 234
+          },
+          "source_serial_cells": {
+            "smarthealth_lishen40__0284__2c_100_dod": {
+              "source_files": 31,
+              "source_cycles": 3037,
+              "principal_charge_events": 2958,
+              "trajectory_events": 2958,
+              "valid_cc_cv_boundary_events": 2958,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 2958,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 441,
+                "fraction_of_valid_boundaries": 0.14908722109533468
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 2958,
+                "mean": 0.8459788388921047,
+                "std": 0.08719510983747934,
+                "min": 0.07317073170731707,
+                "max": 0.9862752955319575
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 2958,
+                "mean": 3.5969545977011506,
+                "std": 0.0030678749677040353,
+                "min": 3.5856,
+                "max": 3.6008
+              },
+              "skipped_source_cycles": {
+                "no_combined_charge_event": 79
+              }
+            },
+            "smarthealth_lishen40__0296__2c_100_dod": {
+              "source_files": 28,
+              "source_cycles": 3090,
+              "principal_charge_events": 3012,
+              "trajectory_events": 3012,
+              "valid_cc_cv_boundary_events": 3011,
+              "valid_cc_cv_boundary_fraction": 0.999667994687915,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 3011,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 1027,
+                "fraction_of_valid_boundaries": 0.3410826967784789
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 3011,
+                "mean": 0.7867571837447869,
+                "std": 0.21783977581291647,
+                "min": 0.020087336244541485,
+                "max": 0.9882182720132286
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 3011,
+                "mean": 3.59814480239123,
+                "std": 0.0029632323559241978,
+                "min": 3.5875,
+                "max": 3.6018
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1,
+                "no_combined_charge_event": 78
+              }
+            },
+            "smarthealth_lishen40__0611__2c_100_dod": {
+              "source_files": 29,
+              "source_cycles": 2975,
+              "principal_charge_events": 2898,
+              "trajectory_events": 2898,
+              "valid_cc_cv_boundary_events": 2897,
+              "valid_cc_cv_boundary_fraction": 0.9996549344375432,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 2897,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 1049,
+                "fraction_of_valid_boundaries": 0.36209872281670696
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 2897,
+                "mean": 0.7658701905394838,
+                "std": 0.24265110150735872,
+                "min": 0.023637820512820512,
+                "max": 0.9852522375915378
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 2897,
+                "mean": 3.598198136002765,
+                "std": 0.0024061400170825773,
+                "min": 3.59,
+                "max": 3.6015
+              },
+              "skipped_source_cycles": {
+                "boundary_combined_charge_too_short": 1,
+                "no_combined_charge_event": 77
+              }
+            }
+          }
+        }
+      }
+    },
+    "smarthealth_catl280": {
+      "domain_id": "smarthealth_catl280",
+      "source_files": 200,
+      "source_cycles": 10264,
+      "principal_charge_events": 10264,
+      "conditions": {
+        "0.5C-20%DOD": {
+          "source_files": 69,
+          "source_cycles": 5037,
+          "principal_charge_events": 5037,
+          "trajectory_events": 5037,
+          "valid_cc_cv_boundary_events": 1518,
+          "valid_cc_cv_boundary_fraction": 0.3013698630136986,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 1518,
+            "fraction_of_valid_boundaries": 1.0
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 738,
+            "fraction_of_valid_boundaries": 0.48616600790513836
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 1518,
+            "mean": 0.9469026564263573,
+            "std": 0.016339464511652746,
+            "min": 0.759860788863109,
+            "max": 0.9835296125618707
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 1518,
+            "mean": 3.5993028985507256,
+            "std": 0.0018003672657150983,
+            "min": 3.5904,
+            "max": 3.601
+          },
+          "skipped_source_cycles": {
+            "boundary_no_persistent_taper_near_charge_voltage_max": 3518,
+            "boundary_nonpositive_charge_current": 1
+          },
+          "source_serial_cells": {
+            "smarthealth_catl280__001cb310000009b960502899__0_5c_20_dod": {
+              "source_files": 23,
+              "source_cycles": 1679,
+              "principal_charge_events": 1679,
+              "trajectory_events": 1679,
+              "valid_cc_cv_boundary_events": 412,
+              "valid_cc_cv_boundary_fraction": 0.24538415723645027,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 412,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 5,
+                "fraction_of_valid_boundaries": 0.012135922330097087
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 412,
+                "mean": 0.9476904810884441,
+                "std": 0.014200958159439081,
+                "min": 0.8307105388650453,
+                "max": 0.9813521798365122
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 412,
+                "mean": 3.5983808252427183,
+                "std": 0.0017984746226725943,
+                "min": 3.5914,
+                "max": 3.6002
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1267
+              }
+            },
+            "smarthealth_catl280__001cb310000009b960504693__0_5c_20_dod": {
+              "source_files": 23,
+              "source_cycles": 1679,
+              "principal_charge_events": 1679,
+              "trajectory_events": 1679,
+              "valid_cc_cv_boundary_events": 566,
+              "valid_cc_cv_boundary_fraction": 0.33710541989279336,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 566,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 360,
+                "fraction_of_valid_boundaries": 0.6360424028268551
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 566,
+                "mean": 0.9441273050581215,
+                "std": 0.01825926013023152,
+                "min": 0.759860788863109,
+                "max": 0.9794077603812117
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 566,
+                "mean": 3.5994104240282683,
+                "std": 0.002042485364193406,
+                "min": 3.5904,
+                "max": 3.6009
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1112,
+                "boundary_nonpositive_charge_current": 1
+              }
+            },
+            "smarthealth_catl280__001cb310000009b960505535__0_5c_20_dod": {
+              "source_files": 23,
+              "source_cycles": 1679,
+              "principal_charge_events": 1679,
+              "trajectory_events": 1679,
+              "valid_cc_cv_boundary_events": 540,
+              "valid_cc_cv_boundary_fraction": 0.3216200119118523,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 540,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 373,
+                "fraction_of_valid_boundaries": 0.6907407407407408
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 540,
+                "mean": 0.949210554784953,
+                "std": 0.015274616473972678,
+                "min": 0.8082484000948092,
+                "max": 0.9835296125618707
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 540,
+                "mean": 3.5998937037037035,
+                "std": 0.0011231392789287737,
+                "min": 3.594,
+                "max": 3.601
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1139
+              }
+            }
+          }
+        },
+        "0.5C-60%DOD": {
+          "source_files": 65,
+          "source_cycles": 3018,
+          "principal_charge_events": 3018,
+          "trajectory_events": 3018,
+          "valid_cc_cv_boundary_events": 3018,
+          "valid_cc_cv_boundary_fraction": 1.0,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 3018,
+            "fraction_of_valid_boundaries": 1.0
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 604,
+            "fraction_of_valid_boundaries": 0.2001325381047051
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 3018,
+            "mean": 0.9607683355744064,
+            "std": 0.03975708193516058,
+            "min": 0.021979371316306482,
+            "max": 0.9792735042735042
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 3018,
+            "mean": 3.5991001656726316,
+            "std": 0.0009655960382499501,
+            "min": 3.5961,
+            "max": 3.6009
+          },
+          "skipped_source_cycles": {},
+          "source_serial_cells": {
+            "smarthealth_catl280__001cb310000009b960503821__0_5c_60_dod": {
+              "source_files": 22,
+              "source_cycles": 1000,
+              "principal_charge_events": 1000,
+              "trajectory_events": 1000,
+              "valid_cc_cv_boundary_events": 1000,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1000,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 293,
+                "fraction_of_valid_boundaries": 0.293
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1000,
+                "mean": 0.9625751871454025,
+                "std": 0.013138935047814071,
+                "min": 0.8448487828866487,
+                "max": 0.9786279119469973
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1000,
+                "mean": 3.5992456000000006,
+                "std": 0.0009500845405745889,
+                "min": 3.5962,
+                "max": 3.6008
+              },
+              "skipped_source_cycles": {}
+            },
+            "smarthealth_catl280__001cb310000009b960504699__0_5c_60_dod": {
+              "source_files": 22,
+              "source_cycles": 1012,
+              "principal_charge_events": 1012,
+              "trajectory_events": 1012,
+              "valid_cc_cv_boundary_events": 1012,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1012,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 284,
+                "fraction_of_valid_boundaries": 0.28063241106719367
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1012,
+                "mean": 0.9574551189880112,
+                "std": 0.05701009585921916,
+                "min": 0.021979371316306482,
+                "max": 0.9758412424503883
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1012,
+                "mean": 3.59930671936759,
+                "std": 0.0008761295930273161,
+                "min": 3.5971,
+                "max": 3.6009
+              },
+              "skipped_source_cycles": {}
+            },
+            "smarthealth_catl280__001cb310000009b960504966__0_5c_60_dod": {
+              "source_files": 21,
+              "source_cycles": 1006,
+              "principal_charge_events": 1006,
+              "trajectory_events": 1006,
+              "valid_cc_cv_boundary_events": 1006,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1006,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 27,
+                "fraction_of_valid_boundaries": 0.0268389662027833
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1006,
+                "mean": 0.9623052377756365,
+                "std": 0.03583418585763388,
+                "min": 0.18694500701043776,
+                "max": 0.9792735042735042
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1006,
+                "mean": 3.598747813121272,
+                "std": 0.0009693156119645993,
+                "min": 3.5961,
+                "max": 3.6001
+              },
+              "skipped_source_cycles": {}
+            }
+          }
+        },
+        "0.5C-100%DOD": {
+          "source_files": 66,
+          "source_cycles": 2209,
+          "principal_charge_events": 2209,
+          "trajectory_events": 2209,
+          "valid_cc_cv_boundary_events": 2208,
+          "valid_cc_cv_boundary_fraction": 0.9995473064735174,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 2208,
+            "fraction_of_valid_boundaries": 1.0
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 883,
+            "fraction_of_valid_boundaries": 0.3999094202898551
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 2208,
+            "mean": 0.9219719193622697,
+            "std": 0.017319371563809163,
+            "min": 0.788409875911475,
+            "max": 0.9778787618965961
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 2208,
+            "mean": 3.5988049818840593,
+            "std": 0.0021069550519738386,
+            "min": 3.5946,
+            "max": 3.6014
+          },
+          "skipped_source_cycles": {
+            "boundary_nonpositive_charge_current": 1
+          },
+          "source_serial_cells": {
+            "smarthealth_catl280__001cb310000009b960502763__0_5c_100_dod": {
+              "source_files": 22,
+              "source_cycles": 729,
+              "principal_charge_events": 729,
+              "trajectory_events": 729,
+              "valid_cc_cv_boundary_events": 728,
+              "valid_cc_cv_boundary_fraction": 0.9986282578875172,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 728,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 56,
+                "fraction_of_valid_boundaries": 0.07692307692307693
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 728,
+                "mean": 0.9162874003314959,
+                "std": 0.01762703803705973,
+                "min": 0.788409875911475,
+                "max": 0.9711645417985796
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 728,
+                "mean": 3.599400824175824,
+                "std": 0.0003789435618798398,
+                "min": 3.5982,
+                "max": 3.6006
+              },
+              "skipped_source_cycles": {
+                "boundary_nonpositive_charge_current": 1
+              }
+            },
+            "smarthealth_catl280__001cb310000009b960504870__0_5c_100_dod": {
+              "source_files": 22,
+              "source_cycles": 761,
+              "principal_charge_events": 761,
+              "trajectory_events": 761,
+              "valid_cc_cv_boundary_events": 761,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 761,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 758,
+                "fraction_of_valid_boundaries": 0.9960578186596584
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 761,
+                "mean": 0.9271552054169712,
+                "std": 0.016395334053236874,
+                "min": 0.8551627670396744,
+                "max": 0.9778787618965961
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 761,
+                "mean": 3.600741130091984,
+                "std": 0.00026889227910666927,
+                "min": 3.5996,
+                "max": 3.6014
+              },
+              "skipped_source_cycles": {}
+            },
+            "smarthealth_catl280__001cb310000009b970504296__0_5c_100_dod": {
+              "source_files": 22,
+              "source_cycles": 719,
+              "principal_charge_events": 719,
+              "trajectory_events": 719,
+              "valid_cc_cv_boundary_events": 719,
+              "valid_cc_cv_boundary_fraction": 1.0,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 719,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 69,
+                "fraction_of_valid_boundaries": 0.09596662030598054
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 719,
+                "mean": 0.9222415287736403,
+                "std": 0.01614995080476154,
+                "min": 0.8551218896046482,
+                "max": 0.9765731874145007
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 719,
+                "mean": 3.5961524339360222,
+                "std": 0.0014309480411976272,
+                "min": 3.5946,
+                "max": 3.6005
+              },
+              "skipped_source_cycles": {}
+            }
+          }
+        }
+      }
+    },
+    "smarthealth_eve280": {
+      "domain_id": "smarthealth_eve280",
+      "source_files": 299,
+      "source_cycles": 15751,
+      "principal_charge_events": 15751,
+      "conditions": {
+        "0.5C-20%DOD": {
+          "source_files": 72,
+          "source_cycles": 6042,
+          "principal_charge_events": 6042,
+          "trajectory_events": 6042,
+          "valid_cc_cv_boundary_events": 2463,
+          "valid_cc_cv_boundary_fraction": 0.4076464746772592,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 2373,
+            "fraction_of_valid_boundaries": 0.9634591961023142
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 0,
+            "fraction_of_valid_boundaries": 0.0
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 2463,
+            "mean": 0.9645647329369795,
+            "std": 0.010924235664574492,
+            "min": 0.8058035714285714,
+            "max": 0.9945936039585815
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 2463,
+            "mean": 3.5884450669914725,
+            "std": 0.00660436553894807,
+            "min": 3.5776,
+            "max": 3.5999
+          },
+          "skipped_source_cycles": {
+            "boundary_no_persistent_taper_near_charge_voltage_max": 3579
+          },
+          "source_serial_cells": {
+            "smarthealth_eve280__04qcb76717200jb5h0002297__0_5c_20_dod": {
+              "source_files": 24,
+              "source_cycles": 2011,
+              "principal_charge_events": 2011,
+              "trajectory_events": 2011,
+              "valid_cc_cv_boundary_events": 302,
+              "valid_cc_cv_boundary_fraction": 0.15017404276479362,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 302,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 302,
+                "mean": 0.9786879109213494,
+                "std": 0.007683042970956607,
+                "min": 0.9243845252051582,
+                "max": 0.9945936039585815
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 302,
+                "mean": 3.59628178807947,
+                "std": 0.0014694345394877968,
+                "min": 3.5915,
+                "max": 3.5997
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1709
+              }
+            },
+            "smarthealth_eve280__04qcb76718400jb640004290__0_5c_20_dod": {
+              "source_files": 23,
+              "source_cycles": 2019,
+              "principal_charge_events": 2019,
+              "trajectory_events": 2019,
+              "valid_cc_cv_boundary_events": 300,
+              "valid_cc_cv_boundary_fraction": 0.1485884101040119,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 300,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 300,
+                "mean": 0.9781560235395623,
+                "std": 0.006126412764865161,
+                "min": 0.9368074273734651,
+                "max": 0.9902483900643975
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 300,
+                "mean": 3.597369000000001,
+                "std": 0.00124726593932713,
+                "min": 3.593,
+                "max": 3.5995
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 1719
+              }
+            },
+            "smarthealth_eve280__04qcb76718400jb640005123__0_5c_20_dod": {
+              "source_files": 25,
+              "source_cycles": 2012,
+              "principal_charge_events": 2012,
+              "trajectory_events": 2012,
+              "valid_cc_cv_boundary_events": 1861,
+              "valid_cc_cv_boundary_fraction": 0.9249502982107356,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1771,
+                "fraction_of_valid_boundaries": 0.9516389038151531
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1861,
+                "mean": 0.9600818812808515,
+                "std": 0.007750522329990711,
+                "min": 0.8058035714285714,
+                "max": 0.9913864198662146
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1861,
+                "mean": 3.585734766254701,
+                "std": 0.00519387688962186,
+                "min": 3.5776,
+                "max": 3.5999
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 151
+              }
+            }
+          }
+        },
+        "0.5C-60%DOD": {
+          "source_files": 109,
+          "source_cycles": 5491,
+          "principal_charge_events": 5491,
+          "trajectory_events": 5491,
+          "valid_cc_cv_boundary_events": 5390,
+          "valid_cc_cv_boundary_fraction": 0.9816062647969405,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 5390,
+            "fraction_of_valid_boundaries": 1.0
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 0,
+            "fraction_of_valid_boundaries": 0.0
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 5390,
+            "mean": 0.981200481896428,
+            "std": 0.004474676502565929,
+            "min": 0.8662207357859532,
+            "max": 0.9915277649875679
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 5390,
+            "mean": 3.5960280890538034,
+            "std": 0.0018298173158709798,
+            "min": 3.5915,
+            "max": 3.5999
+          },
+          "skipped_source_cycles": {
+            "boundary_no_persistent_taper_near_charge_voltage_max": 101
+          },
+          "source_serial_cells": {
+            "smarthealth_eve280__04qcb76717100jb5g0000730__0_5c_60_dod": {
+              "source_files": 36,
+              "source_cycles": 1847,
+              "principal_charge_events": 1847,
+              "trajectory_events": 1847,
+              "valid_cc_cv_boundary_events": 1817,
+              "valid_cc_cv_boundary_fraction": 0.983757444504602,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1817,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1817,
+                "mean": 0.981442281281572,
+                "std": 0.004151024523288627,
+                "min": 0.913988368533823,
+                "max": 0.989675800849093
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1817,
+                "mean": 3.5962590533846996,
+                "std": 0.0018667047026631192,
+                "min": 3.592,
+                "max": 3.5999
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 30
+              }
+            },
+            "smarthealth_eve280__04qcb76718400jb640003611__0_5c_60_dod": {
+              "source_files": 36,
+              "source_cycles": 1795,
+              "principal_charge_events": 1795,
+              "trajectory_events": 1795,
+              "valid_cc_cv_boundary_events": 1753,
+              "valid_cc_cv_boundary_fraction": 0.9766016713091922,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1753,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1753,
+                "mean": 0.9813577471298063,
+                "std": 0.004136928837059311,
+                "min": 0.9070713391739674,
+                "max": 0.9894097062344599
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1753,
+                "mean": 3.5956092413006275,
+                "std": 0.0017937029825651704,
+                "min": 3.5915,
+                "max": 3.5991
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 42
+              }
+            },
+            "smarthealth_eve280__04qcb76718400jb640003859__0_5c_60_dod": {
+              "source_files": 37,
+              "source_cycles": 1849,
+              "principal_charge_events": 1849,
+              "trajectory_events": 1849,
+              "valid_cc_cv_boundary_events": 1820,
+              "valid_cc_cv_boundary_fraction": 0.9843158464034614,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1820,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1820,
+                "mean": 0.9808076052827351,
+                "std": 0.005037339120031901,
+                "min": 0.8662207357859532,
+                "max": 0.9915277649875679
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1820,
+                "mean": 3.5962009340659336,
+                "std": 0.00175671215466779,
+                "min": 3.5922,
+                "max": 3.5999
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 29
+              }
+            }
+          }
+        },
+        "0.5C-100%DOD": {
+          "source_files": 118,
+          "source_cycles": 4218,
+          "principal_charge_events": 4218,
+          "trajectory_events": 4218,
+          "valid_cc_cv_boundary_events": 4196,
+          "valid_cc_cv_boundary_fraction": 0.9947842579421526,
+          "inferred_cc_reaches_3_58_v": {
+            "count": 4196,
+            "fraction_of_valid_boundaries": 1.0
+          },
+          "inferred_cc_reaches_3_60_v": {
+            "count": 0,
+            "fraction_of_valid_boundaries": 0.0
+          },
+          "inferred_cc_boundary_fraction_of_charge_time": {
+            "n": 4196,
+            "mean": 0.9810965474948573,
+            "std": 0.004108675860259896,
+            "min": 0.9037383177570093,
+            "max": 0.9942365748787851
+          },
+          "inferred_cc_max_voltage_v": {
+            "n": 4196,
+            "mean": 3.5968230934223078,
+            "std": 0.001399575404279355,
+            "min": 3.5925,
+            "max": 3.5999
+          },
+          "skipped_source_cycles": {
+            "boundary_no_persistent_taper_near_charge_voltage_max": 22
+          },
+          "source_serial_cells": {
+            "smarthealth_eve280__04qcb76716600jb630005726__0_5c_100_dod": {
+              "source_files": 40,
+              "source_cycles": 1386,
+              "principal_charge_events": 1386,
+              "trajectory_events": 1386,
+              "valid_cc_cv_boundary_events": 1375,
+              "valid_cc_cv_boundary_fraction": 0.9920634920634921,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1375,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1375,
+                "mean": 0.9828280615655668,
+                "std": 0.0036354282326824744,
+                "min": 0.9554581447963801,
+                "max": 0.9942365748787851
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1375,
+                "mean": 3.5967985454545466,
+                "std": 0.001445373077441159,
+                "min": 3.5928,
+                "max": 3.5995
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 11
+              }
+            },
+            "smarthealth_eve280__04qcb76718400jb630001092__0_5c_100_dod": {
+              "source_files": 40,
+              "source_cycles": 1349,
+              "principal_charge_events": 1349,
+              "trajectory_events": 1349,
+              "valid_cc_cv_boundary_events": 1344,
+              "valid_cc_cv_boundary_fraction": 0.9962935507783544,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1344,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1344,
+                "mean": 0.9804369447043313,
+                "std": 0.004108168010224505,
+                "min": 0.9037383177570093,
+                "max": 0.9917459429210969
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1344,
+                "mean": 3.596733482142856,
+                "std": 0.0013511275380219585,
+                "min": 3.5927,
+                "max": 3.5999
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 5
+              }
+            },
+            "smarthealth_eve280__04qcb76718400jb630001859__0_5c_100_dod": {
+              "source_files": 38,
+              "source_cycles": 1483,
+              "principal_charge_events": 1483,
+              "trajectory_events": 1483,
+              "valid_cc_cv_boundary_events": 1477,
+              "valid_cc_cv_boundary_fraction": 0.9959541469993257,
+              "inferred_cc_reaches_3_58_v": {
+                "count": 1477,
+                "fraction_of_valid_boundaries": 1.0
+              },
+              "inferred_cc_reaches_3_60_v": {
+                "count": 0,
+                "fraction_of_valid_boundaries": 0.0
+              },
+              "inferred_cc_boundary_fraction_of_charge_time": {
+                "n": 1477,
+                "mean": 0.9800848171652985,
+                "std": 0.004010761966886341,
+                "min": 0.9271907216494846,
+                "max": 0.9916678435249259
+              },
+              "inferred_cc_max_voltage_v": {
+                "n": 1477,
+                "mean": 3.5969274881516595,
+                "std": 0.0013928446537357598,
+                "min": 3.5925,
+                "max": 3.5998
+              },
+              "skipped_source_cycles": {
+                "boundary_no_persistent_taper_near_charge_voltage_max": 6
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

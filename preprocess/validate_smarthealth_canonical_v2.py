@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Validate generated SmartHealth v2 canonical products without source CSVs.
+"""Validate generated SmartHealth v3 canonical products without source CSVs.
 
 Run after one or more family-specific RAW and FEATURE jobs.  The validator
-reads only canonical RAW/feature files, their v2 audit files, and split JSON;
+reads only canonical RAW/feature files, their v3 audit files, and split JSON;
 it never revisits the GB18030 SmartHealth source tree.
+
+The filename is retained as a compatibility entry point for the launcher.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ import json
 import math
 import sys
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
@@ -39,7 +42,7 @@ CONFIGS = {
 
 
 class ValidationError(RuntimeError):
-    """A generated canonical v2 product violates its auditable contract."""
+    """A generated canonical v3 product violates its auditable contract."""
 
 
 def default_paths() -> tuple[Path, Path, Path]:
@@ -66,6 +69,29 @@ def integer(row: dict[str, str], name: str, path: Path) -> int:
     if not value.is_integer() or value <= 0:
         raise ValidationError(f"{path}: invalid positive integer {name}={value}")
     return int(value)
+
+
+def source_time(row: dict[str, str], name: str, path: Path) -> datetime:
+    text = str(row.get(name, "")).strip().replace("/", "-").replace("T", " ")
+    if not text:
+        raise ValidationError(f"{path}: missing {name}")
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        parsed = None
+        for layout in (
+            "%Y-%m-%d %H:%M:%S.%f",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %H:%M",
+        ):
+            try:
+                parsed = datetime.strptime(text, layout)
+                break
+            except ValueError:
+                continue
+        if parsed is None:
+            raise ValidationError(f"{path}: invalid {name}={row.get(name)!r}")
+    return parsed.replace(tzinfo=None) if parsed.tzinfo is not None else parsed
 
 
 def required_fields(path: Path, actual: Iterable[str] | None, required: Iterable[str]) -> None:
@@ -108,6 +134,9 @@ def load_exported_provenance(
                 "domain_id",
                 "logical_sequence_id",
                 "cycle",
+                "source_cycle",
+                "source_absolute_start_time",
+                "source_absolute_end_time",
                 "selected_candidate",
                 "output_status",
                 "raw_rows_written",
@@ -122,6 +151,7 @@ def load_exported_provenance(
                 "strategy_version",
             },
         )
+        selected_timeline: dict[str, list[tuple[int, datetime, datetime]]] = {}
         for row in reader:
             if row["domain_id"] != config.domain_id:
                 raise ValidationError(f"{path}: row from another domain")
@@ -131,15 +161,36 @@ def load_exported_provenance(
                 raise ValidationError(f"{path}: split strategy version mismatch")
             if str(row["selected_candidate"]).lower() not in {"true", "1"}:
                 continue
+            logical_sequence_id = str(row["logical_sequence_id"])
+            cycle = integer(row, "cycle", path)
+            integer(row, "source_cycle", path)
+            start = source_time(row, "source_absolute_start_time", path)
+            end = source_time(row, "source_absolute_end_time", path)
+            if end < start:
+                raise ValidationError(f"{path}: reversed source time interval for {logical_sequence_id}/{cycle}")
+            selected_timeline.setdefault(logical_sequence_id, []).append((cycle, start, end))
             if row["output_status"] != "exported":
                 continue
-            key = (str(row["logical_sequence_id"]), integer(row, "cycle", path))
+            key = (logical_sequence_id, cycle)
             if key in expected:
                 raise ValidationError(f"{path}: duplicate selected/exported provenance {key}")
             for boolean in ("temperature_complete", "cc_window_complete", "cv_window_complete"):
                 if str(row[boolean]).lower() not in {"true", "1"}:
                     raise ValidationError(f"{path}: exported cycle lacks {boolean}: {key}")
             expected[key] = row
+    for logical_sequence_id, events in selected_timeline.items():
+        ordered = sorted(events)
+        cycle_ids = [cycle for cycle, _, _ in ordered]
+        if cycle_ids != list(range(1, len(cycle_ids) + 1)):
+            raise ValidationError(
+                f"{path}: selected canonical cycle IDs are not one-based chronology for "
+                f"{logical_sequence_id}"
+            )
+        intervals = [(start, end) for _, start, end in ordered]
+        if any(current < previous for previous, current in zip(intervals, intervals[1:])):
+            raise ValidationError(
+                f"{path}: canonical source-time chronology regresses for {logical_sequence_id}"
+            )
     if not expected:
         raise ValidationError(f"{path}: no exported canonical cycles")
     return expected
@@ -181,6 +232,13 @@ def validate_raw_domain(
                 if label_source not in {"calibration_direct", "calibration_interpolated"}:
                     raise ValidationError(f"{path}: invalid label source for {active_key}: {label_source!r}")
                 soh = finite(active[0], "SOH", path)
+                lineage = (
+                    integer(active[0], "source_cycle", path),
+                    source_time(active[0], "source_absolute_start_time", path),
+                    source_time(active[0], "source_absolute_end_time", path),
+                )
+                if lineage[2] < lineage[1]:
+                    raise ValidationError(f"{path}: reversed source time interval for {active_key}")
                 for row in active:
                     if row["domain_id"] != config.domain_id or row["strategy_version"] != POLICY_VERSION:
                         raise ValidationError(f"{path}: metadata policy/domain mismatch for {active_key}")
@@ -195,6 +253,13 @@ def validate_raw_domain(
                         finite(row, "SOH", path), soh, rel_tol=1e-7, abs_tol=1e-8
                     ):
                         raise ValidationError(f"{path}: label varies within {active_key}")
+                    row_lineage = (
+                        integer(row, "source_cycle", path),
+                        source_time(row, "source_absolute_start_time", path),
+                        source_time(row, "source_absolute_end_time", path),
+                    )
+                    if row_lineage != lineage:
+                        raise ValidationError(f"{path}: source lineage varies within {active_key}")
                     segment = str(row["segment"]).strip().upper()
                     voltage = finite(row, "voltage_V", path)
                     c_rate = finite(row, "c_rate", path)
@@ -205,13 +270,13 @@ def validate_raw_domain(
                         <= voltage
                         <= config.cc_voltage_high_v + 1e-9
                     ):
-                        raise ValidationError(f"{path}: CC point outside v2 voltage window for {active_key}")
+                        raise ValidationError(f"{path}: CC point outside v3 voltage window for {active_key}")
                     if segment == "CV" and not (
                         config.cv_c_rate_low - config.cv_selection_tolerance_c - 1e-9
                         <= c_rate
                         <= config.cv_c_rate_high + config.cv_selection_tolerance_c + 1e-9
                     ):
-                        raise ValidationError(f"{path}: CV point outside v2 C-rate window for {active_key}")
+                        raise ValidationError(f"{path}: CV point outside v3 C-rate window for {active_key}")
                 provenance = expected[active_key]
                 if not math.isclose(
                     float(provenance["SOH"]), soh, rel_tol=1e-7, abs_tol=1e-8
@@ -219,6 +284,13 @@ def validate_raw_domain(
                     raise ValidationError(f"{path}: RAW/provenance label mismatch for {active_key}")
                 if integer(provenance, "raw_rows_written", path) != len(active):
                     raise ValidationError(f"{path}: RAW/provenance row-count mismatch for {active_key}")
+                provenance_lineage = (
+                    integer(provenance, "source_cycle", path),
+                    source_time(provenance, "source_absolute_start_time", path),
+                    source_time(provenance, "source_absolute_end_time", path),
+                )
+                if lineage != provenance_lineage:
+                    raise ValidationError(f"{path}: RAW/provenance source lineage mismatch for {active_key}")
                 observed[active_key] = {
                     "rows": len(active),
                     "soh": soh,
@@ -228,6 +300,9 @@ def validate_raw_domain(
                     "split_role": active[0]["split_role"],
                     "split_status": active[0]["split_status"],
                     "split_strategy_version": active[0]["split_strategy_version"],
+                    "source_cycle": lineage[0],
+                    "source_absolute_start_time": lineage[1],
+                    "source_absolute_end_time": lineage[2],
                 }
                 seen_local.add(active_key)
                 active_key = None
@@ -291,6 +366,18 @@ def validate_feature_domain(
                     or row["split_strategy_version"] != SPLIT_STRATEGY_VERSION
                 ):
                     raise ValidationError(f"{path}: feature/RAW split mismatch for {key}")
+                feature_lineage = (
+                    integer(row, "source_cycle", path),
+                    source_time(row, "source_absolute_start_time", path),
+                    source_time(row, "source_absolute_end_time", path),
+                )
+                raw_lineage = (
+                    int(raw["source_cycle"]),
+                    raw["source_absolute_start_time"],
+                    raw["source_absolute_end_time"],
+                )
+                if feature_lineage != raw_lineage:
+                    raise ValidationError(f"{path}: feature/RAW source lineage mismatch for {key}")
                 for name in FEATURE_COLUMNS:
                     finite(row, name, path)
                 found.add(key)
@@ -446,7 +533,7 @@ def main() -> int:
         domain for domain in sorted(CONFIGS) if (args.raw_root / domain).is_dir()
     ]
     if not domains:
-        raise ValidationError("No generated v2 SmartHealth domain directory was found")
+        raise ValidationError("No generated v3 SmartHealth domain directory was found")
     summary: dict[str, object] = {"strategy_version": POLICY_VERSION, "domains": {}}
     for domain in domains:
         config = CONFIGS[domain]
@@ -471,5 +558,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except ValidationError as exc:
-        print(f"SmartHealth v2 validation failed: {exc}", file=sys.stderr)
+        print(f"SmartHealth v3 validation failed: {exc}", file=sys.stderr)
         raise SystemExit(2)
