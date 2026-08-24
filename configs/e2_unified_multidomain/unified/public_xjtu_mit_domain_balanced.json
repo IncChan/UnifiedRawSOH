@@ -1,0 +1,14 @@
+{
+  "status": "runnable",
+  "base_config": "./public_xjtu_mit.json",
+  "experiment": {
+    "name": "E2_Pilot_Unified_xjtu_mit_domain_balanced"
+  },
+  "output": {
+    "data_id": "pilot_xjtu_mit_domain_balanced"
+  },
+  "data": {
+    "balance_mode": "domain_battery_hierarchical"
+  },
+  "protocol": "E2-Pilot Domain-Balanced jointly trains XJTU and MIT with one shared RawMamba. It retains the original E2-Pilot data contracts and hyperparameters, but uses hierarchical sampling: domains have equal expected sampling probability, batteries are uniform within each domain, and cycles are uniform within each battery."
+}

@@ -71,15 +71,6 @@ def _make_balanced_sampler(dataset, balance_mode):
         keys = [battery_id for _, battery_id in metadata]
     elif balance_mode in {"dataset_battery", "domain_battery"}:
         keys = metadata
-    elif balance_mode == "domain_battery_hierarchical":
-        # Equal domain mass, then equal battery mass within each domain.
-        group_counts = Counter(metadata)
-        batteries_per_domain = Counter(domain_id for domain_id, _ in set(metadata))
-        weights = torch.as_tensor(
-            [1.0 / (batteries_per_domain[d] * group_counts[(d, b)]) for d, b in metadata],
-            dtype=torch.double,
-        )
-        return WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
     else:
         raise ValueError(
             "balance_mode must be one of 'none', 'domain', 'battery', 'domain_battery', "

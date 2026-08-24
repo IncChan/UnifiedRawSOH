@@ -71,7 +71,7 @@ def main():
         "cycle_prediction_shape": list(aux["cycle_life_hat"].shape),
         "loss": float(loss.detach().item()),
     }
-    print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
+    print(json.dumps(result, indent=2, ensure_ascii=True, default=str))
 
 
 if __name__ == "__main__":

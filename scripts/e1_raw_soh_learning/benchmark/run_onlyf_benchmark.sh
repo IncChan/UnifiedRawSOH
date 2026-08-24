@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Keep launcher logs safe under non-UTF-8 scheduler locales.
+export PYTHONUTF8="${PYTHONUTF8:-1}"
+export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8:backslashreplace}"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
@@ -7,11 +10,14 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 # additional command-line arguments. It intentionally does not inherit a
 # terminal DOMAIN variable, so the selected config and output directory agree.
 # Change only this line for the E1 battery domain to train.
-DOMAIN="mit"  # choices: xjtu, mit, smarthealth_lishen40, smarthealth_catl280, smarthealth_eve280
+DOMAIN="smarthealth_eve280"  # choices: xjtu, mit, smarthealth_lishen40, smarthealth_catl280, smarthealth_eve280
 SEEDS="42 52 62"
-GPU_IDS="2"
+GPU_IDS="3"
 MAX_PARALLEL="3"
-PYTHON_BIN="${PYTHON_BIN:-/home/chenyanxi/.conda/envs/pinn/bin/python}"
+if [[ -n "${PYTHON_BIN:-}" ]]; then
+  export PYTHON_BIN
+fi
+PYTHON_BIN="$(${PROJECT_ROOT}/UnifiedRawSOH/scripts/resolve_python_bin.sh)"
 export SEEDS GPU_IDS MAX_PARALLEL PYTHON_BIN
 
 case "${DOMAIN}" in

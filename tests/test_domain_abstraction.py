@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -29,9 +30,12 @@ from UnifiedRawSOH.preprocess.smarthealth_common import (  # noqa: E402
     CellSummary,
     CycleCandidate,
     PhaseResult,
+    Point,
     SourceIdentity,
     assign_chronological_cycle_ids,
+    candidate_from_points,
     resolve_duplicate_candidates,
+    source_cycle_duration_hours,
     source_absolute_time,
     visit_cycles,
 )
@@ -268,6 +272,131 @@ class DomainAbstractionTest(unittest.TestCase):
             earlier.source_absolute_start_time,
         )
         self.assertEqual(cells[logical_sequence_id].unique_source_events, 2)
+
+    def test_smarthealth_chronology_collapses_overlapping_chunk_cycle(self):
+        logical_sequence_id = "smarthealth_lishen40__cell__1c_100_dod"
+
+        def candidate(chunk_id, start, end, rows, capacity):
+            identity = SourceIdentity(
+                path=Path(f"/source/chunk-{chunk_id}.csv"),
+                relative_path=f"LISHEN/condition/cell-1C-100%DOD-{chunk_id}.csv",
+                config=LISHEN40_CONFIG,
+                source_series="cell-1C-100%DOD",
+                source_serial="cell",
+                condition="1C-100%DOD",
+                dod_percent=100,
+                chunk_id=chunk_id,
+                logical_sequence_id=logical_sequence_id,
+                file_size_bytes=1,
+                file_mtime_ns=1,
+            )
+            return CycleCandidate(
+                identity=identity,
+                source_cycle=22,
+                source_absolute_start_time=start,
+                source_absolute_end_time=end,
+                source_rows=rows,
+                source_temperature_column_present=True,
+                phase=PhaseResult(status="ok", reason="ok", temperature_complete=True),
+                cycle_discharge_capacity_ah=capacity,
+                candidate_eligible=True,
+                candidate_eligibility_reason="ok",
+            )
+
+        start = datetime(2022, 8, 4, 8, 27)
+        truncated = candidate(
+            1, start + timedelta(seconds=1), start + timedelta(hours=5), 100, 5.0
+        )
+        complete = candidate(2, start, start + timedelta(hours=8), 200, 40.0)
+        candidates = {
+            (
+                logical_sequence_id,
+                truncated.source_absolute_start_time,
+                truncated.source_absolute_end_time,
+            ): [truncated],
+            (
+                logical_sequence_id,
+                complete.source_absolute_start_time,
+                complete.source_absolute_end_time,
+            ): [complete],
+        }
+        cells = {logical_sequence_id: CellSummary(identity=complete.identity)}
+
+        selected_events = resolve_duplicate_candidates(candidates, cells)
+        selected = assign_chronological_cycle_ids(selected_events, candidates)
+
+        self.assertEqual(len(selected), 1)
+        self.assertIs(selected[(logical_sequence_id, 1)], complete)
+        self.assertTrue(complete.selected_candidate)
+        self.assertFalse(truncated.selected_candidate)
+        self.assertEqual(truncated.output_status, "not_selected")
+        self.assertEqual(truncated.canonical_cycle, 1)
+        self.assertEqual(complete.canonical_cycle, 1)
+        self.assertEqual(cells[logical_sequence_id].unique_source_events, 1)
+        self.assertEqual(cells[logical_sequence_id].overlapping_source_cycle_candidates, 1)
+
+    def test_smarthealth_source_cycle_duration_is_in_hours(self):
+        start = datetime(2022, 1, 1)
+        self.assertEqual(source_cycle_duration_hours(start, start + timedelta(hours=25)), 25.0)
+
+    def test_smarthealth_rejects_source_cycle_longer_than_duration_limit(self):
+        start = datetime(2022, 1, 1)
+        identity = SourceIdentity(
+            path=Path("/source/chunk.csv"),
+            relative_path="LISHEN/condition/cell-1C-100%DOD-1.csv",
+            config=LISHEN40_CONFIG,
+            source_series="cell-1C-100%DOD",
+            source_serial="cell",
+            condition="1C-100%DOD",
+            dod_percent=100,
+            chunk_id=1,
+            logical_sequence_id="smarthealth_lishen40__cell__1c_100_dod",
+            file_size_bytes=1,
+            file_mtime_ns=1,
+        )
+
+        def point(index, step_type, time_text, absolute_time, current, voltage, discharge):
+            return Point(
+                source_row_index=index,
+                cycle=1,
+                step_id="1" if step_type == "恒流恒压充电" else "2",
+                step_type=step_type,
+                time_text=time_text,
+                absolute_time=absolute_time,
+                current_a=current,
+                voltage_v=voltage,
+                charge_capacity_ah=0.0,
+                discharge_capacity_ah=discharge,
+                temperature_c=25.0,
+            )
+
+        points = [
+            point(0, "恒流恒压充电", "00:00:00", start, 40.0, 3.45, 0.0),
+            point(1, "恒流恒压充电", "00:00:01", start + timedelta(seconds=1), 40.0, 3.50, 0.0),
+            point(2, "恒流恒压充电", "00:00:02", start + timedelta(seconds=2), 40.0, 3.58, 0.0),
+            point(3, "恒流恒压充电", "00:00:03", start + timedelta(seconds=3), 10.0, 3.60, 0.0),
+            point(4, "恒流恒压充电", "00:00:04", start + timedelta(seconds=4), 2.0, 3.60, 0.0),
+            point(5, "恒流放电", "00:00:00", start + timedelta(hours=25), -40.0, 3.50, 0.0),
+            point(6, "恒流放电", "00:00:01", start + timedelta(hours=25, seconds=1), -40.0, 3.40, 40.0),
+        ]
+        args = SimpleNamespace(
+            min_cc_points=2,
+            min_cv_points=2,
+            min_selected_cc_points=2,
+            min_selected_cv_points=2,
+            cc_reference_fraction=0.2,
+            cc_reference_min_points=2,
+            cc_reference_quantile=0.9,
+            cv_taper_fraction=0.01,
+            cv_persistence_points=2,
+            cv_voltage_tolerance_v=0.02,
+            max_source_cycle_duration_hours=24.0,
+        )
+
+        candidate = candidate_from_points(identity, 1, points, True, args)
+
+        self.assertFalse(candidate.candidate_eligible)
+        self.assertIn("source_cycle_duration_exceeds_limit", candidate.candidate_eligibility_reason)
 
     def test_reusability_protocol_requires_disjoint_domains_and_fair_budget(self):
         adaptation = load_config(

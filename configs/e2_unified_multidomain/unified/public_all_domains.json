@@ -1,8 +1,8 @@
 {
-  "status": "planned",
+  "status": "runnable",
   "base_config": "../../e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json",
   "experiment": {
-    "name": "E2_Unified_public_all_domains",
+    "name": "E2_Full_Unified_public_all_domains",
     "version": "UnifiedRawSOH/Paper-v1",
     "task": "e2_unified_multidomain_raw_soh_learning",
     "loader": "unified_multi_dataset",
@@ -21,7 +21,7 @@
   "output": {
     "experiment_id": "e2_unified_multidomain",
     "model_id": "RawMamba",
-    "data_id": "public_all_domains"
+    "data_id": "full_public_all_domains"
   },
   "data": {
     "data_root": null,
@@ -32,7 +32,13 @@
       "smarthealth_catl280": "UnifiedRawSOH/datasets/SmartHealth_raw",
       "smarthealth_eve280": "UnifiedRawSOH/datasets/SmartHealth_raw"
     },
-    "batches_by_domain": {},
+    "batches_by_domain": {
+      "xjtu": ["2C", "3C", "R2.5", "R3", "RW", "satellite"],
+      "mit": ["2017-05-12", "2017-06-30", "2018-04-12"],
+      "smarthealth_lishen40": [],
+      "smarthealth_catl280": [],
+      "smarthealth_eve280": []
+    },
     "nominal_capacities": {
       "xjtu": 2.0,
       "mit": 1.1,
@@ -54,10 +60,92 @@
       "smarthealth_catl280": "label_capacity_to_nominal",
       "smarthealth_eve280": "label_capacity_to_nominal"
     },
+    "normalizations": {
+      "xjtu": {
+        "mode": "physical_window",
+        "cc_voltage_low": 4.0,
+        "cc_voltage_high": 4.195,
+        "cv_current_low": 0.1,
+        "cv_current_high": 0.5,
+        "cc_current_ref": 4.0,
+        "cv_voltage_ref": 4.19975,
+        "cv_voltage_scale": 0.001,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      },
+      "mit": {
+        "mode": "physical_window",
+        "cc_voltage_low": 3.45,
+        "cc_voltage_high": 3.6,
+        "cv_current_low": 0.055,
+        "cv_current_high": 0.275,
+        "cc_current_ref": 1.0,
+        "cv_voltage_ref": 3.6,
+        "cv_voltage_scale": 0.001,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      },
+      "smarthealth_lishen40": {
+        "mode": "physical_window",
+        "cc_voltage_low": 3.45,
+        "cc_voltage_high": 3.58,
+        "cv_current_low": 2.0,
+        "cv_current_high": 10.0,
+        "cc_current_ref": 80.0,
+        "cv_voltage_ref": 3.6,
+        "cv_voltage_scale": 0.01,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      },
+      "smarthealth_catl280": {
+        "mode": "physical_window",
+        "cc_voltage_low": 3.45,
+        "cc_voltage_high": 3.58,
+        "cv_current_low": 14.0,
+        "cv_current_high": 70.0,
+        "cc_current_ref": 140.0,
+        "cv_voltage_ref": 3.6,
+        "cv_voltage_scale": 0.01,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      },
+      "smarthealth_eve280": {
+        "mode": "physical_window",
+        "cc_voltage_low": 3.45,
+        "cc_voltage_high": 3.58,
+        "cv_current_low": 14.0,
+        "cv_current_high": 70.0,
+        "cc_current_ref": 140.0,
+        "cv_voltage_ref": 3.6,
+        "cv_voltage_scale": 0.01,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      }
+    },
     "balance_mode": "domain_battery"
   },
   "train": {
     "monitor": "valid_domain_macro_rmse"
   },
-  "protocol": "E2 requires SmartHealth v3 family-specific canonical raw products, feature products, and condition-stratified 2-development/1-test logical-cell splits. Their source-time event identity, inferred CC/CV boundary, 3.45–3.58 V CC selection, nominal-C-rate 0.25C–0.05C CV selection, and calibration-derived label_capacity_Ah are fixed in adjacent provenance files. The unified target is label_capacity_Ah / fixed domain nominal capacity (40 Ah for LISHEN; 280 Ah for CATL/EVE), consistent with XJTU/MIT. A condition without exactly three eligible logical sequences remains an explicit manual-confirmation stop, never a fallback split. This all-public Unified configuration is still planned until its formal multi-domain training/selection protocol is intentionally executed."
+  "protocol": "E2-Full jointly trains all five public domains with one shared RawMamba. It inherits the E1 RawMamba model and all optimizer/scheduler hyperparameters from raw_mamba_xjtu.json; the only training override is validation domain-macro RMSE for checkpoint selection. XJTU, MIT, and each SmartHealth family retain their E1 split, raw adapter, fixed physical normalization, and SOH target definition. SmartHealth targets are calibration-derived label_capacity_Ah divided by the fixed 40 Ah or 280 Ah family nominal capacity; per-series Q_ref remains provenance only. The launcher runs a read-only readiness check for every source E1 configuration before launching any seed, and a split marked manual_confirmation_required remains a hard stop."
 }

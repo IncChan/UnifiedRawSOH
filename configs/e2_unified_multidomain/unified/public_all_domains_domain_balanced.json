@@ -1,0 +1,14 @@
+{
+  "status": "runnable",
+  "base_config": "./public_all_domains.json",
+  "experiment": {
+    "name": "E2_Full_Unified_public_all_domains_domain_balanced"
+  },
+  "output": {
+    "data_id": "full_public_all_domains_domain_balanced"
+  },
+  "data": {
+    "balance_mode": "domain_battery_hierarchical"
+  },
+  "protocol": "E2-Full Domain-Balanced jointly trains all five public domains with one shared RawMamba. It retains the original E2-Full data contracts and hyperparameters, but uses hierarchical sampling: domains have equal expected sampling probability, batteries are uniform within each domain, and cycles are uniform within each battery."
+}

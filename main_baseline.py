@@ -48,7 +48,7 @@ def main():
     if args.run_time is not None:
         config.setdefault("experiment", {})["run_time"] = args.run_time
     result = train_from_config(config, PROJECT_ROOT, device_override=args.device_override)
-    print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
+    print(json.dumps(result, indent=2, ensure_ascii=True, default=str))
 
 
 if __name__ == "__main__":

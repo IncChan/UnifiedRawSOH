@@ -34,11 +34,12 @@ import numpy as np
 
 
 SOURCE_ENCODING = "gb18030"
-# v3 differs materially from v2: numbered source chunks are no longer merged
-# by their local ``循环号``.  Every canonical cycle is ordered by the source
-# ``绝对时间`` and retains that local number only as provenance.
-POLICY_VERSION = "smarthealth_cccv_calibration_v3"
+# v4 retains v3's absolute-time chronology, and additionally reconciles an
+# overlapping source-cycle that was copied into adjacent numbered chunks.
+# Every canonical cycle still retains the local source ``循环号`` as provenance.
+POLICY_VERSION = "smarthealth_cccv_calibration_v4"
 SPLIT_STRATEGY_VERSION = "smarthealth_condition_cell_split_2development_1test_v3"
+DEFAULT_MAX_SOURCE_CYCLE_DURATION_HOURS = 24.0
 CHARGE_STEP = "恒流恒压充电"
 DISCHARGE_STEP = "恒流放电"
 SOURCE_POINT_REQUIRED_COLUMNS = (
@@ -254,6 +255,7 @@ CYCLE_PROVENANCE_COLUMNS = [
     "source_file_mtime_ns",
     "source_absolute_start_time",
     "source_absolute_end_time",
+    "source_cycle_duration_hours",
     "source_rows",
     "source_charge_event_count",
     "source_discharge_event_count",
@@ -320,6 +322,7 @@ CELL_PROVENANCE_COLUMNS = [
     "source_cycle_candidates",
     "unique_source_events",
     "duplicate_timestamp_candidates",
+    "overlapping_source_cycle_candidates",
     "phase_eligible_cycles",
     "direct_calibration_cycles",
     "interpolated_label_cycles",
@@ -490,6 +493,7 @@ class CellSummary:
     source_cycle_candidates: int = 0
     unique_source_events: int = 0
     duplicate_timestamp_candidates: int = 0
+    overlapping_source_cycle_candidates: int = 0
     phase_eligible_cycles: int = 0
     direct_calibration_cycles: int = 0
     interpolated_label_cycles: int = 0
@@ -916,6 +920,12 @@ def principal_discharge_capacity(points: Sequence[Point]) -> float:
     return finite_delta(point.discharge_capacity_ah for point in selected[1])
 
 
+def source_cycle_duration_hours(start: datetime, end: datetime) -> float:
+    """Return the source wall-clock span of one candidate cycle in hours."""
+
+    return (end - start).total_seconds() / 3600.0
+
+
 def candidate_from_points(
     identity: SourceIdentity,
     source_cycle_id: int,
@@ -931,7 +941,17 @@ def candidate_from_points(
         raise ValueError(
             f"No source timestamps for {identity.relative_path}, source cycle {source_cycle_id}"
         )
+    source_start = min(source_times)
+    source_end = max(source_times)
     reasons: list[str] = []
+    if (
+        source_cycle_duration_hours(source_start, source_end)
+        > args.max_source_cycle_duration_hours
+    ):
+        # The empirical source distribution has a p99 below 13 h. A cycle
+        # spanning a day is a chunking/export artefact, not one usable raw
+        # CC/CV observation. Keep it in provenance, but never export it.
+        reasons.append("source_cycle_duration_exceeds_limit")
     if phase.status != "ok":
         reasons.append(phase.reason)
     else:
@@ -946,8 +966,8 @@ def candidate_from_points(
     candidate = CycleCandidate(
         identity=identity,
         source_cycle=source_cycle_id,
-        source_absolute_start_time=min(source_times),
-        source_absolute_end_time=max(source_times),
+        source_absolute_start_time=source_start,
+        source_absolute_end_time=source_end,
         source_rows=len(points),
         source_temperature_column_present=source_temperature_column_present,
         phase=phase,
@@ -1257,46 +1277,113 @@ def chronological_candidate_key(candidate: CycleCandidate) -> tuple[object, ...]
 
 
 def resolve_duplicate_candidates(
-    candidates: Mapping[SourceEventKey, Sequence[CycleCandidate]],
+    candidates: dict[SourceEventKey, list[CycleCandidate]],
     cells: Mapping[str, CellSummary],
 ) -> dict[SourceEventKey, CycleCandidate]:
-    """Select only exact-time-interval duplicate source events.
+    """Resolve exact and overlapping chunk duplicates without merging resets.
 
-    Different chunks frequently reuse the same source-cycle number at
-    different dates.  They are distinct physical events and must both remain
-    in the canonical sequence.  Quality ranking is therefore restricted to
-    candidates with the same logical sequence and source absolute-time
-    interval.
+    Source-local cycle numbers legitimately reset in later numbered chunks, so
+    equal numbers at disjoint timestamps remain distinct. Conversely, a chunk
+    boundary can copy one physical source cycle into both files with a slightly
+    different end timestamp. Such candidates have the same logical sequence,
+    the same local source cycle, and overlapping wall-clock intervals; they
+    are one event and are quality-ranked together.
+
+    ``candidates`` is rewritten in place to use one key per resolved physical
+    event. Its values retain *all* candidates so cycle provenance continues to
+    document discarded duplicates.
     """
 
-    selected: dict[SourceEventKey, CycleCandidate] = {}
-    by_cell: dict[str, list[CycleCandidate]] = defaultdict(list)
-    for key, same_event in sorted(candidates.items()):
-        ordered = sorted(same_event, key=candidate_quality_key)
+    # Preserve historical exact-interval reconciliation as the first level.
+    components_by_source_cycle: dict[
+        tuple[str, int], list[tuple[SourceEventKey, list[CycleCandidate], CycleCandidate]]
+    ] = defaultdict(list)
+    exact_duplicate_counts: Counter[str] = Counter()
+    for key, same_interval in sorted(candidates.items()):
+        ordered = sorted(same_interval, key=candidate_quality_key)
         winner = ordered[0]
-        winner.candidate_count_for_event = len(ordered)
-        winner.selected_candidate = True
-        winner.selection_reason = (
-            "unique_source_time_interval_event"
-            if len(ordered) == 1
-            else "duplicate_source_time_interval_quality_rank:boundary,temperature,selected_cccv_points,label_eligibility,charge_points,source_rows,earlier_chunk"
-        )
-        for candidate in ordered[1:]:
-            candidate.candidate_count_for_event = len(ordered)
-            candidate.selection_reason = "duplicate_source_time_interval_not_selected"
-            candidate.output_status = "not_selected"
-            candidate.output_reason = "lower_duplicate_candidate_quality"
-        selected[key] = winner
-        by_cell[winner.identity.logical_sequence_id].append(winner)
+        if len(ordered) > 1:
+            exact_duplicate_counts[winner.identity.logical_sequence_id] += 1
+        components_by_source_cycle[
+            (winner.identity.logical_sequence_id, winner.source_cycle)
+        ].append((key, ordered, winner))
 
+    selected: dict[SourceEventKey, CycleCandidate] = {}
+    resolved_groups: dict[SourceEventKey, list[CycleCandidate]] = {}
+    by_cell: dict[str, list[CycleCandidate]] = defaultdict(list)
+    overlap_duplicate_counts: Counter[str] = Counter()
+
+    for (logical_sequence_id, _), components in sorted(components_by_source_cycle.items()):
+        components.sort(key=lambda item: chronological_candidate_key(item[2]))
+        clusters: list[list[tuple[SourceEventKey, list[CycleCandidate], CycleCandidate]]] = []
+        cluster: list[tuple[SourceEventKey, list[CycleCandidate], CycleCandidate]] = []
+        latest_end: datetime | None = None
+        for component in components:
+            candidate = component[2]
+            # Do not merge adjacent physical cycles whose timestamps only
+            # touch at a chunk boundary: overlap must have positive duration.
+            if cluster and latest_end is not None and candidate.source_absolute_start_time >= latest_end:
+                clusters.append(cluster)
+                cluster = []
+                latest_end = None
+            cluster.append(component)
+            if latest_end is None or candidate.source_absolute_end_time > latest_end:
+                latest_end = candidate.source_absolute_end_time
+        if cluster:
+            clusters.append(cluster)
+
+        for cluster in clusters:
+            same_event = [
+                candidate
+                for _, component_candidates, _ in cluster
+                for candidate in component_candidates
+            ]
+            ordered = sorted(same_event, key=candidate_quality_key)
+            winner = ordered[0]
+            event_key = (
+                logical_sequence_id,
+                winner.source_absolute_start_time,
+                winner.source_absolute_end_time,
+            )
+            if event_key in resolved_groups:
+                raise RuntimeError(f"Duplicate resolved SmartHealth event identity: {event_key}")
+            resolved_groups[event_key] = ordered
+            selected[event_key] = winner
+            by_cell[logical_sequence_id].append(winner)
+
+            has_overlapping_chunks = len(cluster) > 1
+            if has_overlapping_chunks:
+                overlap_duplicate_counts[logical_sequence_id] += len(cluster) - 1
+            selection_reason = (
+                "unique_source_time_interval_event"
+                if len(ordered) == 1
+                else (
+                    "overlapping_source_cycle_quality_rank:boundary,temperature,selected_cccv_points,label_eligibility,charge_points,source_rows,earlier_chunk"
+                    if has_overlapping_chunks
+                    else "duplicate_source_time_interval_quality_rank:boundary,temperature,selected_cccv_points,label_eligibility,charge_points,source_rows,earlier_chunk"
+                )
+            )
+            for index, candidate in enumerate(ordered):
+                candidate.candidate_count_for_event = len(ordered)
+                candidate.selected_candidate = index == 0
+                if index == 0:
+                    candidate.selection_reason = selection_reason
+                    continue
+                candidate.selection_reason = (
+                    "overlapping_source_cycle_not_selected"
+                    if has_overlapping_chunks
+                    else "duplicate_source_time_interval_not_selected"
+                )
+                candidate.output_status = "not_selected"
+                candidate.output_reason = "lower_duplicate_candidate_quality"
+
+    candidates.clear()
+    candidates.update(resolved_groups)
     for logical_sequence_id, cell in cells.items():
         series = sorted(by_cell.get(logical_sequence_id, []), key=chronological_candidate_key)
         cell.unique_source_events = len(series)
-        cell.duplicate_timestamp_candidates = sum(
-            len(same_event) > 1
-            for (candidate_cell, _, _), same_event in candidates.items()
-            if candidate_cell == logical_sequence_id
-        )
+        cell.duplicate_timestamp_candidates = exact_duplicate_counts[logical_sequence_id]
+        cell.overlapping_source_cycle_candidates = overlap_duplicate_counts[logical_sequence_id]
         cell.phase_eligible_cycles = sum(candidate.candidate_eligible for candidate in series)
     return selected
 
@@ -1984,6 +2071,9 @@ def candidate_provenance(candidate: CycleCandidate) -> dict[str, object]:
         "source_absolute_end_time": format_source_absolute_time(
             candidate.source_absolute_end_time
         ),
+        "source_cycle_duration_hours": source_cycle_duration_hours(
+            candidate.source_absolute_start_time, candidate.source_absolute_end_time
+        ),
         "source_rows": candidate.source_rows,
         "source_charge_event_count": phase.charge_event_count,
         "source_discharge_event_count": phase.discharge_event_count,
@@ -2053,6 +2143,7 @@ def cell_provenance(cell: CellSummary) -> dict[str, object]:
         "source_cycle_candidates": cell.source_cycle_candidates,
         "unique_source_events": cell.unique_source_events,
         "duplicate_timestamp_candidates": cell.duplicate_timestamp_candidates,
+        "overlapping_source_cycle_candidates": cell.overlapping_source_cycle_candidates,
         "phase_eligible_cycles": cell.phase_eligible_cycles,
         "direct_calibration_cycles": cell.direct_calibration_cycles,
         "interpolated_label_cycles": cell.interpolated_label_cycles,
@@ -2100,9 +2191,10 @@ def build_raw_report(
             "source_files": len(source_identity),
             "logical_sequences": len(condition_cells),
             "duplicate_timestamp_candidates": sum(
-                max(0, len(value) - 1)
-                for (logical_sequence_id, _, _), value in candidates.items()
-                if any(cell.identity.logical_sequence_id == logical_sequence_id for cell in condition_cells)
+                cell.duplicate_timestamp_candidates for cell in condition_cells
+            ),
+            "overlapping_source_cycle_candidates": sum(
+                cell.overlapping_source_cycle_candidates for cell in condition_cells
             ),
             "boundary_success": sum(candidate.phase.status == "ok" for candidate in condition_selected),
             "boundary_failure": sum(candidate.phase.status != "ok" for candidate in condition_selected),
@@ -2160,7 +2252,12 @@ def build_raw_report(
         "source_files": len(identities),
         "logical_sequences": len(cells),
         "unique_source_events": len(candidates),
-        "duplicate_timestamp_candidates": sum(max(0, len(value) - 1) for value in candidates.values()),
+        "duplicate_timestamp_candidates": sum(
+            cell.duplicate_timestamp_candidates for cell in cells.values()
+        ),
+        "overlapping_source_cycle_candidates": sum(
+            cell.overlapping_source_cycle_candidates for cell in cells.values()
+        ),
         "boundary_detection_success": sum(candidate.phase.status == "ok" for candidate in selected),
         "boundary_detection_failure": sum(candidate.phase.status != "ok" for candidate in selected),
         "cc_window_coverage": sum(candidate.phase.cc_window_complete for candidate in selected),
@@ -2260,6 +2357,15 @@ def build_raw_parser(config: DomainConfig) -> argparse.ArgumentParser:
     parser.add_argument("--cv-taper-fraction", type=float, default=0.01)
     parser.add_argument("--cv-persistence-points", type=int, default=30)
     parser.add_argument("--cv-voltage-tolerance-v", type=float, default=0.02)
+    parser.add_argument(
+        "--max-source-cycle-duration-hours",
+        type=float,
+        default=DEFAULT_MAX_SOURCE_CYCLE_DURATION_HOURS,
+        help=(
+            "reject a source cycle spanning longer than this wall-clock duration "
+            "(default: 24 h)"
+        ),
+    )
     return parser
 
 
@@ -2283,6 +2389,8 @@ def parse_raw_args(config: DomainConfig, argv: Sequence[str] | None) -> argparse
         parser.error("--cv-taper-fraction must be in (0, 1)")
     if args.cv_persistence_points < 2 or args.cv_voltage_tolerance_v < 0:
         parser.error("invalid CV persistence or voltage tolerance")
+    if args.max_source_cycle_duration_hours <= 0:
+        parser.error("--max-source-cycle-duration-hours must be positive")
     if args.workers < 1:
         parser.error("--workers must be at least 1")
     return args
@@ -2398,6 +2506,8 @@ def run_raw_preprocessing(config: DomainConfig, argv: Sequence[str] | None = Non
             "cycle_identity": {
                 "canonical_cycle": "one-based chronological index within logical_sequence_id, ordered by source_absolute_start_time then source_absolute_end_time",
                 "source_cycle": "untouched local source 循环号; provenance only and not globally unique across chunks",
+                "deduplication": "exact-time duplicates and same-source-cycle overlapping chunk intervals are quality-ranked; disjoint local-cycle resets remain distinct",
+                "max_source_cycle_duration_hours": args.max_source_cycle_duration_hours,
             },
             "raw_schema": RAW_COLUMNS,
             "audit_files": {name: str(path) for name, path in audit_paths.items()},

@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Keep launcher logs safe under non-UTF-8 scheduler locales.
+export PYTHONUTF8="${PYTHONUTF8:-1}"
+export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8:backslashreplace}"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
 # Direct settings.  Update these explicit E1 runtime directories when a new
 # formal E1 run should become the matched-cycle reference.  This script only
 # loads checkpoints and evaluates; it never starts training.
-PYTHON_BIN="/home/chenyanxi/.conda/envs/pinn/bin/python"
+if [[ -n "${PYTHON_BIN:-}" ]]; then
+  export PYTHON_BIN
+fi
+PYTHON_BIN="$(${PROJECT_ROOT}/UnifiedRawSOH/scripts/resolve_python_bin.sh)"
 GPU_ID="2"
 SEEDS="42 52 62"
 

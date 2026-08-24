@@ -1,0 +1,2041 @@
+{
+  "dataset_id": "mit",
+  "raw_root": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw",
+  "split_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/splits/mit/mit_paper_physical124_v2_split.json",
+  "nominal_capacity_Ah": 1.1,
+  "label_field": "capacity_Ah",
+  "cell_role_policy": "test = canonical physical_id modulo 5; other cells = development",
+  "train_validation_note": "MIT development train/validation is mixed-cycle; this figure uses cell-level development/test styles",
+  "test_physical_cells": [
+    "mit_p005",
+    "mit_p010",
+    "mit_p015",
+    "mit_p020",
+    "mit_p025",
+    "mit_p030",
+    "mit_p035",
+    "mit_p040",
+    "mit_p045",
+    "mit_p050",
+    "mit_p055",
+    "mit_p060",
+    "mit_p065",
+    "mit_p070",
+    "mit_p075",
+    "mit_p080",
+    "mit_p085",
+    "mit_p090",
+    "mit_p095",
+    "mit_p100",
+    "mit_p105",
+    "mit_p110",
+    "mit_p115",
+    "mit_p120"
+  ],
+  "invalid_cycles_declared": [
+    [
+      "mit_p015",
+      39
+    ]
+  ],
+  "invalid_cycles_excluded_from_loaded_points": [],
+  "observed_physical_cell_count": 124,
+  "conditions": {
+    "2017-05-12": {
+      "cells": {
+        "mit_p005": {
+          "cell_id": "mit_p005",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-005.csv",
+          "split_role": "test",
+          "exported_cycles": 351,
+          "cycle_range": [
+            2,
+            1587
+          ],
+          "capacity_Ah_range": [
+            0.92784655,
+            1.0840784
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p010": {
+          "cell_id": "mit_p010",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-010.csv",
+          "split_role": "test",
+          "exported_cycles": 225,
+          "cycle_range": [
+            2,
+            721
+          ],
+          "capacity_Ah_range": [
+            0.93916613,
+            1.063239
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p015": {
+          "cell_id": "mit_p015",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-015.csv",
+          "split_role": "test",
+          "exported_cycles": 188,
+          "cycle_range": [
+            6,
+            628
+          ],
+          "capacity_Ah_range": [
+            0.94794035,
+            1.0700938
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p020": {
+          "cell_id": "mit_p020",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-020.csv",
+          "split_role": "test",
+          "exported_cycles": 288,
+          "cycle_range": [
+            2,
+            930
+          ],
+          "capacity_Ah_range": [
+            0.9465422,
+            1.0790325
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p025": {
+          "cell_id": "mit_p025",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-025.csv",
+          "split_role": "test",
+          "exported_cycles": 267,
+          "cycle_range": [
+            5,
+            831
+          ],
+          "capacity_Ah_range": [
+            0.94794869,
+            1.0837907
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p030": {
+          "cell_id": "mit_p030",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-030.csv",
+          "split_role": "test",
+          "exported_cycles": 235,
+          "cycle_range": [
+            5,
+            675
+          ],
+          "capacity_Ah_range": [
+            0.95974153,
+            1.0814593
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p035": {
+          "cell_id": "mit_p035",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-035.csv",
+          "split_role": "test",
+          "exported_cycles": 209,
+          "cycle_range": [
+            4,
+            549
+          ],
+          "capacity_Ah_range": [
+            0.97205007,
+            1.086282
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p040": {
+          "cell_id": "mit_p040",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-040.csv",
+          "split_role": "test",
+          "exported_cycles": 160,
+          "cycle_range": [
+            8,
+            533
+          ],
+          "capacity_Ah_range": [
+            0.96484441,
+            1.0882655
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p001": {
+          "cell_id": "mit_p001",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-001.csv",
+          "split_role": "development",
+          "exported_cycles": 356,
+          "cycle_range": [
+            2,
+            1716
+          ],
+          "capacity_Ah_range": [
+            0.92527848,
+            1.0770824
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p002": {
+          "cell_id": "mit_p002",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-002.csv",
+          "split_role": "development",
+          "exported_cycles": 460,
+          "cycle_range": [
+            5,
+            2011
+          ],
+          "capacity_Ah_range": [
+            0.92977923,
+            1.0821023
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p003": {
+          "cell_id": "mit_p003",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-003.csv",
+          "split_role": "development",
+          "exported_cycles": 442,
+          "cycle_range": [
+            2,
+            2126
+          ],
+          "capacity_Ah_range": [
+            0.92760766,
+            1.0858871
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p004": {
+          "cell_id": "mit_p004",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-004.csv",
+          "split_role": "development",
+          "exported_cycles": 320,
+          "cycle_range": [
+            7,
+            1302
+          ],
+          "capacity_Ah_range": [
+            0.934425,
+            1.0861838
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p006": {
+          "cell_id": "mit_p006",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-006.csv",
+          "split_role": "development",
+          "exported_cycles": 283,
+          "cycle_range": [
+            2,
+            1010
+          ],
+          "capacity_Ah_range": [
+            0.94271797,
+            1.0809991
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p007": {
+          "cell_id": "mit_p007",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-007.csv",
+          "split_role": "development",
+          "exported_cycles": 200,
+          "cycle_range": [
+            3,
+            591
+          ],
+          "capacity_Ah_range": [
+            0.94957393,
+            1.082139
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p008": {
+          "cell_id": "mit_p008",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-008.csv",
+          "split_role": "development",
+          "exported_cycles": 281,
+          "cycle_range": [
+            2,
+            798
+          ],
+          "capacity_Ah_range": [
+            0.94897813,
+            1.0979047
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p009": {
+          "cell_id": "mit_p009",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-009.csv",
+          "split_role": "development",
+          "exported_cycles": 260,
+          "cycle_range": [
+            3,
+            975
+          ],
+          "capacity_Ah_range": [
+            0.94854951,
+            1.0884784
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p011": {
+          "cell_id": "mit_p011",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-011.csv",
+          "split_role": "development",
+          "exported_cycles": 242,
+          "cycle_range": [
+            2,
+            799
+          ],
+          "capacity_Ah_range": [
+            0.94420946,
+            1.0768363
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p012": {
+          "cell_id": "mit_p012",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-012.csv",
+          "split_role": "development",
+          "exported_cycles": 216,
+          "cycle_range": [
+            2,
+            657
+          ],
+          "capacity_Ah_range": [
+            0.94595414,
+            1.068517
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p013": {
+          "cell_id": "mit_p013",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-013.csv",
+          "split_role": "development",
+          "exported_cycles": 205,
+          "cycle_range": [
+            3,
+            798
+          ],
+          "capacity_Ah_range": [
+            0.9453156,
+            1.0884907
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p014": {
+          "cell_id": "mit_p014",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-014.csv",
+          "split_role": "development",
+          "exported_cycles": 273,
+          "cycle_range": [
+            2,
+            785
+          ],
+          "capacity_Ah_range": [
+            0.94681716,
+            1.0789155
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p016": {
+          "cell_id": "mit_p016",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-016.csv",
+          "split_role": "development",
+          "exported_cycles": 258,
+          "cycle_range": [
+            2,
+            704
+          ],
+          "capacity_Ah_range": [
+            0.95217282,
+            1.0891064
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p017": {
+          "cell_id": "mit_p017",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-017.csv",
+          "split_role": "development",
+          "exported_cycles": 133,
+          "cycle_range": [
+            4,
+            463
+          ],
+          "capacity_Ah_range": [
+            0.94306254,
+            1.0757242
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p018": {
+          "cell_id": "mit_p018",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-018.csv",
+          "split_role": "development",
+          "exported_cycles": 142,
+          "cycle_range": [
+            3,
+            502
+          ],
+          "capacity_Ah_range": [
+            0.95639974,
+            1.08462
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p019": {
+          "cell_id": "mit_p019",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-019.csv",
+          "split_role": "development",
+          "exported_cycles": 303,
+          "cycle_range": [
+            2,
+            932
+          ],
+          "capacity_Ah_range": [
+            0.9478246,
+            1.0837864
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p021": {
+          "cell_id": "mit_p021",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-021.csv",
+          "split_role": "development",
+          "exported_cycles": 236,
+          "cycle_range": [
+            3,
+            773
+          ],
+          "capacity_Ah_range": [
+            0.94724935,
+            1.0795679
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p022": {
+          "cell_id": "mit_p022",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-022.csv",
+          "split_role": "development",
+          "exported_cycles": 235,
+          "cycle_range": [
+            4,
+            795
+          ],
+          "capacity_Ah_range": [
+            0.9507997,
+            1.0915191
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p023": {
+          "cell_id": "mit_p023",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-023.csv",
+          "split_role": "development",
+          "exported_cycles": 224,
+          "cycle_range": [
+            2,
+            773
+          ],
+          "capacity_Ah_range": [
+            0.95067793,
+            1.0829995
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p024": {
+          "cell_id": "mit_p024",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-024.csv",
+          "split_role": "development",
+          "exported_cycles": 240,
+          "cycle_range": [
+            6,
+            768
+          ],
+          "capacity_Ah_range": [
+            0.95143843,
+            1.0812205
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p026": {
+          "cell_id": "mit_p026",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-026.csv",
+          "split_role": "development",
+          "exported_cycles": 176,
+          "cycle_range": [
+            8,
+            646
+          ],
+          "capacity_Ah_range": [
+            0.95636457,
+            1.0837103
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p027": {
+          "cell_id": "mit_p027",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-027.csv",
+          "split_role": "development",
+          "exported_cycles": 218,
+          "cycle_range": [
+            3,
+            799
+          ],
+          "capacity_Ah_range": [
+            0.95557064,
+            1.0983301
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p028": {
+          "cell_id": "mit_p028",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-028.csv",
+          "split_role": "development",
+          "exported_cycles": 192,
+          "cycle_range": [
+            2,
+            649
+          ],
+          "capacity_Ah_range": [
+            0.95950818,
+            1.0816567
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p029": {
+          "cell_id": "mit_p029",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-029.csv",
+          "split_role": "development",
+          "exported_cycles": 240,
+          "cycle_range": [
+            2,
+            676
+          ],
+          "capacity_Ah_range": [
+            0.9611268,
+            1.0966071
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p031": {
+          "cell_id": "mit_p031",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-031.csv",
+          "split_role": "development",
+          "exported_cycles": 208,
+          "cycle_range": [
+            3,
+            624
+          ],
+          "capacity_Ah_range": [
+            0.96326256,
+            1.075781
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p032": {
+          "cell_id": "mit_p032",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-032.csv",
+          "split_role": "development",
+          "exported_cycles": 178,
+          "cycle_range": [
+            2,
+            621
+          ],
+          "capacity_Ah_range": [
+            0.96632689,
+            1.0819111
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p033": {
+          "cell_id": "mit_p033",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-033.csv",
+          "split_role": "development",
+          "exported_cycles": 208,
+          "cycle_range": [
+            4,
+            570
+          ],
+          "capacity_Ah_range": [
+            0.96919984,
+            1.0792918
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p034": {
+          "cell_id": "mit_p034",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-034.csv",
+          "split_role": "development",
+          "exported_cycles": 198,
+          "cycle_range": [
+            4,
+            549
+          ],
+          "capacity_Ah_range": [
+            0.96450943,
+            1.0765978
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p036": {
+          "cell_id": "mit_p036",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-036.csv",
+          "split_role": "development",
+          "exported_cycles": 301,
+          "cycle_range": [
+            2,
+            880
+          ],
+          "capacity_Ah_range": [
+            0.94795692,
+            1.0877342
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p037": {
+          "cell_id": "mit_p037",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-037.csv",
+          "split_role": "development",
+          "exported_cycles": 335,
+          "cycle_range": [
+            3,
+            960
+          ],
+          "capacity_Ah_range": [
+            0.94942588,
+            1.0836209
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p038": {
+          "cell_id": "mit_p038",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-038.csv",
+          "split_role": "development",
+          "exported_cycles": 226,
+          "cycle_range": [
+            2,
+            615
+          ],
+          "capacity_Ah_range": [
+            0.96121877,
+            1.084832
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p039": {
+          "cell_id": "mit_p039",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-039.csv",
+          "split_role": "development",
+          "exported_cycles": 210,
+          "cycle_range": [
+            4,
+            579
+          ],
+          "capacity_Ah_range": [
+            0.95627862,
+            1.0716355
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        },
+        "mit_p041": {
+          "cell_id": "mit_p041",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-05-12_physical-041.csv",
+          "split_role": "development",
+          "exported_cycles": 171,
+          "cycle_range": [
+            2,
+            517
+          ],
+          "capacity_Ah_range": [
+            0.97298902,
+            1.0883518
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-05-12"
+        }
+      }
+    },
+    "2017-06-30": {
+      "cells": {
+        "mit_p045": {
+          "cell_id": "mit_p045",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-045.csv",
+          "split_role": "test",
+          "exported_cycles": 98,
+          "cycle_range": [
+            3,
+            301
+          ],
+          "capacity_Ah_range": [
+            0.92019218,
+            1.0686709
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p050": {
+          "cell_id": "mit_p050",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-050.csv",
+          "split_role": "test",
+          "exported_cycles": 158,
+          "cycle_range": [
+            6,
+            449
+          ],
+          "capacity_Ah_range": [
+            0.90870988,
+            1.0758696
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p055": {
+          "cell_id": "mit_p055",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-055.csv",
+          "split_role": "test",
+          "exported_cycles": 159,
+          "cycle_range": [
+            4,
+            458
+          ],
+          "capacity_Ah_range": [
+            0.91793281,
+            1.0676094
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p060": {
+          "cell_id": "mit_p060",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-060.csv",
+          "split_role": "test",
+          "exported_cycles": 152,
+          "cycle_range": [
+            2,
+            462
+          ],
+          "capacity_Ah_range": [
+            0.96604151,
+            1.0780809
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p065": {
+          "cell_id": "mit_p065",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-065.csv",
+          "split_role": "test",
+          "exported_cycles": 177,
+          "cycle_range": [
+            4,
+            508
+          ],
+          "capacity_Ah_range": [
+            0.87951499,
+            1.0778632
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p070": {
+          "cell_id": "mit_p070",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-070.csv",
+          "split_role": "test",
+          "exported_cycles": 203,
+          "cycle_range": [
+            2,
+            496
+          ],
+          "capacity_Ah_range": [
+            0.92068958,
+            1.0853983
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p075": {
+          "cell_id": "mit_p075",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-075.csv",
+          "split_role": "test",
+          "exported_cycles": 176,
+          "cycle_range": [
+            3,
+            442
+          ],
+          "capacity_Ah_range": [
+            0.92722756,
+            1.0757483
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p080": {
+          "cell_id": "mit_p080",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-080.csv",
+          "split_role": "test",
+          "exported_cycles": 185,
+          "cycle_range": [
+            2,
+            438
+          ],
+          "capacity_Ah_range": [
+            0.92046428,
+            1.0804491
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p042": {
+          "cell_id": "mit_p042",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-042.csv",
+          "split_role": "development",
+          "exported_cycles": 101,
+          "cycle_range": [
+            2,
+            271
+          ],
+          "capacity_Ah_range": [
+            0.91647512,
+            1.0733572
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p043": {
+          "cell_id": "mit_p043",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-043.csv",
+          "split_role": "development",
+          "exported_cycles": 55,
+          "cycle_range": [
+            3,
+            129
+          ],
+          "capacity_Ah_range": [
+            0.91586995,
+            1.0736164
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p044": {
+          "cell_id": "mit_p044",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-044.csv",
+          "split_role": "development",
+          "exported_cycles": 181,
+          "cycle_range": [
+            2,
+            414
+          ],
+          "capacity_Ah_range": [
+            0.92835248,
+            1.0796299
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p046": {
+          "cell_id": "mit_p046",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-046.csv",
+          "split_role": "development",
+          "exported_cycles": 169,
+          "cycle_range": [
+            3,
+            416
+          ],
+          "capacity_Ah_range": [
+            0.90786719,
+            1.0754765
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p047": {
+          "cell_id": "mit_p047",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-047.csv",
+          "split_role": "development",
+          "exported_cycles": 156,
+          "cycle_range": [
+            3,
+            454
+          ],
+          "capacity_Ah_range": [
+            0.92388058,
+            1.0728087
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p048": {
+          "cell_id": "mit_p048",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-048.csv",
+          "split_role": "development",
+          "exported_cycles": 142,
+          "cycle_range": [
+            5,
+            452
+          ],
+          "capacity_Ah_range": [
+            0.92386317,
+            1.0717922
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p049": {
+          "cell_id": "mit_p049",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-049.csv",
+          "split_role": "development",
+          "exported_cycles": 198,
+          "cycle_range": [
+            7,
+            521
+          ],
+          "capacity_Ah_range": [
+            0.89948249,
+            1.0738692
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p051": {
+          "cell_id": "mit_p051",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-051.csv",
+          "split_role": "development",
+          "exported_cycles": 152,
+          "cycle_range": [
+            3,
+            425
+          ],
+          "capacity_Ah_range": [
+            0.92151493,
+            1.0742352
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p052": {
+          "cell_id": "mit_p052",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-052.csv",
+          "split_role": "development",
+          "exported_cycles": 200,
+          "cycle_range": [
+            2,
+            447
+          ],
+          "capacity_Ah_range": [
+            0.92718524,
+            1.0831288
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p053": {
+          "cell_id": "mit_p053",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-053.csv",
+          "split_role": "development",
+          "exported_cycles": 183,
+          "cycle_range": [
+            7,
+            461
+          ],
+          "capacity_Ah_range": [
+            0.9237048,
+            1.082875
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p054": {
+          "cell_id": "mit_p054",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-054.csv",
+          "split_role": "development",
+          "exported_cycles": 175,
+          "cycle_range": [
+            12,
+            463
+          ],
+          "capacity_Ah_range": [
+            0.92944616,
+            1.0764638
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p056": {
+          "cell_id": "mit_p056",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-056.csv",
+          "split_role": "development",
+          "exported_cycles": 194,
+          "cycle_range": [
+            2,
+            436
+          ],
+          "capacity_Ah_range": [
+            0.91687471,
+            1.0494497
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p057": {
+          "cell_id": "mit_p057",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-057.csv",
+          "split_role": "development",
+          "exported_cycles": 160,
+          "cycle_range": [
+            8,
+            475
+          ],
+          "capacity_Ah_range": [
+            0.92065859,
+            1.0891879
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p058": {
+          "cell_id": "mit_p058",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-058.csv",
+          "split_role": "development",
+          "exported_cycles": 165,
+          "cycle_range": [
+            5,
+            462
+          ],
+          "capacity_Ah_range": [
+            0.924649,
+            1.0817336
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p059": {
+          "cell_id": "mit_p059",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-059.csv",
+          "split_role": "development",
+          "exported_cycles": 180,
+          "cycle_range": [
+            12,
+            483
+          ],
+          "capacity_Ah_range": [
+            0.92812139,
+            1.0851365
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p061": {
+          "cell_id": "mit_p061",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-061.csv",
+          "split_role": "development",
+          "exported_cycles": 73,
+          "cycle_range": [
+            2,
+            203
+          ],
+          "capacity_Ah_range": [
+            1.0617684,
+            1.0734261
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p062": {
+          "cell_id": "mit_p062",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-062.csv",
+          "split_role": "development",
+          "exported_cycles": 57,
+          "cycle_range": [
+            2,
+            158
+          ],
+          "capacity_Ah_range": [
+            1.0595795,
+            1.0721645
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p063": {
+          "cell_id": "mit_p063",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-063.csv",
+          "split_role": "development",
+          "exported_cycles": 63,
+          "cycle_range": [
+            2,
+            185
+          ],
+          "capacity_Ah_range": [
+            1.0640593,
+            1.0825263
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p064": {
+          "cell_id": "mit_p064",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-064.csv",
+          "split_role": "development",
+          "exported_cycles": 161,
+          "cycle_range": [
+            2,
+            443
+          ],
+          "capacity_Ah_range": [
+            0.92239714,
+            1.0717713
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p066": {
+          "cell_id": "mit_p066",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-066.csv",
+          "split_role": "development",
+          "exported_cycles": 188,
+          "cycle_range": [
+            2,
+            459
+          ],
+          "capacity_Ah_range": [
+            0.9493925,
+            1.079254
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p067": {
+          "cell_id": "mit_p067",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-067.csv",
+          "split_role": "development",
+          "exported_cycles": 187,
+          "cycle_range": [
+            2,
+            459
+          ],
+          "capacity_Ah_range": [
+            0.91843629,
+            1.0730175
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p068": {
+          "cell_id": "mit_p068",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-068.csv",
+          "split_role": "development",
+          "exported_cycles": 171,
+          "cycle_range": [
+            6,
+            467
+          ],
+          "capacity_Ah_range": [
+            0.92305869,
+            1.0801251
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p069": {
+          "cell_id": "mit_p069",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-069.csv",
+          "split_role": "development",
+          "exported_cycles": 185,
+          "cycle_range": [
+            5,
+            490
+          ],
+          "capacity_Ah_range": [
+            0.92930496,
+            1.0808214
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p071": {
+          "cell_id": "mit_p071",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-071.csv",
+          "split_role": "development",
+          "exported_cycles": 165,
+          "cycle_range": [
+            2,
+            474
+          ],
+          "capacity_Ah_range": [
+            0.92418975,
+            1.0757035
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p072": {
+          "cell_id": "mit_p072",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-072.csv",
+          "split_role": "development",
+          "exported_cycles": 157,
+          "cycle_range": [
+            3,
+            399
+          ],
+          "capacity_Ah_range": [
+            0.98691803,
+            1.0744313
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p073": {
+          "cell_id": "mit_p073",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-073.csv",
+          "split_role": "development",
+          "exported_cycles": 208,
+          "cycle_range": [
+            2,
+            504
+          ],
+          "capacity_Ah_range": [
+            0.93030977,
+            1.0859219
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p074": {
+          "cell_id": "mit_p074",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-074.csv",
+          "split_role": "development",
+          "exported_cycles": 195,
+          "cycle_range": [
+            2,
+            455
+          ],
+          "capacity_Ah_range": [
+            0.92477572,
+            1.0816178
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p076": {
+          "cell_id": "mit_p076",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-076.csv",
+          "split_role": "development",
+          "exported_cycles": 161,
+          "cycle_range": [
+            2,
+            440
+          ],
+          "capacity_Ah_range": [
+            0.91931313,
+            1.0868819
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p077": {
+          "cell_id": "mit_p077",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-077.csv",
+          "split_role": "development",
+          "exported_cycles": 204,
+          "cycle_range": [
+            3,
+            473
+          ],
+          "capacity_Ah_range": [
+            0.91969657,
+            1.0830966
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p078": {
+          "cell_id": "mit_p078",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-078.csv",
+          "split_role": "development",
+          "exported_cycles": 167,
+          "cycle_range": [
+            3,
+            405
+          ],
+          "capacity_Ah_range": [
+            0.93074775,
+            1.0757573
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p079": {
+          "cell_id": "mit_p079",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-079.csv",
+          "split_role": "development",
+          "exported_cycles": 176,
+          "cycle_range": [
+            3,
+            442
+          ],
+          "capacity_Ah_range": [
+            0.91974312,
+            1.0841106
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p081": {
+          "cell_id": "mit_p081",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-081.csv",
+          "split_role": "development",
+          "exported_cycles": 193,
+          "cycle_range": [
+            3,
+            436
+          ],
+          "capacity_Ah_range": [
+            0.92036819,
+            1.0772187
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p082": {
+          "cell_id": "mit_p082",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-082.csv",
+          "split_role": "development",
+          "exported_cycles": 179,
+          "cycle_range": [
+            3,
+            462
+          ],
+          "capacity_Ah_range": [
+            0.92250609,
+            1.0756582
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p083": {
+          "cell_id": "mit_p083",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-083.csv",
+          "split_role": "development",
+          "exported_cycles": 196,
+          "cycle_range": [
+            4,
+            412
+          ],
+          "capacity_Ah_range": [
+            0.9222303,
+            1.079998
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        },
+        "mit_p084": {
+          "cell_id": "mit_p084",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2017-06-30_physical-084.csv",
+          "split_role": "development",
+          "exported_cycles": 278,
+          "cycle_range": [
+            3,
+            681
+          ],
+          "capacity_Ah_range": [
+            0.91146594,
+            1.0502454
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2017-06-30"
+        }
+      }
+    },
+    "2018-04-12": {
+      "cells": {
+        "mit_p085": {
+          "cell_id": "mit_p085",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-085.csv",
+          "split_role": "test",
+          "exported_cycles": 262,
+          "cycle_range": [
+            9,
+            886
+          ],
+          "capacity_Ah_range": [
+            0.99278986,
+            1.071273
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p090": {
+          "cell_id": "mit_p090",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-090.csv",
+          "split_role": "test",
+          "exported_cycles": 134,
+          "cycle_range": [
+            2,
+            550
+          ],
+          "capacity_Ah_range": [
+            0.92730176,
+            1.0630716
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p095": {
+          "cell_id": "mit_p095",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-095.csv",
+          "split_role": "test",
+          "exported_cycles": 255,
+          "cycle_range": [
+            3,
+            674
+          ],
+          "capacity_Ah_range": [
+            0.99818408,
+            1.0707361
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p100": {
+          "cell_id": "mit_p100",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-100.csv",
+          "split_role": "test",
+          "exported_cycles": 347,
+          "cycle_range": [
+            3,
+            1415
+          ],
+          "capacity_Ah_range": [
+            0.96866941,
+            1.0642939
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p105": {
+          "cell_id": "mit_p105",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-105.csv",
+          "split_role": "test",
+          "exported_cycles": 140,
+          "cycle_range": [
+            2,
+            528
+          ],
+          "capacity_Ah_range": [
+            0.98811644,
+            1.0686046
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p110": {
+          "cell_id": "mit_p110",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-110.csv",
+          "split_role": "test",
+          "exported_cycles": 266,
+          "cycle_range": [
+            2,
+            715
+          ],
+          "capacity_Ah_range": [
+            0.99369764,
+            1.0644171
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p115": {
+          "cell_id": "mit_p115",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-115.csv",
+          "split_role": "test",
+          "exported_cycles": 337,
+          "cycle_range": [
+            2,
+            1152
+          ],
+          "capacity_Ah_range": [
+            0.97427422,
+            1.0629164
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p120": {
+          "cell_id": "mit_p120",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-120.csv",
+          "split_role": "test",
+          "exported_cycles": 336,
+          "cycle_range": [
+            3,
+            1037
+          ],
+          "capacity_Ah_range": [
+            0.97618592,
+            1.0515106
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p086": {
+          "cell_id": "mit_p086",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-086.csv",
+          "split_role": "development",
+          "exported_cycles": 261,
+          "cycle_range": [
+            3,
+            933
+          ],
+          "capacity_Ah_range": [
+            0.98423439,
+            1.0686624
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p087": {
+          "cell_id": "mit_p087",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-087.csv",
+          "split_role": "development",
+          "exported_cycles": 265,
+          "cycle_range": [
+            3,
+            967
+          ],
+          "capacity_Ah_range": [
+            0.98562789,
+            1.065508
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p088": {
+          "cell_id": "mit_p088",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-088.csv",
+          "split_role": "development",
+          "exported_cycles": 254,
+          "cycle_range": [
+            6,
+            897
+          ],
+          "capacity_Ah_range": [
+            0.98761851,
+            1.075265
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p089": {
+          "cell_id": "mit_p089",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-089.csv",
+          "split_role": "development",
+          "exported_cycles": 216,
+          "cycle_range": [
+            4,
+            698
+          ],
+          "capacity_Ah_range": [
+            0.98632753,
+            1.0539819
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p091": {
+          "cell_id": "mit_p091",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-091.csv",
+          "split_role": "development",
+          "exported_cycles": 535,
+          "cycle_range": [
+            3,
+            1581
+          ],
+          "capacity_Ah_range": [
+            0.97468948,
+            1.070919
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p092": {
+          "cell_id": "mit_p092",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-092.csv",
+          "split_role": "development",
+          "exported_cycles": 280,
+          "cycle_range": [
+            2,
+            711
+          ],
+          "capacity_Ah_range": [
+            1.0002842,
+            1.0687144
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p093": {
+          "cell_id": "mit_p093",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-093.csv",
+          "split_role": "development",
+          "exported_cycles": 303,
+          "cycle_range": [
+            4,
+            890
+          ],
+          "capacity_Ah_range": [
+            1.0037029,
+            1.0733707
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p094": {
+          "cell_id": "mit_p094",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-094.csv",
+          "split_role": "development",
+          "exported_cycles": 358,
+          "cycle_range": [
+            5,
+            933
+          ],
+          "capacity_Ah_range": [
+            0.98759264,
+            1.0650008
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p096": {
+          "cell_id": "mit_p096",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-096.csv",
+          "split_role": "development",
+          "exported_cycles": 309,
+          "cycle_range": [
+            2,
+            787
+          ],
+          "capacity_Ah_range": [
+            1.009336,
+            1.076943
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p097": {
+          "cell_id": "mit_p097",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-097.csv",
+          "split_role": "development",
+          "exported_cycles": 270,
+          "cycle_range": [
+            3,
+            660
+          ],
+          "capacity_Ah_range": [
+            0.99941623,
+            1.0695937
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p098": {
+          "cell_id": "mit_p098",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-098.csv",
+          "split_role": "development",
+          "exported_cycles": 310,
+          "cycle_range": [
+            2,
+            709
+          ],
+          "capacity_Ah_range": [
+            1.0086514,
+            1.0777442
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p099": {
+          "cell_id": "mit_p099",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-099.csv",
+          "split_role": "development",
+          "exported_cycles": 270,
+          "cycle_range": [
+            4,
+            705
+          ],
+          "capacity_Ah_range": [
+            1.0021533,
+            1.0712774
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p101": {
+          "cell_id": "mit_p101",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-101.csv",
+          "split_role": "development",
+          "exported_cycles": 318,
+          "cycle_range": [
+            2,
+            1121
+          ],
+          "capacity_Ah_range": [
+            0.97898823,
+            1.0689521
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p102": {
+          "cell_id": "mit_p102",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-102.csv",
+          "split_role": "development",
+          "exported_cycles": 255,
+          "cycle_range": [
+            2,
+            981
+          ],
+          "capacity_Ah_range": [
+            0.98159409,
+            1.0700382
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p103": {
+          "cell_id": "mit_p103",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-103.csv",
+          "split_role": "development",
+          "exported_cycles": 261,
+          "cycle_range": [
+            2,
+            961
+          ],
+          "capacity_Ah_range": [
+            0.99580657,
+            1.0738759
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p104": {
+          "cell_id": "mit_p104",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-104.csv",
+          "split_role": "development",
+          "exported_cycles": 264,
+          "cycle_range": [
+            2,
+            707
+          ],
+          "capacity_Ah_range": [
+            0.99831474,
+            1.0680426
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p106": {
+          "cell_id": "mit_p106",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-106.csv",
+          "split_role": "development",
+          "exported_cycles": 251,
+          "cycle_range": [
+            2,
+            869
+          ],
+          "capacity_Ah_range": [
+            1.0006249,
+            1.0591078
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p107": {
+          "cell_id": "mit_p107",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-107.csv",
+          "split_role": "development",
+          "exported_cycles": 277,
+          "cycle_range": [
+            3,
+            708
+          ],
+          "capacity_Ah_range": [
+            0.98650956,
+            1.0511289
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p108": {
+          "cell_id": "mit_p108",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-108.csv",
+          "split_role": "development",
+          "exported_cycles": 275,
+          "cycle_range": [
+            6,
+            856
+          ],
+          "capacity_Ah_range": [
+            0.99703354,
+            1.0654312
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p109": {
+          "cell_id": "mit_p109",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-109.csv",
+          "split_role": "development",
+          "exported_cycles": 314,
+          "cycle_range": [
+            5,
+            875
+          ],
+          "capacity_Ah_range": [
+            0.98915958,
+            1.0756918
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p111": {
+          "cell_id": "mit_p111",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-111.csv",
+          "split_role": "development",
+          "exported_cycles": 136,
+          "cycle_range": [
+            2,
+            322
+          ],
+          "capacity_Ah_range": [
+            0.98094183,
+            1.0526587
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p112": {
+          "cell_id": "mit_p112",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-112.csv",
+          "split_role": "development",
+          "exported_cycles": 306,
+          "cycle_range": [
+            2,
+            712
+          ],
+          "capacity_Ah_range": [
+            0.99556929,
+            1.0712008
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p113": {
+          "cell_id": "mit_p113",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-113.csv",
+          "split_role": "development",
+          "exported_cycles": 283,
+          "cycle_range": [
+            2,
+            808
+          ],
+          "capacity_Ah_range": [
+            0.99944347,
+            1.0722675
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p114": {
+          "cell_id": "mit_p114",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-114.csv",
+          "split_role": "development",
+          "exported_cycles": 245,
+          "cycle_range": [
+            4,
+            624
+          ],
+          "capacity_Ah_range": [
+            1.0050654,
+            1.0716417
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p116": {
+          "cell_id": "mit_p116",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-116.csv",
+          "split_role": "development",
+          "exported_cycles": 298,
+          "cycle_range": [
+            5,
+            1003
+          ],
+          "capacity_Ah_range": [
+            0.97304612,
+            1.0642781
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p117": {
+          "cell_id": "mit_p117",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-117.csv",
+          "split_role": "development",
+          "exported_cycles": 226,
+          "cycle_range": [
+            4,
+            928
+          ],
+          "capacity_Ah_range": [
+            0.98074728,
+            1.0650139
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p118": {
+          "cell_id": "mit_p118",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-118.csv",
+          "split_role": "development",
+          "exported_cycles": 254,
+          "cycle_range": [
+            3,
+            807
+          ],
+          "capacity_Ah_range": [
+            0.99116755,
+            1.0606048
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p119": {
+          "cell_id": "mit_p119",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-119.csv",
+          "split_role": "development",
+          "exported_cycles": 437,
+          "cycle_range": [
+            8,
+            1698
+          ],
+          "capacity_Ah_range": [
+            0.9679625,
+            1.0726566
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p121": {
+          "cell_id": "mit_p121",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-121.csv",
+          "split_role": "development",
+          "exported_cycles": 234,
+          "cycle_range": [
+            3,
+            661
+          ],
+          "capacity_Ah_range": [
+            0.99270594,
+            1.0638319
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p122": {
+          "cell_id": "mit_p122",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-122.csv",
+          "split_role": "development",
+          "exported_cycles": 253,
+          "cycle_range": [
+            5,
+            653
+          ],
+          "capacity_Ah_range": [
+            0.99028182,
+            1.0548838
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p123": {
+          "cell_id": "mit_p123",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-123.csv",
+          "split_role": "development",
+          "exported_cycles": 309,
+          "cycle_range": [
+            7,
+            823
+          ],
+          "capacity_Ah_range": [
+            1.0038092,
+            1.0738423
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        },
+        "mit_p124": {
+          "cell_id": "mit_p124",
+          "source_file": "/data/chenyanxi/lb_project/code/UnifiedRawSOH/datasets/MIT_raw/MIT_2018-04-12_physical-124.csv",
+          "split_role": "development",
+          "exported_cycles": 440,
+          "cycle_range": [
+            2,
+            1573
+          ],
+          "capacity_Ah_range": [
+            0.96867406,
+            1.072102
+          ],
+          "label_field": "capacity_Ah",
+          "primary_batch_date": "2018-04-12"
+        }
+      }
+    }
+  }
+}

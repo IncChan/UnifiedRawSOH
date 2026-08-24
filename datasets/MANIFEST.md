@@ -88,7 +88,7 @@ as RawMamba.
 
 The external SmartHealth source has 1,128 GB18030 CSV chunks and 45
 filename-level logical series. The current code contract is
-`smarthealth_cccv_calibration_v3`; any local v2 raw/feature/split products
+`smarthealth_cccv_calibration_v4`; any local v2/v3 raw/feature/split products
 must be regenerated before SmartHealth training. The source and generated
 products are local-only; this repository records their contract but does not
 redistribute them.

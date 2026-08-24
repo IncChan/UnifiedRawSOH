@@ -10,7 +10,7 @@
       "logical_sequences": [
         {
           "condition": "0.3C-100%DOD",
-          "eligible_cycles": 940,
+          "eligible_cycles": 937,
           "logical_sequence_id": "smarthealth_lishen40__0118__0_3c_100_dod",
           "selection": "development",
           "source_chunks": 37,
@@ -19,7 +19,7 @@
         },
         {
           "condition": "0.3C-100%DOD",
-          "eligible_cycles": 945,
+          "eligible_cycles": 943,
           "logical_sequence_id": "smarthealth_lishen40__0337__0_3c_100_dod",
           "selection": "test",
           "source_chunks": 37,
@@ -28,7 +28,7 @@
         },
         {
           "condition": "0.3C-100%DOD",
-          "eligible_cycles": 948,
+          "eligible_cycles": 946,
           "logical_sequence_id": "smarthealth_lishen40__0448__0_3c_100_dod",
           "selection": "development",
           "source_chunks": 37,
@@ -112,7 +112,7 @@
       "logical_sequences": [
         {
           "condition": "0.3C-60%DOD",
-          "eligible_cycles": 592,
+          "eligible_cycles": 591,
           "logical_sequence_id": "smarthealth_lishen40__0332__0_3c_60_dod",
           "selection": "test",
           "source_chunks": 16,
@@ -316,7 +316,7 @@
       "logical_sequences": [
         {
           "condition": "2C-100%DOD",
-          "eligible_cycles": 2958,
+          "eligible_cycles": 2957,
           "logical_sequence_id": "smarthealth_lishen40__0284__2c_100_dod",
           "selection": "test",
           "source_chunks": 31,
@@ -334,7 +334,7 @@
         },
         {
           "condition": "2C-100%DOD",
-          "eligible_cycles": 2789,
+          "eligible_cycles": 2788,
           "logical_sequence_id": "smarthealth_lishen40__0611__2c_100_dod",
           "selection": "development",
           "source_chunks": 29,
@@ -367,7 +367,7 @@
       "logical_sequences": [
         {
           "condition": "2C-20%DOD",
-          "eligible_cycles": 531,
+          "eligible_cycles": 530,
           "logical_sequence_id": "smarthealth_lishen40__0129__2c_20_dod",
           "selection": "development",
           "source_chunks": 19,
@@ -385,7 +385,7 @@
         },
         {
           "condition": "2C-20%DOD",
-          "eligible_cycles": 1458,
+          "eligible_cycles": 1457,
           "logical_sequence_id": "smarthealth_lishen40__0922__2c_20_dod",
           "selection": "test",
           "source_chunks": 18,
@@ -512,13 +512,13 @@
   "logical_sequence_rule": "domain + source serial + C-rate + DOD; no cross-condition merge",
   "manual_confirmation_conditions": {},
   "name": "smarthealth_lishen40_condition_stratified_2development_1test_v3",
-  "preprocessing_strategy_version": "smarthealth_cccv_calibration_v3",
+  "preprocessing_strategy_version": "smarthealth_cccv_calibration_v4",
   "schema_version": 3,
   "selection_rule": "For each condition with exactly three exportable logical sequences, ascending deterministic SHA256 ranking selects ranks 0 and 1 as development and rank 2 as the held-out test. Other inventories are recorded for manual confirmation without a fallback split.",
   "source_manifest_signature_sha256": "c571567a3bbb8ae18c0095b712ceb8ffad3a918d56068009a98ce35559117313",
   "split_status": "complete",
   "split_strategy_version": "smarthealth_condition_cell_split_2development_1test_v3",
-  "strategy_version": "smarthealth_cccv_calibration_v3",
+  "strategy_version": "smarthealth_cccv_calibration_v4",
   "test_batteries_by_condition": {
     "0.3C-100%DOD": [
       "smarthealth_lishen40__0337__0_3c_100_dod"

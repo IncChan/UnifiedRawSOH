@@ -57,7 +57,7 @@ def main():
         backend_override=args.backend_override,
         device_override=args.device_override,
     )
-    print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
+    print(json.dumps(result, indent=2, ensure_ascii=True, default=str))
 
 
 if __name__ == "__main__":

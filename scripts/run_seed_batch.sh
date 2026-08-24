@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Keep launcher logs safe under non-UTF-8 scheduler locales.
+export PYTHONUTF8="${PYTHONUTF8:-1}"
+export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8:backslashreplace}"
 
 # Reusable Paper-v1 multi-seed launcher.
 # Required environment: CONFIG_SOURCE and TRAIN_MODULE.
@@ -14,7 +17,10 @@ cd "${PROJECT_ROOT}"
 : "${CONFIG_SOURCE:?CONFIG_SOURCE must point to a Paper-v1 JSON config}"
 : "${TRAIN_MODULE:?TRAIN_MODULE must be a Python module with a main entry point}"
 
-PYTHON_BIN="${PYTHON_BIN:-/home/chenyanxi/.conda/envs/pinn/bin/python}"
+if [[ -n "${PYTHON_BIN:-}" ]]; then
+  export PYTHON_BIN
+fi
+PYTHON_BIN="$(${PROJECT_ROOT}/UnifiedRawSOH/scripts/resolve_python_bin.sh)"
 DEVICE_OVERRIDE="${DEVICE_OVERRIDE:-cuda}"
 BACKEND_OVERRIDE="${BACKEND_OVERRIDE:-}"
 SEED_TEXT="${SEEDS:-42 52 62}"

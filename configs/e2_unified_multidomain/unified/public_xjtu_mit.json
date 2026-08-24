@@ -2,7 +2,7 @@
   "status": "runnable",
   "base_config": "../../e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json",
   "experiment": {
-    "name": "E2_Unified_xjtu_mit",
+    "name": "E2_Pilot_Unified_xjtu_mit",
     "version": "UnifiedRawSOH/Paper-v1",
     "task": "e2_unified_multidomain_raw_soh_learning",
     "loader": "unified_multi_dataset",
@@ -15,7 +15,7 @@
   "output": {
     "experiment_id": "e2_unified_multidomain",
     "model_id": "RawMamba",
-    "data_id": "xjtu+mit"
+    "data_id": "pilot_xjtu_mit"
   },
   "data": {
     "data_root": null,
@@ -78,5 +78,5 @@
   "train": {
     "monitor": "valid_domain_macro_rmse"
   },
-  "protocol": "xjtu and mit are two battery domains sharing one raw-cycle model. Each domain keeps its own fixed physical normalization and split provenance; domain/battery balancing prevents long-lived batteries or larger domains from dominating training. Metrics are retained per domain and the checkpoint monitor is validation domain-macro RMSE."
+  "protocol": "E2-Pilot jointly trains XJTU and MIT with one shared RawMamba. It inherits the E1 RawMamba model and all optimizer/scheduler hyperparameters from raw_mamba_xjtu.json; the only training override is validation domain-macro RMSE for checkpoint selection. Each domain retains its E1 split, fixed physical normalization, nominal-capacity SOH definition, and raw adapter. domain_battery sampling equalizes logical battery groups within the pooled training set; per-domain metrics remain mandatory."
 }

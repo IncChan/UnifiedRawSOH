@@ -1,9 +1,12 @@
-# E2 unified launcher
+# E2 unified launchers
 
-run_public_xjtu_mit.sh is the currently available two-domain E2 launcher. It
-uses the explicit xjtu+mit configuration, retains each domain's split and
-normalization, samples with domain/battery balancing, and writes results under
-the e2_unified_multidomain output namespace.
+- `run_public_xjtu_mit.sh` runs E2-Pilot on XJTU+MIT.
+- `run_public_all_domains.sh` runs E2-Full on XJTU, MIT, LISHEN40, CATL280,
+  and EVE280.
 
-It is not invoked automatically. The all-public A+B+C1+C2+C3 configuration is
-blocked until SmartHealth preprocessing and split provenance are validated.
+Both launchers resolve the current Conda Python through
+`scripts/resolve_python_bin.sh`, check the canonical raw product for every
+participating E1 domain, require the official Mamba backend by default, and
+then call the common multi-seed launcher. The safe default is one seed at a
+time on GPU 0. Set `GPU_IDS="0 1 2" MAX_PARALLEL=3` to use three distinct GPUs
+concurrently.

@@ -91,3 +91,77 @@ SMARTHEALTH_CAPACITY_OUTPUT_DIR=/path/to/figures \
 
 It writes `<domain>_capacity_vs_cycle.png` and a compact `summary.json` to
 `test/outputs/smarthealth_capacity_trajectories/` by default.
+
+## XJTU capacity-versus-cycle trajectories
+
+`plot_xjtu_capacity_trajectories.py` reads the canonical point-level
+`datasets/XJTU_raw` product. The extractor-produced `SOH` column is capacity
+in Ah in this product, so the script reduces each battery file to one
+validated capacity label per source `cycle`. It does not use `XJTU_features`,
+because that table has no cycle identifier and can have different valid-cycle
+coverage.
+
+The default split is `splits/xjtu/paper_v1_mixed_split.json`: battery 4/8 are
+dashed test cells; all other batteries are solid development cells.
+Development train/val is a mixed-cycle protocol, so the figure does not
+assign an entire development battery to only train or only validation.
+
+Run from the repository root:
+
+```bash
+PYTHON_BIN=/home/chenyanxi/.conda/envs/pinn/bin/python \
+  bash test/run_xjtu_capacity_trajectory_audit.sh
+```
+
+The default output directory is `test/outputs/xjtu_capacity_trajectories/`,
+containing `xjtu_capacity_vs_cycle.png` and `summary.json`.
+
+Useful overrides:
+
+```bash
+XJTU_RAW_ROOT=/path/to/XJTU_raw \
+XJTU_CAPACITY_OUTPUT_DIR=/path/to/figures \
+  bash test/run_xjtu_capacity_trajectory_audit.sh
+
+PYTHON_BIN=/home/chenyanxi/.conda/envs/pinn/bin/python \
+  bash test/run_xjtu_capacity_trajectory_audit.sh \
+  --conditions 2C 3C --hide-cell-legend
+```
+
+## MIT physical-cell capacity-versus-global-cycle trajectories
+
+`plot_mit_capacity_trajectories.py` reads canonical `datasets/MIT_raw` physical
+cell files and plots `capacity_Ah` against global physical `cycle`. The
+default split is `splits/mit/mit_paper_physical124_v2_split.json`:
+`mit_p###` cells whose numeric suffix is divisible by five are dashed test
+cells; other cells are solid development cells. The declared invalid cycle
+(currently `mit_p015/cycle 39`) is removed before plotting. The default MIT
+figure uses only a compact style legend; add `--show-cell-legend` for one
+entry per physical cell.
+
+Run from the repository root:
+
+```bash
+PYTHON_BIN=/home/chenyanxi/.conda/envs/pinn/bin/python \
+  bash test/run_mit_capacity_trajectory_audit.sh
+```
+
+The default output directory is `test/outputs/mit_capacity_trajectories/`,
+containing `mit_capacity_vs_cycle.png` and `summary.json`. Conditions are the
+three primary MIT batch dates, and the x-axis preserves the canonical global
+cycle across continuation boundaries.
+
+Useful overrides:
+
+```bash
+MIT_RAW_ROOT=/path/to/MIT_raw \
+MIT_CAPACITY_OUTPUT_DIR=/path/to/figures \
+  bash test/run_mit_capacity_trajectory_audit.sh
+
+PYTHON_BIN=/home/chenyanxi/.conda/envs/pinn/bin/python \
+  bash test/run_mit_capacity_trajectory_audit.sh \
+  --conditions 2017-05-12 --show-cell-legend
+```
+
+For an intentionally incomplete local smoke inventory, add `--allow-subset`;
+omit it for the canonical 124-cell output.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
@@ -50,6 +51,39 @@ def _model_inputs(batch):
         "cc_temperature": batch["cc_temperature"],
         "cv_temperature": batch["cv_temperature"],
         "t0_temperature_norm": batch["t0_temperature_norm"],
+    }
+
+
+def _domain_metrics_with_sample_counts(truths, predictions, domains):
+    """Compute domain metrics and retain the held-out sample count for each domain."""
+
+    per_domain = grouped_metrics(truths, predictions, domains)
+    counts = Counter(str(domain_id) for domain_id in domains)
+    for domain_id, values in per_domain.items():
+        values["n_samples"] = int(counts[domain_id])
+    return per_domain
+
+
+def build_test_metrics_by_domain(test_metrics):
+    """Return per-domain test metrics aligned with E1's scalar result schema.
+
+    Evaluation does not add the cycle auxiliary term to the loss. Therefore,
+    each domain's test loss and soh_loss are its SOH MSE, making the fields
+    directly comparable to an E1 single-domain test_metrics.json.
+    """
+
+    domains = {}
+    for domain_id, metrics in sorted(test_metrics.get("per_domain", {}).items()):
+        values = dict(metrics)
+        mse = float(values["mse"])
+        values["loss"] = mse
+        values["soh_loss"] = mse
+        domains[str(domain_id)] = values
+    return {
+        "aggregation": "micro over all held-out test samples within each domain",
+        "loss_definition": "evaluation loss equals SOH MSE; cycle auxiliary loss is not added at test time",
+        "metrics": ["loss", "soh_loss", "mae", "mape", "mse", "rmse"],
+        "domains": domains,
     }
 
 
@@ -102,6 +136,7 @@ def run_epoch(model, loader, criterion, device, optimizer=None, lambda_cycle=0.0
     condition_macro_rmse = macro_rmse_by_group(truths, predictions, conditions)
     battery_macro_rmse = macro_rmse_by_group(truths, predictions, batteries)
     domain_macro_rmse = macro_rmse_by_group(truths, predictions, domains)
+    per_domain = _domain_metrics_with_sample_counts(truths, predictions, domains)
     metrics.update(
         {
             "loss": total_loss / max(total_count, 1),
@@ -116,7 +151,7 @@ def run_epoch(model, loader, criterion, device, optimizer=None, lambda_cycle=0.0
             "domain_macro_rmse": domain_macro_rmse,
             "per_condition": grouped_metrics(truths, predictions, conditions),
             "per_battery": grouped_metrics(truths, predictions, batteries),
-            "per_domain": grouped_metrics(truths, predictions, domains),
+            "per_domain": per_domain,
         }
     )
     if cycle_truths:
@@ -206,6 +241,8 @@ def train_from_config(config, repo_root, backend_override=None, device_override=
     if best_state is not None:
         model.load_state_dict(best_state)
     test_metrics = run_epoch(model, loaders["test"], criterion, device)
+    test_metrics_by_domain = build_test_metrics_by_domain(test_metrics)
+    test_metrics["per_domain"] = test_metrics_by_domain["domains"]
     output_root = _resolve_path(repo_root, config["experiment"].get("output_root", "UnifiedRawSOH/outputs"))
     run_time = _runtime_directory_name(config["experiment"].get("run_time"))
     config.setdefault("experiment", {})["run_time"] = run_time
@@ -216,6 +253,7 @@ def train_from_config(config, repo_root, backend_override=None, device_override=
     save_json(run_dir / "split_info.json", split_info)
     save_json(run_dir / "history.json", history)
     save_json(run_dir / "test_metrics.json", test_metrics)
+    save_json(run_dir / "test_metrics_by_domain.json", test_metrics_by_domain)
     torch.save({"model": model.state_dict(), "config": config, "split_info": split_info}, run_dir / "best.pt")
     return {
         "run_dir": str(run_dir),
