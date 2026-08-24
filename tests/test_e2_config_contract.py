@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from UnifiedRawSOH.utils.config import load_config  # noqa: E402
 
 
-CONFIG_ROOT = PROJECT_ROOT / "UnifiedRawSOH" / "configs"
+CONFIG_ROOT = PROJECT_ROOT / "UnifiedRawSOH" / "configs" / "paper_v1"
 E1_ROOT = CONFIG_ROOT / "e1_raw_soh_learning" / "benchmark"
 E2_ROOT = CONFIG_ROOT / "e2_unified_multidomain" / "unified"
 

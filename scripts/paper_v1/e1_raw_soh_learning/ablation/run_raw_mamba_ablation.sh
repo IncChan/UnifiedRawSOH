@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 
 # Change only this name to run one implemented E1 control.  The main proposed
 # model remains under benchmark/run_raw_mamba_benchmark.sh.
@@ -23,7 +23,7 @@ case "${ABLATION}" in
     ;;
 esac
 
-export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/e1_raw_soh_learning/ablation/${CONFIG_NAME}"
+export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/paper_v1/e1_raw_soh_learning/ablation/${CONFIG_NAME}"
 export TRAIN_MODULE="UnifiedRawSOH.main"
 export REQUIRE_OFFICIAL_MAMBA="${REQUIRE_OFFICIAL_MAMBA:-1}"
 exec bash "${PROJECT_ROOT}/UnifiedRawSOH/scripts/run_seed_batch.sh"

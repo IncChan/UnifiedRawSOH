@@ -1,9 +1,10 @@
-# UnifiedRawSOH — Paper-v1
+# UnifiedRawSOH
 
-This is the standalone paper-facing codebase for Raw → Unified → Reusable SOH
-learning. It is designed to live directly as a repository named
-`UnifiedRawSOH`; active training and evaluation do not require the historical
-SC_TempMamba_v2 or PINN4SOH repositories beside it.
+This repository keeps paper-specific experiment configurations and launchers
+under explicit version namespaces. The implemented Raw → Unified → Reusable
+SOH pipeline is currently Paper-v1; Paper-v2 is reserved for diagnosed
+cross-domain improvements. Active training and evaluation do not require the
+historical SC_TempMamba_v2 or PINN4SOH repositories beside it.
 
 The inference contract is intentionally narrow: current-cycle terminal raw
 CC/CV signal, time, and temperature only. A full-life degradation coordinate
@@ -13,18 +14,22 @@ input.
 ## Layout
 
     configs/
-        e1_raw_soh_learning/          within-domain benchmark + ablations
-        e2_unified_multidomain/       Separate versus Unified
-        e3_cross_domain_reusability/  zero/few-shot and few-cell protocols
-        e4_industrial_external/       real enterprise validation interface
-        conditional/                  diagnosis-triggered contrastive extension
+        paper_v1/                     existing V1 experiment configs
+            e1_raw_soh_learning/      within-domain benchmark + ablations
+            e2_unified_multidomain/   Separate versus Unified
+            e3_cross_domain_reusability/
+            e4_industrial_external/
+            diagnostics/              frozen E2 representation/residual/gradient analysis
+        paper_v2/                     reserved V2 configuration namespace
     datasets/                          adapters, domain registry, manifests
     preprocess/                        source-to-canonical-product pipelines
     splits/                            data/split provenance
     models/                            phase-specific raw model and Only-F baseline
     trainers/                          E1/E2 training and E3 protocol validation
     evaluation/                        metrics and matched-cycle evaluation
-    scripts/                           fixed-setting multi-seed launchers
+    scripts/paper_v1/                  V1 experiment launchers
+    scripts/paper_v2/                  reserved V2 launcher namespace
+    scripts/setup/                     shared data readiness tools
     results/                           curated, Git-tracked paper summaries
 
 Outputs are not moved when code paths are reorganized. Historical E1 runtime
@@ -51,8 +56,8 @@ From the repository root:
 
     bash scripts/setup/copy_datasets.sh
     python -m unittest discover -s tests -p 'test_*.py'
-    python main.py --config configs/e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json --backend_override torch_reference --device_override cpu --epochs 1 --patience 1 --debug_num_samples 1 --run_time smoke
-    python main.py --config configs/e1_raw_soh_learning/benchmark/raw_mamba_mit.json --backend_override torch_reference --device_override cpu --epochs 1 --patience 1 --debug_num_samples 1 --run_time smoke
+    python main.py --config configs/paper_v1/e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json --backend_override torch_reference --device_override cpu --epochs 1 --patience 1 --debug_num_samples 1 --run_time smoke
+    python main.py --config configs/paper_v1/e1_raw_soh_learning/benchmark/raw_mamba_mit.json --backend_override torch_reference --device_override cpu --epochs 1 --patience 1 --debug_num_samples 1 --run_time smoke
 
 The torch_reference backend is only for a CPU structural smoke. Formal
 RawMamba runs require CUDA plus the official mamba-ssm backend.
@@ -62,10 +67,11 @@ RawMamba runs require CUDA plus the official mamba-ssm backend.
 No long command is required. Edit the fixed variables near the top of each
 script, then invoke it directly:
 
-    bash scripts/e1_raw_soh_learning/benchmark/run_raw_mamba_benchmark.sh
-    bash scripts/e1_raw_soh_learning/benchmark/run_onlyf_benchmark.sh
-    bash scripts/e1_raw_soh_learning/ablation/run_raw_mamba_ablation.sh
-    bash scripts/e2_unified_multidomain/run_public_xjtu_mit.sh
+    bash scripts/paper_v1/e1_raw_soh_learning/benchmark/run_raw_mamba_benchmark.sh
+    bash scripts/paper_v1/e1_raw_soh_learning/benchmark/run_onlyf_benchmark.sh
+    bash scripts/paper_v1/e1_raw_soh_learning/ablation/run_raw_mamba_ablation.sh
+    bash scripts/paper_v1/e2_unified_multidomain/run_public_xjtu_mit.sh
+    bash scripts/paper_v1/diagnostics/run_e2_diagnostics.sh
 
 The two E1 benchmark scripts use one `DOMAIN=` line. Valid choices are
 `xjtu`, `mit`, `smarthealth_lishen40`, `smarthealth_catl280`, and
@@ -76,7 +82,7 @@ incomplete local product fails clearly instead of silently falling back.
 
 The existing fairness check never retrains:
 
-    bash scripts/e1_raw_soh_learning/benchmark/run_matched_cycle_eval.sh
+    bash scripts/paper_v1/e1_raw_soh_learning/benchmark/run_matched_cycle_eval.sh
 
 Its four historical checkpoint directories are explicitly visible at the top
 of the script so a later formal E1 run can replace them deliberately.

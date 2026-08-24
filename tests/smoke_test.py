@@ -20,7 +20,7 @@ from UnifiedRawSOH.utils.config import load_config  # noqa: E402
 
 def main():
     torch.set_num_threads(1)
-    config_path = PROJECT_ROOT / "UnifiedRawSOH/configs/e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json"
+    config_path = PROJECT_ROOT / "UnifiedRawSOH/configs/paper_v1/e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json"
     config = load_config(config_path)
     data_root = PROJECT_ROOT / "UnifiedRawSOH/datasets/XJTU_raw"
     if not data_root.is_dir() or not list(data_root.glob("*.csv")):

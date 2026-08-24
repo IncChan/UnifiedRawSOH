@@ -127,8 +127,8 @@ invented before real source data are available.
 Health-aware contrastive alignment is not a fifth paper experiment. It is a
 conditional method extension only if E2 is materially worse than Separate or
 z_health is observed to cluster mainly by domain. Its reserved location is
-configs/conditional/health_aware_contrastive and
-scripts/conditional/health_aware_contrastive.
+configs/paper_v1/conditional/health_aware_contrastive and
+scripts/paper_v1/conditional/health_aware_contrastive.
 
 ## Current source status
 

@@ -401,7 +401,7 @@ class DomainAbstractionTest(unittest.TestCase):
     def test_reusability_protocol_requires_disjoint_domains_and_fair_budget(self):
         adaptation = load_config(
             PROJECT_ROOT
-            / "UnifiedRawSOH/configs/e3_cross_domain_reusability/adaptation/xjtu_to_mit_cycle_fraction.json"
+            / "UnifiedRawSOH/configs/paper_v1/e3_cross_domain_reusability/adaptation/xjtu_to_mit_cycle_fraction.json"
         )
         parsed = parse_reusability_protocol(adaptation)
         self.assertEqual(parsed["source_domain_ids"], ["xjtu"])
@@ -411,7 +411,7 @@ class DomainAbstractionTest(unittest.TestCase):
 
         lodo = load_config(
             PROJECT_ROOT
-            / "UnifiedRawSOH/configs/e3_cross_domain_reusability/leave_one_domain_out/lodo_smarthealth_eve280.json"
+            / "UnifiedRawSOH/configs/paper_v1/e3_cross_domain_reusability/leave_one_domain_out/lodo_smarthealth_eve280.json"
         )
         self.assertEqual(
             parse_reusability_protocol(lodo)["target_domain_ids"],

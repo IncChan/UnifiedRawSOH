@@ -4,7 +4,7 @@ set -euo pipefail
 export PYTHONUTF8="${PYTHONUTF8:-1}"
 export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8:backslashreplace}"
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 
 # Direct-launch settings. Change this exact line, then run this script without
 # additional command-line arguments. It intentionally does not inherit a
@@ -22,19 +22,19 @@ export SEEDS GPU_IDS MAX_PARALLEL PYTHON_BIN
 
 case "${DOMAIN}" in
   xjtu)
-    export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/e1_raw_soh_learning/benchmark/pinn4soh_onlyf_xjtu.json"
+    export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/paper_v1/e1_raw_soh_learning/benchmark/pinn4soh_onlyf_xjtu.json"
     ;;
   mit)
-    export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/e1_raw_soh_learning/benchmark/pinn4soh_onlyf_mit.json"
+    export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/paper_v1/e1_raw_soh_learning/benchmark/pinn4soh_onlyf_mit.json"
     ;;
   smarthealth_lishen40)
-    export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/e1_raw_soh_learning/benchmark/pinn4soh_onlyf_smarthealth_lishen40.json"
+    export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/paper_v1/e1_raw_soh_learning/benchmark/pinn4soh_onlyf_smarthealth_lishen40.json"
     ;;
   smarthealth_catl280)
-    export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/e1_raw_soh_learning/benchmark/pinn4soh_onlyf_smarthealth_catl280.json"
+    export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/paper_v1/e1_raw_soh_learning/benchmark/pinn4soh_onlyf_smarthealth_catl280.json"
     ;;
   smarthealth_eve280)
-    export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/e1_raw_soh_learning/benchmark/pinn4soh_onlyf_smarthealth_eve280.json"
+    export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/paper_v1/e1_raw_soh_learning/benchmark/pinn4soh_onlyf_smarthealth_eve280.json"
     ;;
   *)
     echo "Unsupported E1 Only-F DOMAIN=${DOMAIN}." >&2

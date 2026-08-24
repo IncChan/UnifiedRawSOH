@@ -4,7 +4,7 @@ set -euo pipefail
 export PYTHONUTF8="${PYTHONUTF8:-1}"
 export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8:backslashreplace}"
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../.." && pwd)"
 
 # Direct settings.  Update these explicit E1 runtime directories when a new
 # formal E1 run should become the matched-cycle reference.  This script only

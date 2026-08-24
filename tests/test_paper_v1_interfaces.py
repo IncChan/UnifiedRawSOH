@@ -35,7 +35,7 @@ from UnifiedRawSOH.utils.config import load_config  # noqa: E402
 class PaperV1InterfaceTest(unittest.TestCase):
     def test_main_config_has_no_aligned_source(self):
         config = load_config(
-            PROJECT_ROOT / "UnifiedRawSOH/configs/e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json"
+            PROJECT_ROOT / "UnifiedRawSOH/configs/paper_v1/e1_raw_soh_learning/benchmark/raw_mamba_xjtu.json"
         )
         serialized = json.dumps(config)
         self.assertNotIn("XJTU_raw_t_v1_aligned", serialized)

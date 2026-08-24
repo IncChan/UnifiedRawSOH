@@ -1,0 +1,33 @@
+{
+  "status": "runnable",
+  "diagnostic": {
+    "name": "V1_E2_FULL_D_Diagnostics",
+    "run_root": "UnifiedRawSOH/outputs/Paper-v1/e2_unified_multidomain/RawMamba/full_public_all_domains_domain_balanced/runtime_260824-020049",
+    "output_root": "UnifiedRawSOH/outputs/Paper-v1/v1_diagnostics/e2_full_d",
+    "seeds": [42, 52, 62],
+    "split": "val",
+    "device": "cuda",
+    "max_samples_per_domain": 0,
+    "save_features": true,
+    "representation_probe": {
+      "soh_bin_width": 0.02,
+      "soh_bin_origin": 0.0,
+      "max_per_domain_bin": 256,
+      "require_all_domains": true,
+      "test_battery_fraction": 0.25,
+      "probe_device": "cpu",
+      "epochs": 200,
+      "learning_rate": 0.03,
+      "weight_decay": 0.0001
+    },
+    "residual_calibration": {
+      "test_battery_fraction": 0.25,
+      "soh_bin_width": 0.02,
+      "soh_bin_origin": 0.0,
+      "ridge": 0.000001
+    },
+    "gradient_conflict": {
+      "max_samples_per_domain": 64
+    }
+  }
+}
