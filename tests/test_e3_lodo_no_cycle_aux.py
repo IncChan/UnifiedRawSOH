@@ -164,6 +164,54 @@ class E3LodoNoCycleAuxTest(unittest.TestCase):
         self.assertNotIn("[LODO fold] left_out=xjtu", result.stdout)
         self.assertIn("[launch] module=UnifiedRawSOH.main seed=42 gpu=4", result.stdout)
 
+    def test_all_launcher_assigns_one_fold_per_gpu_with_per_gpu_limit(self):
+        expected = {
+            "xjtu": "0",
+            "mit": "1",
+            "smarthealth_lishen40": "2",
+            "smarthealth_catl280": "3",
+            "smarthealth_eve280": "4",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            environment = dict(os.environ)
+            environment.update(
+                {
+                    "DRY_RUN": "1",
+                    "LEFT_OUT_DOMAIN": "all",
+                    "SEEDS": "42 52 62",
+                    "GPU_IDS": "0 1 2 3 4",
+                    "MAX_PARALLEL": "3",
+                    "OUTPUT_ROOT": directory,
+                    "PYTHON_BIN": sys.executable,
+                }
+            )
+            result = subprocess.run(
+                ["bash", str(LAUNCHER)],
+                cwd=PROJECT_ROOT,
+                env=environment,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertIn("max parallel processes per GPU: 3", result.stdout)
+        self.assertIn("maximum aggregate processes: 15", result.stdout)
+        for fold, gpu in expected.items():
+            self.assertIn(
+                f"[schedule] gpu={gpu}; fold={fold}; "
+                "seeds=42 52 62; max_parallel=3",
+                result.stdout,
+            )
+            self.assertIn(
+                f"[LODO fold] left_out={fold}; gpu={gpu};",
+                result.stdout,
+            )
+            for seed in (42, 52, 62):
+                self.assertIn(
+                    f"[launch] module=UnifiedRawSOH.main seed={seed} gpu={gpu}",
+                    result.stdout,
+                )
+
     def test_lodo_summary_requires_only_target_test_domain(self):
         with tempfile.TemporaryDirectory() as directory:
             batch_root = Path(directory)
