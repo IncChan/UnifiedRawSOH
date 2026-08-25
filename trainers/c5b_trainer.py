@@ -10,7 +10,11 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from UnifiedRawSOH.datasets.loaders import build_single_domain_loaders, build_unified_loaders
+from UnifiedRawSOH.datasets.loaders import (
+    build_lodo_loaders,
+    build_single_domain_loaders,
+    build_unified_loaders,
+)
 from UnifiedRawSOH.evaluation.metrics import compute_metrics, grouped_metrics, macro_rmse_by_group
 from UnifiedRawSOH.models.raw_soh_model import build_raw_soh_model
 from UnifiedRawSOH.utils.config import save_json
@@ -163,8 +167,11 @@ def train_from_config(config, repo_root, backend_override=None, device_override=
     seed = int(config["train"].get("seed", 42))
     set_random_seed(seed, bool(config.get("debug", {}).get("deterministic", True)))
     device = _device_from_config(config, device_override)
-    if config.get("experiment", {}).get("loader", "single_domain") == "unified_multi_dataset":
+    loader_name = config.get("experiment", {}).get("loader", "single_domain")
+    if loader_name == "unified_multi_dataset":
         loaders, split_info = build_unified_loaders(config, repo_root, seed)
+    elif loader_name == "leave_one_domain_out":
+        loaders, split_info = build_lodo_loaders(config, repo_root, seed)
     else:
         loaders, split_info = build_single_domain_loaders(config, repo_root, seed)
     model = build_raw_soh_model(config["model"], backend_override=backend_override).to(device)

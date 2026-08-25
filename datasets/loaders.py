@@ -362,3 +362,114 @@ def build_unified_loaders(config, repo_root, seed):
         "balance_mode": data_cfg.get("balance_mode", "none"),
         "sample_contract": list(UNIFIED_SAMPLE_KEYS),
     }
+
+
+def build_lodo_loaders(config, repo_root, seed):
+    """Build source train/val loaders and a held-out-domain test loader.
+
+    Every domain is read through its existing split JSON. Source test records
+    and target train/validation records are deliberately excluded.
+    """
+
+    from UnifiedRawSOH.trainers.reusability import parse_reusability_protocol
+
+    protocol = parse_reusability_protocol(config)
+    if protocol["protocol"] != "leave_one_domain_out":
+        raise ValueError(
+            "LODO loader requires reusability.protocol=leave_one_domain_out"
+        )
+    source_domain_ids = protocol["source_domain_ids"]
+    target_domain_ids = protocol["target_domain_ids"]
+    if len(target_domain_ids) != 1:
+        raise ValueError("LODO requires exactly one target domain")
+    target_domain_id = target_domain_ids[0]
+    requested = config.get("experiment", {}).get("domain_ids", [])
+    configured_domain_ids = [_canonical_domain_id(value) for value in requested]
+    expected_domain_ids = source_domain_ids + [target_domain_id]
+    if set(configured_domain_ids) != set(expected_domain_ids):
+        raise ValueError(
+            "experiment.domain_ids must equal source_domain_ids plus target_domain_id; "
+            f"configured={configured_domain_ids}, expected={expected_domain_ids}"
+        )
+
+    data_cfg = config["data"]
+    roots = data_cfg.get("data_roots", {})
+    domain_registry = build_default_domain_registry()
+    datasets_by_domain = {}
+    domain_info = {}
+    for index, domain_id in enumerate(expected_domain_ids):
+        domain = domain_registry.get(domain_id)
+        domain_config = dict(config)
+        domain_config["experiment"] = dict(config.get("experiment", {}))
+        domain_config["experiment"]["domain_id"] = domain_id
+        domain_config["experiment"].pop("batches", None)
+        batches_by_domain = data_cfg.get(
+            "batches_by_domain", data_cfg.get("batches_by_dataset", {})
+        )
+        if domain_id in batches_by_domain:
+            domain_config["experiment"]["batches"] = list(
+                batches_by_domain[domain_id]
+            )
+        split_file = data_cfg.get("split_files", {}).get(
+            domain_id, domain.split_file
+        )
+        if not split_file:
+            raise ValueError(f"LODO config requires a split file for {domain_id!r}")
+        domain_config["experiment"]["split_file"] = split_file
+        domain_config["data"] = dict(data_cfg)
+        domain_config["data"]["data_mode"] = "single_domain"
+        root_value = (
+            roots.get(domain_id) or data_cfg.get("data_root") or domain.data_root
+        )
+        if not root_value:
+            raise ValueError(f"LODO config has no data root for {domain_id!r}")
+        domain_config["data"]["data_root"] = root_value
+        domain_config["data"]["adapter_id"] = domain.adapter_id
+        if domain_id in data_cfg.get("normalizations", {}):
+            domain_config["normalization"] = data_cfg["normalizations"][domain_id]
+        elif domain.normalization is not None:
+            domain_config["normalization"] = dict(domain.normalization)
+        datasets, info = _build_raw_domain(
+            domain_config,
+            repo_root,
+            seed + index * 10_000,
+            domain_id,
+            _resolve_path(repo_root, root_value),
+        )
+        datasets_by_domain[domain_id] = datasets
+        domain_info[domain_id] = info
+
+    selected = {
+        "train": ConcatDataset(
+            [
+                datasets_by_domain[domain_id]["train"]
+                for domain_id in source_domain_ids
+            ]
+        ),
+        "val": ConcatDataset(
+            [
+                datasets_by_domain[domain_id]["val"]
+                for domain_id in source_domain_ids
+            ]
+        ),
+        "test": datasets_by_domain[target_domain_id]["test"],
+    }
+    loaders = _build_loaders_from_datasets(selected, config)
+    return loaders, {
+        "loader_type": "leave_one_domain_out",
+        "source_domain_ids": source_domain_ids,
+        "target_domain_id": target_domain_id,
+        "domain_ids": expected_domain_ids,
+        "domain_info": domain_info,
+        "split_usage": {
+            "train": "source domains' original train split only",
+            "val": "source domains' original val split only",
+            "test": "left-out domain's original test split only",
+            "excluded": [
+                "source domains' test splits",
+                "left-out domain's train and val splits",
+            ],
+        },
+        "balance_mode": data_cfg.get("balance_mode", "none"),
+        "sample_contract": list(UNIFIED_SAMPLE_KEYS),
+    }

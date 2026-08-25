@@ -60,6 +60,13 @@ def _expected_domain_ids(batch_root):
     with manifest_path.open(encoding="utf-8") as handle:
         manifest = json.load(handle)
     experiment = manifest.get("experiment", {})
+    if experiment.get("loader") == "leave_one_domain_out":
+        target_domain_id = experiment.get("target_domain_id")
+        if target_domain_id is None:
+            target_domain_ids = experiment.get("target_domain_ids", [])
+            if len(target_domain_ids) == 1:
+                target_domain_id = target_domain_ids[0]
+        return [str(target_domain_id)] if target_domain_id is not None else []
     domain_ids = experiment.get("domain_ids")
     if isinstance(domain_ids, str):
         domain_ids = [domain_ids]

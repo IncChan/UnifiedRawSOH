@@ -1,0 +1,24 @@
+{
+  "status": "template",
+  "base_config": "../../e2_unified_multidomain/unified/public_all_domains_domain_balanced_no_cycle_aux.json",
+  "experiment": {
+    "name": "E3_LODO_NoCycleAux_Base",
+    "task": "e3_cross_domain_reusability_leave_one_domain_out_no_cycle_auxiliary",
+    "loader": "leave_one_domain_out"
+  },
+  "output": {
+    "experiment_id": "e3_cross_domain_reusability",
+    "model_id": "RawMamba-noCycleAux-LODO",
+    "data_id": "lodo_no_cycle_aux_template"
+  },
+  "reusability": {
+    "protocol": "leave_one_domain_out",
+    "evaluation": "zero_shot",
+    "source_train_split": "train",
+    "source_validation_split": "val",
+    "target_test_split": "test",
+    "target_train_and_validation_usage": "forbidden",
+    "source_test_usage": "forbidden"
+  },
+  "protocol": "Five-fold Paper-v1 LODO with SOH-only supervision. For each fold, four source domains contribute only their unchanged Paper-v1 train and validation partitions. The left-out domain contributes only its unchanged Paper-v1 test partition for zero-shot evaluation. Source test batteries and left-out train/validation batteries are excluded. Model, fixed physical normalizations, optimizer, scheduler, early stopping, and E2-FULL-D hierarchical domain-then-battery sampling are inherited unchanged from E2-FULL-D w/o cycle auxiliary."
+}

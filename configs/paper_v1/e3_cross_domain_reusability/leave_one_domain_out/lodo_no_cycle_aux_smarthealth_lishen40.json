@@ -1,0 +1,12 @@
+{
+  "status": "runnable",
+  "base_config": "./lodo_no_cycle_aux_base.json",
+  "experiment": {
+    "name": "E3_LODO_NoCycleAux_to_smarthealth_lishen40",
+    "source_domain_ids": ["xjtu", "mit", "smarthealth_catl280", "smarthealth_eve280"],
+    "target_domain_id": "smarthealth_lishen40"
+  },
+  "output": {
+    "data_id": "lodo_no_cycle_aux_to_smarthealth_lishen40"
+  }
+}
