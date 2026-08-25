@@ -349,6 +349,45 @@ class UnifiedCCCVSampleDataset(Dataset):
             return None
         return {"signal": signal, "time": phase_time, "temperature": temp}
 
+    def to_preprocessed_cache(self):
+        """Return the minimal state needed to restore model-ready samples."""
+
+        return {
+            "samples": self.samples,
+            "skipped": dict(self.skipped),
+        }
+
+    @classmethod
+    def from_preprocessed_cache(cls, payload, data_config, split_name, seed=0):
+        """Restore samples without parsing raw CSVs or repeating interpolation."""
+
+        samples = payload.get("samples") if isinstance(payload, dict) else None
+        if not isinstance(samples, list) or not samples:
+            raise ValueError(
+                f"Invalid preprocessed cycle cache for split {split_name!r}"
+            )
+        instance = cls.__new__(cls)
+        instance.records = []
+        instance.valid_records = []
+        instance.data_config = dict(data_config)
+        instance.split_name = str(split_name)
+        instance.seed = int(seed)
+        instance.cycle_metadata = {}
+        instance.skipped = Counter(payload.get("skipped", {}))
+        instance.samples = samples
+        return instance
+
+    def sampling_metadata(self):
+        """Return balancing keys without materializing temporary torch tensors."""
+
+        return [
+            (
+                str(sample.get("domain_id", sample.get("dataset_id", "unknown"))),
+                str(sample.get("battery_id", "unknown")),
+            )
+            for sample in self.samples
+        ]
+
     def __len__(self):
         return len(self.samples)
 

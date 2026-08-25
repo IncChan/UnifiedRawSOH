@@ -13,6 +13,7 @@
       "soh_bin_width": 0.02,
       "soh_bin_origin": 0.0,
       "max_per_domain_bin": 256,
+      "pairwise_split_search_attempts": 64,
       "require_all_domains": true,
       "test_battery_fraction": 0.25,
       "probe_device": "cpu",

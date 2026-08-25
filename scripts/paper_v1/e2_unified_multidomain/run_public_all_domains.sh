@@ -6,11 +6,11 @@ export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8:backslashreplace}"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
-# E2-Full Domain-Balanced: XJTU + MIT + LISHEN40 + CATL280 + EVE280. One worker on one GPU
+# E2-FULL-D w/o cycle auxiliary: XJTU + MIT + LISHEN40 + CATL280 + EVE280. One worker on one GPU
 # is the safe default. Use distinct GPU IDs to run seeds concurrently, for
 # example: GPU_IDS="0 1 2" MAX_PARALLEL=3 bash "$0".
 SEEDS="${SEEDS:-42 52 62}"
-GPU_IDS="${GPU_IDS:-3}"
+GPU_IDS="${GPU_IDS:-7}"
 MAX_PARALLEL="${MAX_PARALLEL:-3}"
 if [[ -n "${PYTHON_BIN:-}" ]]; then
   export PYTHON_BIN
@@ -18,7 +18,7 @@ fi
 PYTHON_BIN="$(${PROJECT_ROOT}/UnifiedRawSOH/scripts/resolve_python_bin.sh)"
 export SEEDS GPU_IDS MAX_PARALLEL PYTHON_BIN
 
-export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/paper_v1/e2_unified_multidomain/unified/public_all_domains_domain_balanced.json"
+export CONFIG_SOURCE="${PROJECT_ROOT}/UnifiedRawSOH/configs/paper_v1/e2_unified_multidomain/unified/public_all_domains_domain_balanced_no_cycle_aux.json"
 export TRAIN_MODULE="UnifiedRawSOH.main"
 export REQUIRE_OFFICIAL_MAMBA="${REQUIRE_OFFICIAL_MAMBA:-1}"
 

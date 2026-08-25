@@ -13,6 +13,7 @@ import csv
 import json
 import sys
 from collections import Counter
+from itertools import combinations
 from pathlib import Path
 
 import numpy as np
@@ -263,10 +264,267 @@ def _pca_projection(features):
     return projection[:, :2], explained.tolist()
 
 
+def _fit_linear_probe(features, domains, train_mask, test_mask, config, seed):
+    """Fit one standardized linear domain probe and return test metrics."""
+
+    features = np.asarray(features, dtype=np.float32)
+    domains = np.asarray(domains, dtype=str)
+    train_mask = np.asarray(train_mask, dtype=bool)
+    test_mask = np.asarray(test_mask, dtype=bool)
+    if not np.any(train_mask) or not np.any(test_mask):
+        raise ValueError("Domain probe needs non-empty train and test samples")
+    domain_names = sorted(set(domains.tolist()))
+    if len(domain_names) < 2:
+        raise ValueError("Domain probe needs at least two domains")
+    domain_to_label = {domain: index for index, domain in enumerate(domain_names)}
+    labels = np.asarray([domain_to_label[value] for value in domains], dtype=np.int64)
+
+    mean = features[train_mask].mean(axis=0, keepdims=True)
+    std = features[train_mask].std(axis=0, keepdims=True)
+    std[std < 1e-6] = 1.0
+    normalized = (features - mean) / std
+    probe_device = torch.device(str(config.get("probe_device", "cpu")))
+    generator_state = torch.random.get_rng_state()
+    torch.manual_seed(int(seed))
+    try:
+        probe = torch.nn.Linear(normalized.shape[1], len(domain_names)).to(probe_device)
+        optimizer = torch.optim.AdamW(
+            probe.parameters(),
+            lr=float(config.get("learning_rate", 0.03)),
+            weight_decay=float(config.get("weight_decay", 1e-4)),
+        )
+        x_train = torch.as_tensor(
+            normalized[train_mask], dtype=torch.float32, device=probe_device
+        )
+        y_train = torch.as_tensor(
+            labels[train_mask], dtype=torch.long, device=probe_device
+        )
+        for _ in range(int(config.get("epochs", 200))):
+            optimizer.zero_grad(set_to_none=True)
+            loss = torch.nn.functional.cross_entropy(probe(x_train), y_train)
+            loss.backward()
+            optimizer.step()
+        probe.eval()
+        with torch.inference_mode():
+            x_test = torch.as_tensor(
+                normalized[test_mask], dtype=torch.float32, device=probe_device
+            )
+            predicted = probe(x_test).argmax(dim=1).cpu().numpy()
+    finally:
+        torch.random.set_rng_state(generator_state)
+    return (
+        _classification_metrics(labels[test_mask], predicted, domain_names),
+        normalized,
+        domain_names,
+    )
 
 
-def run_representation_probe(data, config, seed, output_dir):
-    """Fit a battery-disjoint linear probe with SOH matching in both splits."""
+def _pairwise_matched_split(data, domain_a, domain_b, config, seed):
+    """Find a deterministic battery split with matched train/test SOH support."""
+
+    pair_mask = np.isin(data["domain"], [domain_a, domain_b])
+    pair_indices = np.flatnonzero(pair_mask)
+    pair_domains = data["domain"][pair_indices]
+    pair_batteries = data["battery"][pair_indices]
+    attempts = int(config.get("pairwise_split_search_attempts", 64))
+    if attempts <= 0:
+        raise ValueError(
+            "representation_probe.pairwise_split_search_attempts must be positive"
+        )
+    match_options = {
+        "bin_width": float(config.get("soh_bin_width", 0.02)),
+        "bin_origin": float(config.get("soh_bin_origin", 0.0)),
+        "max_per_domain_bin": int(config.get("max_per_domain_bin", 0)),
+        "require_all_domains": True,
+    }
+    best = None
+    failures = []
+    for attempt in range(attempts):
+        split_seed = int(seed) + attempt
+        train_mask, test_mask, assignment = battery_group_split(
+            pair_domains,
+            pair_batteries,
+            test_fraction=float(config.get("test_battery_fraction", 0.25)),
+            seed=split_seed,
+        )
+        train_pool = np.flatnonzero(train_mask)
+        test_pool = np.flatnonzero(test_mask)
+        try:
+            train_local, train_rows = matched_health_indices(
+                data["truth"][pair_indices[train_pool]],
+                pair_domains[train_pool],
+                seed=split_seed,
+                **match_options,
+            )
+            test_local, test_rows = matched_health_indices(
+                data["truth"][pair_indices[test_pool]],
+                pair_domains[test_pool],
+                seed=split_seed + 1,
+                **match_options,
+            )
+        except ValueError as error:
+            failures.append(str(error))
+            continue
+        train_selected = pair_indices[train_pool[train_local]]
+        test_selected = pair_indices[test_pool[test_local]]
+        train_bins = {int(row["soh_bin"]) for row in train_rows}
+        test_bins = {int(row["soh_bin"]) for row in test_rows}
+        score = (
+            min(int(train_selected.size), int(test_selected.size)),
+            len(test_bins),
+            int(test_selected.size),
+            len(train_bins),
+            int(train_selected.size),
+            -attempt,
+        )
+        candidate = {
+            "score": score,
+            "attempt": attempt,
+            "split_seed": split_seed,
+            "assignment": assignment,
+            "train_selected": train_selected,
+            "test_selected": test_selected,
+            "train_rows": train_rows,
+            "test_rows": test_rows,
+        }
+        if best is None or candidate["score"] > best["score"]:
+            best = candidate
+    if best is None:
+        detail = failures[0] if failures else "no valid split candidate"
+        raise ValueError(
+            f"No battery-disjoint SOH overlap for {domain_a} vs {domain_b} "
+            f"after {attempts} split attempts: {detail}"
+        )
+    return best
+
+
+def run_pairwise_representation_probe(data, config, seed, output_dir):
+    """Run binary domain probes on each pair's battery-disjoint SOH overlap."""
+
+    domain_names = sorted(set(data["domain"].tolist()))
+    pair_reports = []
+    match_rows = []
+    for pair_index, (domain_a, domain_b) in enumerate(combinations(domain_names, 2)):
+        pair_id = f"{domain_a}__vs__{domain_b}"
+        try:
+            split = _pairwise_matched_split(
+                data, domain_a, domain_b, config, seed + pair_index * 1000
+            )
+            train_selected = split["train_selected"]
+            test_selected = split["test_selected"]
+            selected = np.concatenate([train_selected, test_selected])
+            train_mask = np.arange(selected.size) < train_selected.size
+            test_mask = ~train_mask
+            metrics, _, _ = _fit_linear_probe(
+                data["features"][selected],
+                data["domain"][selected],
+                train_mask,
+                test_mask,
+                config,
+                seed + pair_index,
+            )
+            pair_report = {
+                "pair_id": pair_id,
+                "domain_a": domain_a,
+                "domain_b": domain_b,
+                "status": "completed",
+                "split_seed": int(split["split_seed"]),
+                "split_search_attempt": int(split["attempt"]),
+                "n_train_samples": int(train_selected.size),
+                "n_test_samples": int(test_selected.size),
+                "chance_accuracy": 0.5,
+                "battery_assignment": split["assignment"],
+                **metrics,
+            }
+            for probe_split, rows in (
+                ("train", split["train_rows"]),
+                ("test", split["test_rows"]),
+            ):
+                match_rows.extend(
+                    {
+                        "pair_id": pair_id,
+                        "domain_a": domain_a,
+                        "domain_b": domain_b,
+                        "split_seed": int(split["split_seed"]),
+                        "probe_split": probe_split,
+                        **row,
+                    }
+                    for row in rows
+                )
+        except Exception as error:  # Keep other domain pairs usable.
+            pair_report = {
+                "pair_id": pair_id,
+                "domain_a": domain_a,
+                "domain_b": domain_b,
+                "status": "unavailable",
+                "error_type": type(error).__name__,
+                "message": str(error),
+            }
+        pair_reports.append(pair_report)
+
+    completed = [row for row in pair_reports if row["status"] == "completed"]
+    if completed:
+        status = "completed" if len(completed) == len(pair_reports) else "partial"
+        result = {
+            "status": status,
+            "definition": (
+                "macro average of pairwise battery-disjoint binary linear domain probes "
+                "on each pair's SOH-bin overlap"
+            ),
+            "split_policy": (
+                "pair-specific battery-disjoint split selected by SOH-support "
+                "coverage only"
+            ),
+            "accuracy": float(np.mean([row["accuracy"] for row in completed])),
+            "macro_f1": float(np.mean([row["macro_f1"] for row in completed])),
+            "chance_accuracy": 0.5,
+            "n_pairs_total": len(pair_reports),
+            "n_pairs_completed": len(completed),
+            "n_pairs_unavailable": len(pair_reports) - len(completed),
+            "n_train_samples_across_pairs": int(
+                sum(row["n_train_samples"] for row in completed)
+            ),
+            "n_test_samples_across_pairs": int(
+                sum(row["n_test_samples"] for row in completed)
+            ),
+            "pairs": pair_reports,
+        }
+    else:
+        result = {
+            "status": "unavailable",
+            "definition": (
+                "battery-disjoint binary linear domain probes on pairwise "
+                "SOH-bin overlap"
+            ),
+            "n_pairs_total": len(pair_reports),
+            "n_pairs_completed": 0,
+            "n_pairs_unavailable": len(pair_reports),
+            "pairs": pair_reports,
+        }
+    output_dir = Path(output_dir)
+    _write_csv(
+        output_dir / "representation_pairwise_health_matching.csv",
+        match_rows,
+        fieldnames=[
+            "pair_id",
+            "domain_a",
+            "domain_b",
+            "split_seed",
+            "probe_split",
+            "soh_bin",
+            "soh_low",
+            "soh_high",
+            "domain",
+            "available",
+            "selected",
+        ],
+    )
+    save_json(output_dir / "representation_pairwise_probe.json", result)
+    return result
+
+def run_strict_representation_probe(data, config, seed, output_dir):
+    """Fit the supplemental five-domain probe on their common SOH bins."""
+
 
     full_train, full_test, assignment = battery_group_split(
         data["domain"],
@@ -304,42 +562,19 @@ def run_representation_probe(data, config, seed, output_dir):
         for split, rows in (("train", train_rows), ("test", test_rows))
         for row in rows
     ]
-    features = data["features"][selected].astype(np.float32)
     domains = data["domain"][selected]
-    domain_names = sorted(set(domains.tolist()))
-    domain_to_label = {domain: index for index, domain in enumerate(domain_names)}
-    labels = np.asarray([domain_to_label[value] for value in domains], dtype=np.int64)
-
-    mean = features[train_mask].mean(axis=0, keepdims=True)
-    std = features[train_mask].std(axis=0, keepdims=True)
-    std[std < 1e-6] = 1.0
-    normalized = (features - mean) / std
-    probe_device = torch.device(str(config.get("probe_device", "cpu")))
-    generator_state = torch.random.get_rng_state()
-    torch.manual_seed(int(seed))
-    probe = torch.nn.Linear(normalized.shape[1], len(domain_names)).to(probe_device)
-    optimizer = torch.optim.AdamW(
-        probe.parameters(),
-        lr=float(config.get("learning_rate", 0.03)),
-        weight_decay=float(config.get("weight_decay", 1e-4)),
+    result, normalized, domain_names = _fit_linear_probe(
+        data["features"][selected],
+        domains,
+        train_mask,
+        test_mask,
+        config,
+        seed,
     )
-    x_train = torch.as_tensor(normalized[train_mask], dtype=torch.float32, device=probe_device)
-    y_train = torch.as_tensor(labels[train_mask], dtype=torch.long, device=probe_device)
-    for _ in range(int(config.get("epochs", 200))):
-        optimizer.zero_grad(set_to_none=True)
-        loss = torch.nn.functional.cross_entropy(probe(x_train), y_train)
-        loss.backward()
-        optimizer.step()
-    probe.eval()
-    with torch.inference_mode():
-        x_test = torch.as_tensor(normalized[test_mask], dtype=torch.float32, device=probe_device)
-        predicted = probe(x_test).argmax(dim=1).cpu().numpy()
-    torch.random.set_rng_state(generator_state)
-
-    result = _classification_metrics(labels[test_mask], predicted, domain_names)
     result.update(
         {
-            "definition": "linear domain probe on SOH-bin-matched z_health",
+            "status": "completed",
+            "definition": "strict five-domain linear probe on common SOH-bin-matched z_health",
             "split_policy": "battery-disjoint within each validation domain",
             "n_matched_samples": int(selected.size),
             "n_train_samples": int(train_mask.sum()),
@@ -366,10 +601,10 @@ def run_representation_probe(data, config, seed, output_dir):
             }
         )
     output_dir = Path(output_dir)
-    _write_csv(output_dir / "representation_health_matching.csv", match_rows)
-    _write_csv(output_dir / "representation_pca.csv", projection_rows)
+    _write_csv(output_dir / "representation_strict_health_matching.csv", match_rows)
+    _write_csv(output_dir / "representation_strict_pca.csv", projection_rows)
     result["pca_explained_variance_ratio"] = explained
-    save_json(output_dir / "representation_probe.json", result)
+    save_json(output_dir / "representation_strict_probe.json", result)
     return result
 
 
@@ -631,10 +866,73 @@ def _save_features(path, data):
     )
 
 
+def _load_features(path):
+    with np.load(path, allow_pickle=False) as values:
+        return {key: values[key].copy() for key in values.files}
+
+
+def _run_diagnostic_safely(name, function):
+    """Run one diagnostic without preventing the remaining diagnostics."""
+
+    try:
+        result = function()
+        return result, {
+            "status": str(result.get("status", "completed")),
+        }
+    except Exception as error:
+        status = {
+            "status": "unavailable",
+            "error_type": type(error).__name__,
+            "message": str(error),
+        }
+        print(
+            f"[diagnostic unavailable] {name}: {type(error).__name__}: {error}",
+            file=sys.stderr,
+        )
+        return None, status
+
+
+def _upgrade_legacy_representation_report(seed_report, seed_output, config, seed):
+    """Add the pairwise probe to old reports using their preserved feature cache."""
+
+    representation = seed_report.get("representation_probe")
+    if not isinstance(representation, dict):
+        return seed_report
+    if representation.get("definition") != "linear domain probe on SOH-bin-matched z_health":
+        return seed_report
+    feature_path = Path(seed_output) / "validation_features.npz"
+    if not feature_path.is_file():
+        return seed_report
+
+    seed_report["representation_strict_probe"] = representation
+    save_json(
+        Path(seed_output) / "representation_strict_probe.json", representation
+    )
+    pairwise, pairwise_status = _run_diagnostic_safely(
+        "representation_pairwise_probe_cached_upgrade",
+        lambda: run_pairwise_representation_probe(
+            _load_features(feature_path), config, int(seed), seed_output
+        ),
+    )
+    seed_report["representation_probe"] = pairwise
+    statuses = seed_report.setdefault("diagnostic_status", {})
+    statuses["representation_pairwise_probe"] = pairwise_status
+    statuses["representation_strict_probe"] = {
+        "status": "completed",
+        "source": "legacy_representation_probe",
+    }
+    save_json(Path(seed_output) / "diagnostic_report.json", seed_report)
+    return seed_report
+
+
 def _aggregate_seed_reports(seed_reports):
     scalar_paths = {
         "domain_probe_accuracy": ("representation_probe", "accuracy"),
         "domain_probe_macro_f1": ("representation_probe", "macro_f1"),
+        "pairwise_domain_probe_accuracy": ("representation_probe", "accuracy"),
+        "pairwise_domain_probe_macro_f1": ("representation_probe", "macro_f1"),
+        "strict_domain_probe_accuracy": ("representation_strict_probe", "accuracy"),
+        "strict_domain_probe_macro_f1": ("representation_strict_probe", "macro_f1"),
         "calibration_before_domain_macro_rmse": (
             "residual_calibration",
             "before_domain_macro_rmse",
@@ -652,7 +950,11 @@ def _aggregate_seed_reports(seed_reports):
     }
     summary = {}
     for name, (section, metric) in scalar_paths.items():
-        values = [float(report[section][metric]) for report in seed_reports if report.get(section)]
+        values = [
+            float(report[section][metric])
+            for report in seed_reports
+            if isinstance(report.get(section), dict) and metric in report[section]
+        ]
         if values:
             summary[name] = {
                 "mean": float(np.mean(values)),
@@ -660,6 +962,72 @@ def _aggregate_seed_reports(seed_reports):
                 "values": values,
             }
     return summary
+
+
+def _diagnostic_summary(config, repo_root, seeds, skip_gradients, seed_reports=None):
+    diagnostic = config["diagnostic"]
+    split_name = str(diagnostic.get("split", "val"))
+    if split_name != "val":
+        raise ValueError("Paper-v1 diagnostics are restricted to the validation split")
+    run_root = _resolve_path(repo_root, diagnostic["run_root"])
+    output_root = _resolve_path(repo_root, diagnostic["output_root"])
+    if seed_reports is None:
+        seed_reports = []
+        for seed in seeds:
+            report_path = output_root / f"seed_{int(seed)}" / "diagnostic_report.json"
+            if not report_path.is_file():
+                raise FileNotFoundError(f"Missing completed diagnostic worker report: {report_path}")
+            with report_path.open(encoding="utf-8") as handle:
+                report = json.load(handle)
+            seed_reports.append(
+                _upgrade_legacy_representation_report(
+                    report,
+                    report_path.parent,
+                    diagnostic.get("representation_probe", {}),
+                    seed,
+                )
+            )
+    summary = {
+        "diagnostic_name": str(diagnostic.get("name", "V1_E2_Diagnostics")),
+        "source_run_root": str(run_root),
+        "output_root": str(output_root),
+        "split": split_name,
+        "seeds": [int(seed) for seed in seeds],
+        "diagnostics": [
+            "representation_pairwise_domain_probe",
+            "representation_strict_five_domain_probe_supplemental",
+            "residual_affine_calibration",
+            *([] if skip_gradients else ["shared_encoder_gradient_conflict"]),
+        ],
+        "diagnostic_status_by_seed": {
+            str(seed): report.get("diagnostic_status", {})
+            for seed, report in zip(seeds, seed_reports)
+        },
+        "aggregate": _aggregate_seed_reports(seed_reports),
+    }
+    output_root.mkdir(parents=True, exist_ok=True)
+    save_json(output_root / "resolved_diagnostic_config.json", config)
+    save_json(output_root / "diagnostic_summary.json", summary)
+    return summary
+
+
+def aggregate_from_config(config, repo_root=REPO_ROOT, seed_override=None, skip_gradients=False):
+    """Aggregate workers without loading a model or rebuilding a dataset.
+
+    Legacy strict-probe reports are upgraded from their saved feature caches.
+    """
+
+    if config.get("status", "runnable") != "runnable":
+        raise ValueError("The diagnostic config is not marked runnable")
+    diagnostic = config["diagnostic"]
+    seeds = (
+        [int(value) for value in seed_override]
+        if seed_override
+        else [int(value) for value in diagnostic.get("seeds", [42, 52, 62])]
+    )
+    if not seeds:
+        raise ValueError("diagnostic.seeds cannot be empty")
+    return _diagnostic_summary(config, repo_root, seeds, skip_gradients)
 
 
 def run_from_config(
@@ -670,6 +1038,7 @@ def run_from_config(
     seed_override=None,
     max_samples_override=None,
     skip_gradients=False,
+    worker_mode=False,
 ):
     """Run all configured V1 diagnostics without modifying source artifacts."""
 
@@ -704,7 +1073,8 @@ def run_from_config(
     if not seeds:
         raise ValueError("diagnostic.seeds cannot be empty")
     output_root.mkdir(parents=True, exist_ok=True)
-    save_json(output_root / "resolved_diagnostic_config.json", config)
+    if not worker_mode:
+        save_json(output_root / "resolved_diagnostic_config.json", config)
 
     seed_reports = []
     for seed in seeds:
@@ -726,28 +1096,60 @@ def run_from_config(
         seed_output.mkdir(parents=True, exist_ok=True)
         if bool(diagnostic.get("save_features", True)):
             _save_features(seed_output / "validation_features.npz", data)
-        representation = run_representation_probe(
-            data,
-            diagnostic.get("representation_probe", {}),
-            seed,
-            seed_output,
+        probe_config = diagnostic.get("representation_probe", {})
+        representation, representation_status = _run_diagnostic_safely(
+            "representation_pairwise_probe",
+            lambda: run_pairwise_representation_probe(
+                data,
+                probe_config,
+                seed,
+                seed_output,
+            ),
         )
-        calibration = run_residual_calibration(
-            data,
-            diagnostic.get("residual_calibration", {}),
-            seed,
-            seed_output,
+        strict_representation, strict_status = _run_diagnostic_safely(
+            "representation_strict_probe",
+            lambda: run_strict_representation_probe(
+                data,
+                probe_config,
+                seed,
+                seed_output,
+            ),
+        )
+        if strict_representation is None:
+            strict_representation = dict(strict_status)
+            save_json(
+                seed_output / "representation_strict_probe.json",
+                strict_representation,
+            )
+        calibration, calibration_status = _run_diagnostic_safely(
+            "residual_calibration",
+            lambda: run_residual_calibration(
+                data,
+                diagnostic.get("residual_calibration", {}),
+                seed,
+                seed_output,
+            ),
         )
         gradient = None
+        gradient_status = {"status": "skipped"}
         if not skip_gradients:
-            gradient = run_gradient_conflict(
-                model,
-                loader,
-                device,
-                diagnostic.get("gradient_conflict", {}),
-                seed_output,
-                seed=seed,
+            gradient, gradient_status = _run_diagnostic_safely(
+                "gradient_conflict",
+                lambda: run_gradient_conflict(
+                    model,
+                    loader,
+                    device,
+                    diagnostic.get("gradient_conflict", {}),
+                    seed_output,
+                    seed=seed,
+                ),
             )
+        diagnostic_status = {
+            "representation_pairwise_probe": representation_status,
+            "representation_strict_probe": strict_status,
+            "residual_calibration": calibration_status,
+            "gradient_conflict": gradient_status,
+        }
         seed_report = {
             "seed": seed,
             "source_seed_dir": str(seed_dir),
@@ -759,8 +1161,10 @@ def run_from_config(
                 for domain in sorted(set(data["domain"].tolist()))
             },
             "representation_probe": representation,
+            "representation_strict_probe": strict_representation,
             "residual_calibration": calibration,
             "gradient_conflict": gradient,
+            "diagnostic_status": diagnostic_status,
             "split_info": split_info,
         }
         save_json(seed_output / "diagnostic_report.json", seed_report)
@@ -769,21 +1173,19 @@ def run_from_config(
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
-    summary = {
-        "diagnostic_name": str(diagnostic.get("name", "V1_E2_Diagnostics")),
-        "source_run_root": str(run_root),
-        "output_root": str(output_root),
-        "split": split_name,
-        "seeds": seeds,
-        "diagnostics": [
-            "representation_domain_probe",
-            "residual_affine_calibration",
-            *([] if skip_gradients else ["shared_encoder_gradient_conflict"]),
-        ],
-        "aggregate": _aggregate_seed_reports(seed_reports),
-    }
-    save_json(output_root / "diagnostic_summary.json", summary)
-    return summary
+    if worker_mode:
+        return {
+            "worker_mode": True,
+            "output_root": str(output_root),
+            "completed_seeds": seeds,
+        }
+    return _diagnostic_summary(
+        config,
+        repo_root,
+        seeds,
+        skip_gradients,
+        seed_reports=seed_reports,
+    )
 
 
 def parse_args():
@@ -813,21 +1215,41 @@ def parse_args():
         action="store_true",
         help="Skip the expensive gradient diagnostic in a smoke test.",
     )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--worker_mode",
+        action="store_true",
+        help="Write only per-seed outputs; a later aggregate-only call writes shared summaries.",
+    )
+    mode.add_argument(
+        "--aggregate_only",
+        action="store_true",
+        help="Aggregate completed per-seed reports without loading models or datasets.",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     config = load_config(args.config)
-    result = run_from_config(
-        config,
-        repo_root=REPO_ROOT,
-        device_override=args.device_override,
-        backend_override=args.backend_override,
-        seed_override=args.seed,
-        max_samples_override=args.max_samples_per_domain,
-        skip_gradients=args.skip_gradients,
-    )
+    if args.aggregate_only:
+        result = aggregate_from_config(
+            config,
+            repo_root=REPO_ROOT,
+            seed_override=args.seed,
+            skip_gradients=args.skip_gradients,
+        )
+    else:
+        result = run_from_config(
+            config,
+            repo_root=REPO_ROOT,
+            device_override=args.device_override,
+            backend_override=args.backend_override,
+            seed_override=args.seed,
+            max_samples_override=args.max_samples_per_domain,
+            skip_gradients=args.skip_gradients,
+            worker_mode=args.worker_mode,
+        )
     print(json.dumps(result, indent=2, ensure_ascii=True))
 
 

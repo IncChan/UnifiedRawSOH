@@ -1,8 +1,8 @@
 # E2 unified launchers
 
-- `run_public_xjtu_mit.sh` runs E2-Pilot on XJTU+MIT.
-- `run_public_all_domains.sh` runs E2-Full on XJTU, MIT, LISHEN40, CATL280,
-  and EVE280.
+- `run_public_xjtu_mit.sh` runs E2-Pilot-D w/o cycle auxiliary on XJTU+MIT.
+- `run_public_all_domains.sh` runs E2-FULL-D w/o cycle auxiliary on XJTU, MIT,
+  LISHEN40, CATL280, and EVE280.
 
 Both launchers resolve the current Conda Python through
 `scripts/resolve_python_bin.sh`, check the canonical raw product for every

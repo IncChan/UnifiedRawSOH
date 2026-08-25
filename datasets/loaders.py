@@ -11,14 +11,24 @@ from torch.utils.data import ConcatDataset, DataLoader, WeightedRandomSampler
 from .base import RawTerminalSignalUnavailable, UNIFIED_SAMPLE_KEYS
 from .domains import build_default_domain_registry, canonical_domain_id
 from .filters import filter_raw_records_to_pinn_fonly_samples, filter_records_by_invalid_cycles
-from .mit import validate_mit_physical_cohort
+from .mit import list_mit_raw_files, validate_mit_physical_cohort
+from .preprocessed_cache import (
+    build_cache_fingerprint,
+    load_or_build_cache,
+    resolve_cache_path,
+)
 from .registry import build_default_registry
+from .smarthealth import list_smarthealth_raw_files
 from .splits import (
     load_invalid_cycles,
     load_split_spec,
     split_records_from_spec,
 )
-from .xjtu import UnifiedCCCVSampleDataset, build_full_life_cycle_metadata
+from .xjtu import (
+    UnifiedCCCVSampleDataset,
+    build_full_life_cycle_metadata,
+    list_xjtu_csv_files,
+)
 
 
 def _resolve_path(repo_root, value):
@@ -53,9 +63,15 @@ def _domain_mapping_value(mapping, domain_id, adapter_id, fallback):
     return fallback
 
 
-def _make_balanced_sampler(dataset, balance_mode):
-    if not balance_mode or balance_mode == "none":
-        return None
+def _balanced_sampling_metadata(dataset):
+    provider = getattr(dataset, "sampling_metadata", None)
+    if callable(provider):
+        return list(provider())
+    if isinstance(dataset, ConcatDataset):
+        metadata = []
+        for child in dataset.datasets:
+            metadata.extend(_balanced_sampling_metadata(child))
+        return metadata
     metadata = []
     for index in range(len(dataset)):
         item = dataset[index]
@@ -65,6 +81,13 @@ def _make_balanced_sampler(dataset, balance_mode):
                 str(item.get("battery_id", "unknown")),
             )
         )
+    return metadata
+
+
+def _make_balanced_sampler(dataset, balance_mode):
+    if not balance_mode or balance_mode == "none":
+        return None
+    metadata = _balanced_sampling_metadata(dataset)
     if balance_mode in {"dataset", "domain"}:
         keys = [domain_id for domain_id, _ in metadata]
     elif balance_mode == "battery":
@@ -114,7 +137,7 @@ def _build_loaders_from_datasets(datasets, config):
     }
 
 
-def _build_raw_domain(config, repo_root, seed, domain_id, data_root):
+def _build_raw_domain_uncached(config, repo_root, seed, domain_id, data_root):
     data_cfg = config["data"]
     domain_registry = build_default_domain_registry()
     domain = domain_registry.get(domain_id)
@@ -276,6 +299,164 @@ def _build_raw_domain(config, repo_root, seed, domain_id, data_root):
         "sample_filter": filter_audit,
         **split_meta,
     }
+    return datasets, split_info
+
+
+_PREPROCESSING_IMPLEMENTATION_FILES = (
+    Path(__file__).resolve(),
+    Path(__file__).with_name("xjtu.py").resolve(),
+    Path(__file__).with_name("mit.py").resolve(),
+    Path(__file__).with_name("smarthealth.py").resolve(),
+    Path(__file__).with_name("splits.py").resolve(),
+    Path(__file__).with_name("filters.py").resolve(),
+    Path(__file__).with_name("registry.py").resolve(),
+    Path(__file__).with_name("domains.py").resolve(),
+    Path(__file__).with_name("base.py").resolve(),
+    (Path(__file__).resolve().parents[1] / "data" / "normalization.py"),
+)
+
+
+def _raw_source_files_for_cache(config, domain_id, data_root):
+    configured_batches = list(config.get("experiment", {}).get("batches", []))
+    runtime_batch = config.get("runtime_batch")
+    data_mode = config.get("data", {}).get("data_mode", "single_domain")
+    if runtime_batch:
+        batches = [runtime_batch]
+    elif data_mode == "all_batch_pooled" or not configured_batches:
+        batches = [None]
+    else:
+        batches = configured_batches
+
+    files = []
+    if domain_id == "xjtu":
+        for batch in batches:
+            files.extend(list_xjtu_csv_files(data_root, batch=batch))
+    elif domain_id == "mit":
+        for batch in batches:
+            files.extend(list_mit_raw_files(data_root, batch=batch))
+    elif domain_id.startswith("smarthealth_"):
+        # SmartHealth batch filtering is row-based, so every family file is an
+        # input even when a runtime condition filter is active.
+        files.extend(list_smarthealth_raw_files(data_root, domain_id=domain_id))
+    else:
+        raise ValueError(f"No raw cache inventory rule for domain {domain_id!r}")
+    return sorted({Path(item).resolve() for item in files}, key=str)
+
+
+def _cache_config_payload(config, domain_id):
+    data_config = dict(config.get("data", {}))
+    data_config.pop("preprocessed_cache", None)
+    # These affect iteration, not the deterministic preprocessed samples.
+    data_config.pop("num_workers", None)
+    data_config.pop("balance_mode", None)
+    return {
+        "domain_id": str(domain_id),
+        "experiment_batches": list(config.get("experiment", {}).get("batches", [])),
+        "runtime_batch": config.get("runtime_batch"),
+        "data": data_config,
+        "normalization": config.get("normalization", {}),
+        "debug_num_samples": int(
+            config.get("debug", {}).get("debug_num_samples", 0) or 0
+        ),
+    }
+
+
+def _restore_cached_datasets(payload, config, seed):
+    return {
+        name: UnifiedCCCVSampleDataset.from_preprocessed_cache(
+            payload["datasets"][name],
+            config["data"],
+            split_name=name,
+            seed=int(seed) + index * 1000,
+        )
+        for index, name in enumerate(("train", "val", "test"))
+    }
+
+
+def _build_raw_domain(config, repo_root, seed, domain_id, data_root):
+    cache_config = dict(
+        config.get("data", {}).get("preprocessed_cache", {}) or {}
+    )
+    if not bool(cache_config.get("enabled", False)):
+        return _build_raw_domain_uncached(
+            config, repo_root, seed, domain_id, data_root
+        )
+
+    domain = build_default_domain_registry().get(domain_id)
+    split_file = (
+        config.get("experiment", {}).get("split_file")
+        or config.get("data", {}).get("split_file")
+        or domain.split_file
+    )
+    if not split_file:
+        raise ValueError(
+            "Raw dataset configuration must provide a split file before caching"
+        )
+    split_path = _resolve_path(repo_root, split_file)
+    source_files = _raw_source_files_for_cache(config, domain_id, data_root)
+    content_files = [split_path, *_PREPROCESSING_IMPLEMENTATION_FILES]
+    if config.get("data", {}).get("sample_filter_mode") == "pinn_fonly_3sigma_adjacent_x1":
+        reference_root = _resolve_path(
+            repo_root, config["data"]["pinn_fonly_reference_root"]
+        )
+        source_files.extend(sorted(reference_root.rglob("*.csv")))
+
+    fingerprint, manifest = build_cache_fingerprint(
+        domain_id=domain_id,
+        source_files=source_files,
+        content_files=content_files,
+        config_payload=_cache_config_payload(config, domain_id),
+    )
+    cache_path = resolve_cache_path(
+        data_root, cache_config, domain_id, fingerprint
+    )
+
+    print(
+        f"[preprocessed-cache] domain={domain_id} state=checking-or-waiting "
+        f"path={cache_path}",
+        flush=True,
+    )
+
+    def builder():
+        print(
+            f"[preprocessed-cache] domain={domain_id} state=miss-building",
+            flush=True,
+        )
+        datasets, split_info = _build_raw_domain_uncached(
+            config, repo_root, seed, domain_id, data_root
+        )
+        return {
+            "datasets": {
+                name: dataset.to_preprocessed_cache()
+                for name, dataset in datasets.items()
+            },
+            "split_info": split_info,
+        }
+
+    payload, hit = load_or_build_cache(
+        cache_path=cache_path,
+        fingerprint=fingerprint,
+        domain_id=domain_id,
+        manifest=manifest,
+        builder=builder,
+        rebuild=bool(cache_config.get("rebuild", False)),
+    )
+    datasets = _restore_cached_datasets(payload, config, seed)
+    split_info = dict(payload["split_info"])
+    split_info["preprocessed_cache"] = {
+        "enabled": True,
+        "hit": bool(hit),
+        "format_version": payload["format_version"],
+        "fingerprint": fingerprint,
+        "path": str(cache_path),
+    }
+    state = "hit" if hit else "built"
+    print(
+        f"[preprocessed-cache] domain={domain_id} state={state} "
+        f"samples={sum(len(dataset) for dataset in datasets.values())} "
+        f"path={cache_path}",
+        flush=True,
+    )
     return datasets, split_info
 
 
