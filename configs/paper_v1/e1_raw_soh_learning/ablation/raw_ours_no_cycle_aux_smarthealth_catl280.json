@@ -1,0 +1,28 @@
+{
+  "status": "runnable",
+  "base_config": "../benchmark/raw_mamba_smarthealth_catl280.json",
+  "experiment": {
+    "name": "E1_RawOurs_smarthealth_catl280_wo_cycle_auxiliary",
+    "task": "e1_raw_soh_learning_cycle_auxiliary_ablation"
+  },
+  "output": {
+    "model_id": "RawOurs-noCycleAux"
+  },
+  "model": {
+    "use_cycle_prediction": false,
+    "use_predicted_cycle_for_soh": false
+  },
+  "train": {
+    "lambda_cycle": 0.0,
+    "cycle_loss_mode": "disabled"
+  },
+  "data": {
+    "cycle_target_scope": "not_used",
+    "preprocessed_cache": {
+      "enabled": true,
+      "directory": ".cache/unified_cccv",
+      "rebuild": false
+    }
+  },
+  "protocol": "E1 RawOurs w/o cycle auxiliary on SmartHealth CATL280. It inherits the complete E1 RawMamba domain data, split, normalization, architecture, optimizer, scheduler, and checkpoint-selection contract, while disabling the cycle-prediction head, predicted-cycle SOH input, and cycle auxiliary loss. Training supervision is SOH-only MSE."
+}

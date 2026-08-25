@@ -13,7 +13,10 @@ and condition-macro checkpoint selection:
 - `temperature_delta_t.json`: ΔT only;
 - `temperature_t0.json`: T0 only;
 - `independent_cc_cv.json`: phase-specific CC/CV branches without the bridge;
-- `no_degradation_aux.json`: SOH-only supervision.
+- `no_degradation_aux.json`: historical XJTU-only SOH supervision control;
+- `raw_ours_no_cycle_aux_*.json`: RawOurs w/o cycle auxiliary on XJTU, MIT,
+  LISHEN40, CATL280, or EVE280. These controls use SOH-only MSE and retain the
+  corresponding RawMamba benchmark's domain data contract and hyperparameters.
 
 `raw_mamba_*.json` is the `T0 + ΔT` and bridge-on reference.  The current
 model preserves relative-time input in every control; the `V/I` label here

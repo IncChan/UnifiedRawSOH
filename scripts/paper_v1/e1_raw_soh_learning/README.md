@@ -6,6 +6,7 @@ script so ordinary use does not require a long command line.
     benchmark/run_raw_mamba_benchmark.sh
     benchmark/run_onlyf_benchmark.sh
     ablation/run_raw_mamba_ablation.sh
+    ablation/run_raw_ours_no_cycle_aux.sh
 
 For a benchmark script, edit the single DOMAIN line (`xjtu`, `mit`,
 `smarthealth_lishen40`, `smarthealth_catl280`, or `smarthealth_eve280`), then set GPU_IDS,
