@@ -1,0 +1,14 @@
+{
+  "status": "runnable",
+  "base_config": "./base.json",
+  "experiment": {"name": "E3_OneCell_HeadOnly_MIT"},
+  "output": {"data_id": "one_cell_mit"},
+  "one_cell": {
+    "target_domain_id": "mit",
+    "support_groups": ["2017-05-12", "2017-06-30", "2018-04-12"],
+    "group_field": "condition",
+    "support_selection_mode": "stable_seed_rotation",
+    "support_seeds": [42, 52, 62],
+    "support_choices": [42, 52, 62]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "status": "runnable",
+  "base_config": "./base.json",
+  "experiment": {"name": "E3_OneCell_HeadOnly_CATL280"},
+  "output": {"data_id": "one_cell_smarthealth_catl280"},
+  "one_cell": {
+    "target_domain_id": "smarthealth_catl280",
+    "support_groups": ["0.5C-100%DOD", "0.5C-20%DOD", "0.5C-60%DOD"],
+    "group_field": "condition",
+    "support_selection_mode": "ordered_ab",
+    "support_choices": ["A", "B"]
+  }
+}

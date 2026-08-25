@@ -1,0 +1,38 @@
+{
+  "status": "template",
+  "base_config": "../../e2_unified_multidomain/unified/public_all_domains_domain_balanced_no_cycle_aux.json",
+  "experiment": {
+    "name": "E3_OneCell_HeadOnly_Base",
+    "task": "e3_cross_domain_reusability_one_cell_head_only",
+    "loader": "one_cell_head_only"
+  },
+  "output": {
+    "experiment_id": "e3_cross_domain_reusability",
+    "model_id": "RawMamba-noCycleAux-OneCellHeadOnly",
+    "data_id": "one_cell_head_only"
+  },
+  "one_cell": {
+    "protocol": "group_wise_one_reference_cell",
+    "finetune_scope": "head_only",
+    "support_partition": "development",
+    "support_cells_per_job": 1,
+    "support_trajectory": "all_valid_cycles",
+    "support_validation_ratio": 0.2,
+    "support_validation_mode": "soh_stratified",
+    "support_soh_bin_width": 0.02,
+    "support_split_seed": 2025,
+    "target_test_scope": "all_fixed_test_cells",
+    "primary_aggregation": "test_group_macro",
+    "reset_to_source_checkpoint_per_support_group": true,
+    "batch_size": 64,
+    "epochs": 500,
+    "patience": 40,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "scheduler_factor": 0.5,
+    "scheduler_patience": 10,
+    "scheduler_threshold": 0.00001,
+    "scheduler_min_lr": 0.00001
+  },
+  "protocol": "Each job reloads a no-cycle LODO checkpoint that never saw the target domain, selects exactly one development physical cell from one support group, fits only model.head using an SOH-stratified 80/20 support split, and evaluates all fixed target test cells. Test cells are averaged equally inside each test group and test groups are averaged equally overall."
+}

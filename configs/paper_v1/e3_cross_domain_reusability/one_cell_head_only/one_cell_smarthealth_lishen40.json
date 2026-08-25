@@ -1,0 +1,13 @@
+{
+  "status": "runnable",
+  "base_config": "./base.json",
+  "experiment": {"name": "E3_OneCell_HeadOnly_LISHEN40"},
+  "output": {"data_id": "one_cell_smarthealth_lishen40"},
+  "one_cell": {
+    "target_domain_id": "smarthealth_lishen40",
+    "support_groups": ["0.3C-100%DOD", "0.3C-20%DOD", "0.3C-60%DOD", "1C-100%DOD", "1C-20%DOD", "1C-60%DOD", "2C-100%DOD", "2C-20%DOD", "2C-60%DOD"],
+    "group_field": "condition",
+    "support_selection_mode": "ordered_ab",
+    "support_choices": ["A", "B"]
+  }
+}

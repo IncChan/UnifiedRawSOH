@@ -1,0 +1,14 @@
+{
+  "status": "runnable",
+  "base_config": "./base.json",
+  "experiment": {"name": "E3_OneCell_HeadOnly_XJTU"},
+  "output": {"data_id": "one_cell_xjtu"},
+  "one_cell": {
+    "target_domain_id": "xjtu",
+    "support_groups": ["2C", "3C", "R2.5", "R3", "RW", "satellite"],
+    "group_field": "condition",
+    "support_selection_mode": "stable_seed_rotation",
+    "support_seeds": [42, 52, 62],
+    "support_choices": [42, 52, 62]
+  }
+}
