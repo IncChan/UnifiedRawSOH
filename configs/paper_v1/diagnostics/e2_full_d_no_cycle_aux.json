@@ -1,0 +1,9 @@
+{
+  "status": "runnable",
+  "base_config": "./e2_full_d.json",
+  "diagnostic": {
+    "name": "V1_E2_FULL_D_NoCycleAux_Diagnostics",
+    "run_root": "UnifiedRawSOH/outputs/Paper-v1/e2_unified_multidomain/RawMamba-noCycleAux/full_public_all_domains_domain_balanced/runtime_260825-022226",
+    "output_root": "UnifiedRawSOH/outputs/Paper-v1/v1_diagnostics/e2_full_d_no_cycle_aux"
+  }
+}

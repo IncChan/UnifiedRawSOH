@@ -18,6 +18,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from UnifiedRawSOH.evaluation.paper_v1.compare_diagnostics import (  # noqa: E402
+    compare_diagnostic_roots,
+    write_comparison,
+)
 from UnifiedRawSOH.evaluation.paper_v1.domain_diagnostics import (  # noqa: E402
     _run_diagnostic_safely,
     aggregate_from_config,
@@ -62,6 +66,41 @@ class V1DiagnosticsTest(unittest.TestCase):
             self.assertIn(f"[seed worker] seed={seed}; gpu={gpu}", result.stdout)
             self.assertIn(f"e2_full_b; seed={seed}; gpu={gpu}", result.stdout)
             self.assertIn(f"e2_full_d; seed={seed}; gpu={gpu}", result.stdout)
+
+    def test_no_cycle_aux_launcher_schedules_only_full_d_three_seeds(self):
+        launcher = (
+            PROJECT_ROOT
+            / "UnifiedRawSOH/scripts/paper_v1/diagnostics"
+            / "run_e2_full_d_no_cycle_aux_diagnostics.sh"
+        )
+        environment = dict(os.environ)
+        environment.update(
+            {
+                "DRY_RUN": "1",
+                "GPU_IDS": "4 5 6",
+                "MAX_PARALLEL": "3",
+            }
+        )
+        result = subprocess.run(
+            ["bash", str(launcher)],
+            cwd=PROJECT_ROOT,
+            env=environment,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        expected = {42: "4", 52: "5", 62: "6"}
+        for seed, gpu in expected.items():
+            self.assertIn(
+                f"e2_full_d_no_cycle_aux; seed={seed}; gpu={gpu}",
+                result.stdout,
+            )
+        self.assertIn(
+            "[aggregate] e2_full_d_no_cycle_aux; seeds=42 52 62",
+            result.stdout,
+        )
+        self.assertNotIn("[worker] e2_full_b;", result.stdout)
+        self.assertNotIn("[worker] e2_full_d; seed=", result.stdout)
 
     def test_single_device_can_schedule_three_seed_models(self):
         launcher = (
@@ -237,8 +276,12 @@ class V1DiagnosticsTest(unittest.TestCase):
         configs = [
             load_config(DIAGNOSTIC_ROOT / "e2_full_b.json"),
             load_config(DIAGNOSTIC_ROOT / "e2_full_d.json"),
+            load_config(DIAGNOSTIC_ROOT / "e2_full_d_no_cycle_aux.json"),
         ]
-        self.assertNotEqual(configs[0]["diagnostic"]["name"], configs[1]["diagnostic"]["name"])
+        self.assertEqual(
+            len({config["diagnostic"]["name"] for config in configs}),
+            len(configs),
+        )
         for config in configs:
             diagnostic = config["diagnostic"]
             self.assertEqual(config["status"], "runnable")
@@ -252,6 +295,25 @@ class V1DiagnosticsTest(unittest.TestCase):
             )
             self.assertIn("residual_calibration", diagnostic)
             self.assertIn("gradient_conflict", diagnostic)
+
+        full_d = configs[1]["diagnostic"]
+        no_cycle_aux = configs[2]["diagnostic"]
+        for key in (
+            "seeds",
+            "split",
+            "device",
+            "max_samples_per_domain",
+            "save_features",
+            "representation_probe",
+            "residual_calibration",
+            "gradient_conflict",
+        ):
+            self.assertEqual(no_cycle_aux[key], full_d[key], key)
+        self.assertIn("RawMamba-noCycleAux", no_cycle_aux["run_root"])
+        self.assertIn("runtime_260825-022226", no_cycle_aux["run_root"])
+        self.assertTrue(
+            no_cycle_aux["output_root"].endswith("e2_full_d_no_cycle_aux")
+        )
 
     def test_aggregate_only_combines_completed_seed_workers(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -362,6 +424,78 @@ class V1DiagnosticsTest(unittest.TestCase):
         self.assertEqual(upgraded["representation_strict_probe"]["accuracy"], 0.75)
         self.assertEqual(summary["aggregate"]["strict_domain_probe_accuracy"]["mean"], 0.75)
         self.assertTrue(strict_file_exists)
+
+    def test_full_d_no_cycle_aux_comparison_reports_pair_level_deltas(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            baseline = root / "baseline"
+            ablation = root / "ablation"
+            for run_root, offset in ((baseline, 0.0), (ablation, 0.2)):
+                seed_root = run_root / "seed_42"
+                seed_root.mkdir(parents=True)
+                artifacts = {
+                    "representation_pairwise_probe.json": {
+                        "accuracy": 0.6 + offset,
+                        "macro_f1": 0.5 + offset,
+                        "pairs": [
+                            {
+                                "pair_id": "a__vs__b",
+                                "domain_a": "a",
+                                "domain_b": "b",
+                                "accuracy": 0.6 + offset,
+                                "macro_f1": 0.5 + offset,
+                                "status": "completed",
+                            }
+                        ],
+                    },
+                    "gradient_conflict.json": {
+                        "negative_pair_fraction": 0.3 + offset,
+                        "pairs": [
+                            {
+                                "domain_a": "a",
+                                "domain_b": "b",
+                                "cosine": -0.3 + offset,
+                            }
+                        ],
+                    },
+                    "residual_calibration.json": {
+                        "before_domain_macro_rmse": 0.02 + offset,
+                        "after_domain_macro_rmse": 0.01 + offset,
+                        "domain_macro_rmse_change": -0.01 + offset,
+                        "per_domain": {
+                            "a": {"rmse_change": -0.01 + offset},
+                            "b": {"rmse_change": -0.02 + offset},
+                        },
+                    },
+                }
+                for filename, payload in artifacts.items():
+                    (seed_root / filename).write_text(
+                        json.dumps(payload), encoding="utf-8"
+                    )
+            report = compare_diagnostic_roots(
+                baseline, ablation, seeds=[42]
+            )
+            write_comparison(report, ablation)
+            json_exists = (ablation / "comparison_vs_e2_full_d.json").is_file()
+            pair_csv_exists = (
+                ablation / "comparison_gradient_cosine_by_pair.csv"
+            ).is_file()
+
+        self.assertAlmostEqual(
+            report["overall"]["gradient_negative_pair_fraction"][
+                "delta_mean_no_cycle_aux_minus_baseline"
+            ],
+            0.2,
+        )
+        self.assertAlmostEqual(
+            report["gradient_cosine_by_pair"]["a__vs__b"]["cosine"][
+                "delta_mean_no_cycle_aux_minus_baseline"
+            ],
+            0.2,
+        )
+        self.assertTrue(json_exists)
+        self.assertTrue(pair_csv_exists)
+
 
 if __name__ == "__main__":
     unittest.main()

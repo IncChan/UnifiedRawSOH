@@ -42,9 +42,9 @@ if (( ${#DIAGNOSTIC_LIST[@]} == 0 )); then
 fi
 for diagnostic_id in "${DIAGNOSTIC_LIST[@]}"; do
   case "${diagnostic_id}" in
-    e2_full_b|e2_full_d) ;;
+    e2_full_b|e2_full_d|e2_full_d_no_cycle_aux) ;;
     *)
-      echo "Unknown diagnostic ID: ${diagnostic_id}; expected e2_full_b or e2_full_d." >&2
+      echo "Unknown diagnostic ID: ${diagnostic_id}; expected e2_full_b, e2_full_d, or e2_full_d_no_cycle_aux." >&2
       exit 2
       ;;
   esac

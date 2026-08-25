@@ -15,3 +15,8 @@ The three diagnostics are:
 All formal outputs are kept under `outputs/Paper-v1/v1_diagnostics/`, separate
 from the source E2 runtime. These are diagnostic evidence for deciding V2
 architecture changes, not replacements for the original V1 metrics.
+
+`e2_full_d_no_cycle_aux.json` applies the exact E2-FULL-D diagnostic
+parameters above to the frozen E2-FULL-D w/o cycle auxiliary runtime
+`runtime_260825-022226` for seeds 42, 52, and 62. Its output is isolated under
+`outputs/Paper-v1/v1_diagnostics/e2_full_d_no_cycle_aux/`.

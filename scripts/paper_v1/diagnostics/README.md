@@ -1,5 +1,27 @@
 # V1 diagnostic launcher
 
+For the requested E2-FULL-D w/o cycle auxiliary three-seed rerun only:
+
+    bash scripts/paper_v1/diagnostics/run_e2_full_d_no_cycle_aux_diagnostics.sh
+
+This dedicated entry point never schedules B, the original D, or Pilot. It
+inherits the same pairwise representation probe, gradient-conflict, and
+residual-calibration settings as E2-FULL-D. After all three seeds finish, it
+also compares the saved results against the existing original E2-FULL-D
+diagnostics. Override `GPU_IDS` and `MAX_PARALLEL` if needed.
+
+The focused comparison files are written to
+`outputs/Paper-v1/v1_diagnostics/e2_full_d_no_cycle_aux/`:
+
+- `comparison_overall.csv`: probe macro scores, negative-pair fraction, and
+  residual-calibration macro scores;
+- `comparison_pairwise_probe_by_pair.csv`: probe accuracy/F1 by domain pair;
+- `comparison_gradient_cosine_by_pair.csv`: gradient cosine by domain pair;
+- `comparison_residual_calibration_by_domain.csv`: calibration RMSE change by
+  domain;
+- `comparison_vs_e2_full_d.json`: all means, standard deviations, seed values,
+  and no-cycle-aux-minus-baseline deltas.
+
 Run both frozen E2-FULL variants with:
 
     bash scripts/paper_v1/diagnostics/run_e2_diagnostics.sh
