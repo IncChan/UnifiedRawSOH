@@ -427,6 +427,7 @@ def run_job(job_spec, backend_override=None, device_override=None):
         output_dir / "metrics_overall.json",
         {
             **overall,
+            "checkpoint_seed": job_spec.get("checkpoint_seed"),
             "support_group": job_spec["support_group"],
             "support_choice": str(job_spec["support_choice"]),
             "support_cell": selection["support_cell"],
@@ -440,6 +441,7 @@ def run_job(job_spec, backend_override=None, device_override=None):
     torch.save(
         {
             "head": model.head.state_dict(),
+            "checkpoint_seed": job_spec.get("checkpoint_seed"),
             "source_checkpoint_sha256": checkpoint_manifest["sha256"],
             "support_selection": selection,
         },

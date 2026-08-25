@@ -10,6 +10,7 @@ import unittest
 from UnifiedRawSOH.trainers.one_cell_launcher import (
     assign_jobs_round_robin,
     execute_jobs,
+    support_choices_for_checkpoint,
 )
 
 
@@ -43,6 +44,30 @@ class OneCellLauncherTest(unittest.TestCase):
             ["0", "1", "0", "1", "0", "1", "0"],
         )
 
+    def test_checkpoint_and_support_seeds_are_paired_not_crossed(self):
+        stable = {
+            "one_cell": {
+                "support_selection_mode": "stable_seed_rotation",
+                "support_choices": [42, 52, 62],
+            }
+        }
+        self.assertEqual(support_choices_for_checkpoint(stable, 42), [42])
+        self.assertEqual(support_choices_for_checkpoint(stable, 52), [52])
+        self.assertEqual(support_choices_for_checkpoint(stable, 62), [62])
+        with self.assertRaisesRegex(ValueError, "no matching support seed"):
+            support_choices_for_checkpoint(stable, 72)
+
+    def test_ordered_ab_is_kept_for_each_checkpoint_seed(self):
+        ordered = {
+            "one_cell": {
+                "support_selection_mode": "ordered_ab",
+                "support_choices": ["A", "B"],
+            }
+        }
+        self.assertEqual(
+            support_choices_for_checkpoint(ordered, 42), ["A", "B"]
+        )
+
     def test_each_gpu_never_exceeds_its_independent_slot_count(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -56,6 +81,7 @@ class OneCellLauncherTest(unittest.TestCase):
                     {
                         "job_id": str(index),
                         "target_domain": "xjtu",
+                        "checkpoint_seed": 42,
                         "support_group": "2C",
                         "support_choice": str(index),
                         "support_cell": f"cell_{index}",

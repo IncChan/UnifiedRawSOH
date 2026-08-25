@@ -84,6 +84,7 @@ def summarize_runtime(runtime_root):
         overall_records.append(
             {
                 "target_domain": job["target_domain"],
+                "checkpoint_seed": int(job["checkpoint_seed"]),
                 "support_group": job["support_group"],
                 "support_choice": str(job["support_choice"]),
                 "support_cell": job["support_cell"],
@@ -95,6 +96,7 @@ def summarize_runtime(runtime_root):
             records.append(
                 {
                     "target_domain": job["target_domain"],
+                    "checkpoint_seed": int(job["checkpoint_seed"]),
                     "support_group": job["support_group"],
                     "support_choice": str(job["support_choice"]),
                     "support_cell": job["support_cell"],
@@ -106,6 +108,7 @@ def summarize_runtime(runtime_root):
 
     support_rows = []
     test_rows = []
+    checkpoint_seed_rows = []
     target_summary = {}
     for target in sorted({row["target_domain"] for row in records}):
         target_records = [row for row in records if row["target_domain"] == target]
@@ -178,6 +181,24 @@ def summarize_runtime(runtime_root):
                     }
                 )
 
+        for checkpoint_seed in sorted(
+            {row["checkpoint_seed"] for row in target_overall}
+        ):
+            current = [
+                row for row in target_overall
+                if row["checkpoint_seed"] == checkpoint_seed
+            ]
+            for metric in ("mape", "rmse"):
+                stats = _stats(row[metric] for row in current)
+                checkpoint_seed_rows.append(
+                    {
+                        "target_domain": target,
+                        "checkpoint_seed": checkpoint_seed,
+                        "metric": metric,
+                        **{key: stats[key] for key in ("n", "mean", "std")},
+                    }
+                )
+
         metric_summary = {}
         for metric in ("mape", "rmse"):
             support_means = [
@@ -207,6 +228,10 @@ def summarize_runtime(runtime_root):
 
     _write_csv(summary_root / "summary_by_support_group.csv", support_rows)
     _write_csv(summary_root / "summary_by_test_group.csv", test_rows)
+    _write_csv(
+        summary_root / "summary_by_checkpoint_seed.csv",
+        checkpoint_seed_rows,
+    )
     payload = {
         "status": "completed",
         "job_count": len(jobs),

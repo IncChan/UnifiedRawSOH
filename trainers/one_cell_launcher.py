@@ -38,12 +38,12 @@ CONFIGS = {
     target: CONFIG_ROOT / f"one_cell_{target}.json"
     for target in TARGETS
 }
-CHECKPOINT_ENV = {
-    "xjtu": "CHECKPOINT_XJTU",
-    "mit": "CHECKPOINT_MIT",
-    "smarthealth_lishen40": "CHECKPOINT_LISHEN40",
-    "smarthealth_catl280": "CHECKPOINT_CATL280",
-    "smarthealth_eve280": "CHECKPOINT_EVE280",
+CHECKPOINT_ROOT_ENV = {
+    "xjtu": "CHECKPOINT_ROOT_XJTU",
+    "mit": "CHECKPOINT_ROOT_MIT",
+    "smarthealth_lishen40": "CHECKPOINT_ROOT_LISHEN40",
+    "smarthealth_catl280": "CHECKPOINT_ROOT_CATL280",
+    "smarthealth_eve280": "CHECKPOINT_ROOT_EVE280",
 }
 ALIASES = {
     "lishen40": "smarthealth_lishen40",
@@ -84,6 +84,20 @@ def assign_jobs_round_robin(jobs, gpu_ids):
     return jobs
 
 
+def support_choices_for_checkpoint(config, checkpoint_seed):
+    mode = config["one_cell"]["support_selection_mode"]
+    if mode == "stable_seed_rotation":
+        choices = [int(value) for value in config["one_cell"]["support_choices"]]
+        if int(checkpoint_seed) not in choices:
+            raise ValueError(
+                f"Checkpoint seed {checkpoint_seed} has no matching support seed"
+            )
+        return [int(checkpoint_seed)]
+    if mode == "ordered_ab":
+        return list(config["one_cell"]["support_choices"])
+    raise ValueError(f"Unknown support selection mode: {mode}")
+
+
 def _runtime_root(settings):
     output_root = Path(settings["OUTPUT_ROOT"])
     if not output_root.is_absolute():
@@ -112,11 +126,11 @@ def settings_from_environment():
     jobs_per_gpu = int(os.environ.get("JOBS_PER_GPU", "1"))
     if jobs_per_gpu < 1:
         raise ValueError("JOBS_PER_GPU must be positive")
-    support_seeds = [int(value) for value in _words(
-        os.environ.get("SUPPORT_SEEDS", "42 52 62")
+    paired_seeds = [int(value) for value in _words(
+        os.environ.get("PAIRED_SEEDS", "42 52 62")
     )]
-    if not support_seeds or len(set(support_seeds)) != len(support_seeds):
-        raise ValueError("SUPPORT_SEEDS must contain unique integer seeds")
+    if not paired_seeds or len(set(paired_seeds)) != len(paired_seeds):
+        raise ValueError("PAIRED_SEEDS must contain unique integer seeds")
     resume = os.environ.get("RESUME", "0") == "1"
     run_time = os.environ.get("RUN_TIME", "")
     if resume and not run_time:
@@ -125,7 +139,7 @@ def settings_from_environment():
         "TARGET_DOMAINS": _targets(os.environ.get("TARGET_DOMAINS", "all")),
         "GPU_IDS": gpu_ids,
         "JOBS_PER_GPU": jobs_per_gpu,
-        "SUPPORT_SEEDS": support_seeds,
+        "PAIRED_SEEDS": paired_seeds,
         "OUTPUT_ROOT": os.environ.get("ONE_CELL_OUTPUT_ROOT", "UnifiedRawSOH/outputs"),
         "RUN_TIME": run_time,
         "DRY_RUN": os.environ.get("DRY_RUN", "0") == "1",
@@ -148,30 +162,26 @@ def plan_jobs(settings):
     test_counts = {}
 
     for target in settings["TARGET_DOMAINS"]:
-        checkpoint_input = os.environ.get(CHECKPOINT_ENV[target], "").strip()
-        if not checkpoint_input:
+        checkpoint_root_input = os.environ.get(
+            CHECKPOINT_ROOT_ENV[target], ""
+        ).strip()
+        if not checkpoint_root_input:
             raise ValueError(
-                f"{CHECKPOINT_ENV[target]} must be set for target {target}"
+                f"{CHECKPOINT_ROOT_ENV[target]} must be set for target {target}"
             )
-        checkpoint_path = Path(checkpoint_input).expanduser().resolve()
+        checkpoint_root = Path(checkpoint_root_input).expanduser().resolve()
         config = load_config(CONFIGS[target])
         config = copy.deepcopy(config)
         if config["one_cell"]["support_selection_mode"] == "stable_seed_rotation":
-            config["one_cell"]["support_seeds"] = settings["SUPPORT_SEEDS"]
-            config["one_cell"]["support_choices"] = settings["SUPPORT_SEEDS"]
+            config["one_cell"]["support_seeds"] = settings["PAIRED_SEEDS"]
+            config["one_cell"]["support_choices"] = settings["PAIRED_SEEDS"]
         resolved_config_path = runtime_root / "resolved_configs" / f"{target}.json"
         save_json(resolved_config_path, config)
 
-        model, _, checkpoint_info = load_strict_lodo_model(
-            config,
-            checkpoint_path,
-            target,
-            backend_override=settings["BACKEND_OVERRIDE"] or None,
-        )
-        del model
         checkpoint_manifest[target] = {
-            "input_path": checkpoint_input,
-            **checkpoint_info,
+            "input_root": checkpoint_root_input,
+            "resolved_root": str(checkpoint_root),
+            "checkpoints": {},
         }
         inventory = discover_support_inventory(config, PROJECT_ROOT, seed=0)
         test_counts[target] = inventory["all_test_sample_count"]
@@ -179,37 +189,59 @@ def plan_jobs(settings):
             "config_path": str(resolved_config_path.resolve()),
             "inventory": inventory,
         }
-        choices = list(config["one_cell"]["support_choices"])
-        for support_group in config["one_cell"]["support_groups"]:
-            for support_choice in choices:
-                selection = select_support_cell(
-                    config,
-                    inventory,
-                    support_group,
-                    support_choice,
-                )
-                choice_slug = _slug(support_choice)
-                group_slug = _slug(support_group)
-                output_dir = (
-                    runtime_root
-                    / "jobs"
-                    / target
-                    / f"support_{group_slug}"
-                    / choice_slug
-                )
-                job_id = f"{target}::{support_group}::{support_choice}"
-                job = {
-                    "job_id": job_id,
-                    "target_domain": target,
-                    "support_group": str(support_group),
-                    "support_choice": str(support_choice),
-                    "support_cell": selection["support_cell"],
-                    "checkpoint_path": str(checkpoint_path),
-                    "checkpoint_sha256": checkpoint_info["sha256"],
-                    "config_path": str(resolved_config_path.resolve()),
-                    "output_dir": str(output_dir.resolve()),
-                }
-                jobs.append(job)
+        for checkpoint_seed in settings["PAIRED_SEEDS"]:
+            checkpoint_path = (
+                checkpoint_root / f"seed_{checkpoint_seed}" / "best.pt"
+            )
+            model, _, checkpoint_info = load_strict_lodo_model(
+                config,
+                checkpoint_path,
+                target,
+                backend_override=settings["BACKEND_OVERRIDE"] or None,
+            )
+            del model
+            checkpoint_manifest[target]["checkpoints"][str(checkpoint_seed)] = {
+                "checkpoint_seed": checkpoint_seed,
+                **checkpoint_info,
+            }
+            choices = support_choices_for_checkpoint(
+                config, checkpoint_seed
+            )
+            for support_group in config["one_cell"]["support_groups"]:
+                for support_choice in choices:
+                    selection = select_support_cell(
+                        config,
+                        inventory,
+                        support_group,
+                        support_choice,
+                    )
+                    choice_slug = _slug(support_choice)
+                    group_slug = _slug(support_group)
+                    output_dir = (
+                        runtime_root
+                        / "jobs"
+                        / target
+                        / f"checkpoint_seed_{checkpoint_seed}"
+                        / f"support_{group_slug}"
+                        / choice_slug
+                    )
+                    job_id = (
+                        f"{target}::checkpoint_seed_{checkpoint_seed}::"
+                        f"{support_group}::{support_choice}"
+                    )
+                    job = {
+                        "job_id": job_id,
+                        "target_domain": target,
+                        "checkpoint_seed": checkpoint_seed,
+                        "support_group": str(support_group),
+                        "support_choice": str(support_choice),
+                        "support_cell": selection["support_cell"],
+                        "checkpoint_path": str(checkpoint_path),
+                        "checkpoint_sha256": checkpoint_info["sha256"],
+                        "config_path": str(resolved_config_path.resolve()),
+                        "output_dir": str(output_dir.resolve()),
+                    }
+                    jobs.append(job)
 
     assign_jobs_round_robin(jobs, settings["GPU_IDS"])
     for job in jobs:
@@ -224,7 +256,11 @@ def plan_jobs(settings):
         "status": "planned",
         "runtime_root": str(runtime_root),
         "job_count": len(jobs),
-        "expected_default_job_count": 57,
+        "expected_default_job_count": 117,
+        "seed_pairing": (
+            "checkpoint seed equals support seed for stable-seed targets; "
+            "ordered A/B targets run both choices per checkpoint seed"
+        ),
         "test_sample_counts_by_target": test_counts,
         "jobs": jobs,
     }
@@ -260,6 +296,7 @@ def _command(settings, job):
 def _print_job(job, prefix="[job]"):
     print(
         f"{prefix} target={job['target_domain']}; "
+        f"checkpoint_seed={job['checkpoint_seed']}; "
         f"support_group={job['support_group']}; "
         f"choice={job['support_choice']}; "
         f"support_cell={job['support_cell']}; "

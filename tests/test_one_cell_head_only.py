@@ -23,6 +23,9 @@ from UnifiedRawSOH.trainers.one_cell_head_only import (
     load_strict_lodo_model,
     run_job,
 )
+from UnifiedRawSOH.trainers.one_cell_launcher import (
+    support_choices_for_checkpoint,
+)
 from UnifiedRawSOH.utils.config import load_config, save_json
 
 
@@ -148,7 +151,7 @@ class OneCellSelectionTest(unittest.TestCase):
 
 
 class OneCellConfigTest(unittest.TestCase):
-    def test_five_configs_define_57_jobs_and_no_cycle_model(self):
+    def test_five_configs_define_57_support_choices_and_no_cycle_model(self):
         expected = {
             "one_cell_xjtu.json": 18,
             "one_cell_mit.json": 9,
@@ -157,6 +160,7 @@ class OneCellConfigTest(unittest.TestCase):
             "one_cell_smarthealth_eve280.json": 6,
         }
         total = 0
+        paired_total = 0
         for filename, count in expected.items():
             config = load_config(CONFIG_ROOT / filename)
             one_cell = config["one_cell"]
@@ -168,7 +172,12 @@ class OneCellConfigTest(unittest.TestCase):
             self.assertFalse(config["model"]["use_predicted_cycle_for_soh"])
             self.assertEqual(config["train"]["lambda_cycle"], 0.0)
             total += jobs
+            paired_total += len(one_cell["support_groups"]) * sum(
+                len(support_choices_for_checkpoint(config, seed))
+                for seed in (42, 52, 62)
+            )
         self.assertEqual(total, 57)
+        self.assertEqual(paired_total, 117)
 
     def test_launcher_has_top_level_settings_and_needs_no_cli_arguments(self):
         text = LAUNCHER.read_text(encoding="utf-8")
@@ -176,12 +185,12 @@ class OneCellConfigTest(unittest.TestCase):
             "TARGET_DOMAINS",
             "GPU_IDS",
             "JOBS_PER_GPU",
-            "SUPPORT_SEEDS",
-            "CHECKPOINT_XJTU",
-            "CHECKPOINT_MIT",
-            "CHECKPOINT_LISHEN40",
-            "CHECKPOINT_CATL280",
-            "CHECKPOINT_EVE280",
+            "PAIRED_SEEDS",
+            "CHECKPOINT_ROOT_XJTU",
+            "CHECKPOINT_ROOT_MIT",
+            "CHECKPOINT_ROOT_LISHEN40",
+            "CHECKPOINT_ROOT_CATL280",
+            "CHECKPOINT_ROOT_EVE280",
             "DRY_RUN",
             "RESUME",
         ):
@@ -279,6 +288,7 @@ class OneCellTrainingTest(unittest.TestCase):
             job = {
                 "config_path": str(config_path),
                 "checkpoint_path": str(checkpoint),
+                "checkpoint_seed": 42,
                 "checkpoint_sha256": file_sha256(checkpoint),
                 "support_group": "g1",
                 "support_choice": "42",
@@ -327,6 +337,7 @@ class OneCellSummaryTest(unittest.TestCase):
                     job = {
                         "job_id": f"target::{support}::{choice}",
                         "target_domain": "target",
+                        "checkpoint_seed": 42 if choice == "A" else 52,
                         "support_group": support,
                         "support_choice": choice,
                         "support_cell": f"{support}_{choice}",
@@ -359,8 +370,13 @@ class OneCellSummaryTest(unittest.TestCase):
             matrix_exists = (
                 root / "summary/target/rmse_support_to_test_group.csv"
             ).is_file()
+            seed_summary_exists = (
+                root / "summary/summary_by_checkpoint_seed.csv"
+            ).is_file()
         self.assertEqual(result["status"], "completed")
         self.assertTrue(matrix_exists)
+        self.assertTrue(seed_summary_exists)
+
     def test_incomplete_jobs_do_not_create_transfer_matrices(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -374,6 +390,7 @@ class OneCellSummaryTest(unittest.TestCase):
                         {
                             "job_id": "target::g1::A",
                             "target_domain": "target",
+                            "checkpoint_seed": 42,
                             "support_group": "g1",
                             "support_choice": "A",
                             "support_cell": "cell_a",

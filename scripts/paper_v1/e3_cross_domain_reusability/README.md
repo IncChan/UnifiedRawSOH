@@ -43,10 +43,11 @@ separate, non-runnable interfaces.
 ## One-cell head-only adaptation
 
 The group-wise one-reference-cell experiment has its own argument-free
-launcher. Edit the settings and five checkpoint paths inside
+launcher. Edit the settings and five LODO runtime roots inside
 `run_one_cell_head_only.sh`, then run:
 
     bash scripts/paper_v1/e3_cross_domain_reusability/run_one_cell_head_only.sh
 
-See `README_ONE_CELL.md` for the 57-job protocol, per-GPU slots, resume
-contract, and output matrices.
+XJTU/MIT checkpoint seeds are paired one-to-one with the same support seed;
+SmartHealth retains A/B for each checkpoint seed. See `README_ONE_CELL.md` for
+the 117-job protocol, per-GPU slots, resume contract, and output matrices.

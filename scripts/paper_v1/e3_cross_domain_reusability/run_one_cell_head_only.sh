@@ -9,13 +9,15 @@ export PYTHONIOENCODING="utf-8:backslashreplace"
 TARGET_DOMAINS="all"
 GPU_IDS="0 1 2 3 4"
 JOBS_PER_GPU=3
-SUPPORT_SEEDS="42 52 62"
+PAIRED_SEEDS="42 52 62"
 
-CHECKPOINT_XJTU="/path/to/lodo_xjtu/seed_x/best.pt"
-CHECKPOINT_MIT="/path/to/lodo_mit/seed_x/best.pt"
-CHECKPOINT_LISHEN40="/path/to/lodo_lishen40/seed_x/best.pt"
-CHECKPOINT_CATL280="/path/to/lodo_catl280/seed_x/best.pt"
-CHECKPOINT_EVE280="/path/to/lodo_eve280/seed_x/best.pt"
+# Each root must be the LODO runtime directory that directly contains
+# seed_42/best.pt, seed_52/best.pt, and seed_62/best.pt.
+CHECKPOINT_ROOT_XJTU="/path/to/lodo_xjtu/runtime_xxx"
+CHECKPOINT_ROOT_MIT="/path/to/lodo_mit/runtime_xxx"
+CHECKPOINT_ROOT_LISHEN40="/path/to/lodo_lishen40/runtime_xxx"
+CHECKPOINT_ROOT_CATL280="/path/to/lodo_catl280/runtime_xxx"
+CHECKPOINT_ROOT_EVE280="/path/to/lodo_eve280/runtime_xxx"
 
 ONE_CELL_OUTPUT_ROOT="UnifiedRawSOH/outputs"
 RUN_TIME=""
@@ -36,9 +38,9 @@ if [[ ! -x "${PYTHON_BIN}" ]]; then
   exit 2
 fi
 
-export TARGET_DOMAINS GPU_IDS JOBS_PER_GPU SUPPORT_SEEDS
-export CHECKPOINT_XJTU CHECKPOINT_MIT CHECKPOINT_LISHEN40
-export CHECKPOINT_CATL280 CHECKPOINT_EVE280
+export TARGET_DOMAINS GPU_IDS JOBS_PER_GPU PAIRED_SEEDS
+export CHECKPOINT_ROOT_XJTU CHECKPOINT_ROOT_MIT CHECKPOINT_ROOT_LISHEN40
+export CHECKPOINT_ROOT_CATL280 CHECKPOINT_ROOT_EVE280
 export ONE_CELL_OUTPUT_ROOT RUN_TIME DRY_RUN RESUME
 export DEVICE_OVERRIDE BACKEND_OVERRIDE PYTHON_BIN
 
