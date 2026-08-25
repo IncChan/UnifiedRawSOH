@@ -82,23 +82,19 @@ class E2ConfigContractTest(unittest.TestCase):
         self.assertEqual(config["experiment"]["domain_ids"], expected_domains)
         self.assertEqual(config["data"]["balance_mode"], "domain_battery_hierarchical")
         self.assertEqual(config["data"]["cycle_target_scope"], "not_used")
-        cache = config["data"]["preprocessed_cache"]
-        self.assertTrue(cache["enabled"])
-        self.assertEqual(cache["directory"], ".cache/unified_cccv")
-        self.assertFalse(cache["rebuild"])
         self.assertFalse(config["model"]["use_cycle_prediction"])
         self.assertFalse(config["model"]["use_predicted_cycle_for_soh"])
         self.assertEqual(config["train"]["lambda_cycle"], 0.0)
         self.assertEqual(config["train"]["cycle_loss_mode"], "disabled")
         self.assertEqual(config["train"]["monitor"], "valid_domain_macro_rmse")
 
-    def test_pilot_d_without_cycle_auxiliary_uses_cache(self):
+    def test_pilot_d_without_cycle_auxiliary(self):
         self._assert_domain_balanced_without_cycle_aux(
             E2_ROOT / "public_xjtu_mit_domain_balanced_no_cycle_aux.json",
             ["xjtu", "mit"],
         )
 
-    def test_full_d_without_cycle_auxiliary_uses_cache(self):
+    def test_full_d_without_cycle_auxiliary(self):
         self._assert_domain_balanced_without_cycle_aux(
             E2_ROOT / "public_all_domains_domain_balanced_no_cycle_aux.json",
             [

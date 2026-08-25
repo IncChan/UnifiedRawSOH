@@ -29,32 +29,3 @@ Each completed seed also writes `test_metrics_by_domain.json`. Its `loss`,
 meaning as E1. The batch aggregator writes
 `summary_per_domain_mean_std.json` and `.csv`, giving one mean/std row per
 domain and metric; the overall summary remains available separately.
-
-## Preprocessed cycle cache
-
-The two `*_domain_balanced_no_cycle_aux.json` launch targets enable a
-versioned cache for model-ready cycle samples. Each domain writes beneath its
-own canonical data root by default:
-
-```text
-<dataset-root>/.cache/unified_cccv/<domain>-<fingerprint>.pt
-```
-
-The first seed holding the per-cache file lock parses the canonical CSVs,
-applies the split/filter contract, and performs CC/CV interpolation. Concurrent
-seeds wait for that atomic cache publication and then load the same immutable
-samples. Model initialization and sampler randomness remain per-seed.
-
-The fingerprint includes raw file path/size/mtime, the exact split and
-preprocessing implementation contents, normalization, resampling, filtering,
-and debug-sample settings. A changed input creates a new cache file instead of
-silently reusing stale samples. Runtime controls live under
-`data.preprocessed_cache`:
-
-- `enabled`: use the cache when true;
-- `directory`: absolute path, or a path relative to each dataset root;
-- `rebuild`: ignore an existing matching entry and rebuild it. Use this with a
-  single seed to avoid intentionally rebuilding once per concurrent process.
-
-Cache files are trusted local PyTorch artifacts. Old fingerprints may be
-removed when no training process is using the cache.

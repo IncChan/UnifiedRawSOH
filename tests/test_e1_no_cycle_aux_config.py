@@ -81,11 +81,6 @@ class E1RawOursNoCycleAuxConfigTest(unittest.TestCase):
 
                 expected_data = copy.deepcopy(benchmark["data"])
                 expected_data["cycle_target_scope"] = "not_used"
-                expected_data["preprocessed_cache"] = {
-                    "enabled": True,
-                    "directory": ".cache/unified_cccv",
-                    "rebuild": False,
-                }
                 self.assertEqual(ablation["data"], expected_data)
 
                 self.assertEqual(ablation["normalization"], benchmark["normalization"])

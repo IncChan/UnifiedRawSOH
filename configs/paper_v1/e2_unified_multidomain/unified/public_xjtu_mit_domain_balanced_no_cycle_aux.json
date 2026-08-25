@@ -16,12 +16,7 @@
     "cycle_loss_mode": "disabled"
   },
   "data": {
-    "cycle_target_scope": "not_used",
-    "preprocessed_cache": {
-      "enabled": true,
-      "directory": ".cache/unified_cccv",
-      "rebuild": false
-    }
+    "cycle_target_scope": "not_used"
   },
   "protocol": "E2-Pilot-D w/o cycle auxiliary jointly trains XJTU and MIT with one shared RawMamba and SOH-only supervision. It retains E2-Pilot-D hierarchical sampling, so domains have equal expected sampling probability, batteries are uniform within each domain, and cycles are uniform within each battery. The cycle-prediction head, predicted-cycle SOH input, and cycle auxiliary loss are disabled."
 }

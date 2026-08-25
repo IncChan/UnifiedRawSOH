@@ -17,12 +17,7 @@
     "cycle_loss_mode": "disabled"
   },
   "data": {
-    "cycle_target_scope": "not_used",
-    "preprocessed_cache": {
-      "enabled": true,
-      "directory": ".cache/unified_cccv",
-      "rebuild": false
-    }
+    "cycle_target_scope": "not_used"
   },
   "protocol": "E1 RawOurs w/o cycle auxiliary on SmartHealth CATL280. It inherits the complete E1 RawMamba domain data, split, normalization, architecture, optimizer, scheduler, and checkpoint-selection contract, while disabling the cycle-prediction head, predicted-cycle SOH input, and cycle auxiliary loss. Training supervision is SOH-only MSE."
 }
