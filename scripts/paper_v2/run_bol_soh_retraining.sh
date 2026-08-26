@@ -9,12 +9,64 @@ PROJECT_ROOT="$(cd "${REPO_ROOT}/.." && pwd)"
 cd "${PROJECT_ROOT}"
 PYTHON_BIN="${PYTHON_BIN:-$(${REPO_ROOT}/scripts/resolve_python_bin.sh)}"
 
+# ======================== 部分实验控制 ========================
+# 所有选项都可以在命令行前临时覆盖，例如：
+#
+#   STAGE=e1_feature TARGET_DOMAINS=smarthealth_lishen40 SEEDS=42 \
+#     DRY_RUN=0 bash scripts/paper_v2/run_bol_soh_retraining.sh
+#
+# STAGE：选择实验阶段。
+#   e1_feature  - FeatureMLP-BOL 单域实验
+#   e1_raw      - RawMamba 单域实验
+#   e2_full     - 全域 RawMamba 实验；该阶段必须使用 TARGET_DOMAINS=all
+#   e3_lodo     - Leave-One-Domain-Out 实验
+#   all         - 按 e1_feature -> e1_raw -> e2_full -> e3_lodo 全部运行
+#   如果只选择部分域，请同时指定单个阶段；STAGE=all 会包含要求全域的 e2_full。
+#
+# TARGET_DOMAINS：选择数据集，可写 all，或用逗号/空格分隔多个域。
+#   可用域：xjtu、mit、smarthealth_lishen40、smarthealth_catl280、
+#          smarthealth_eve280；也接受 lishen40/catl280/eve280 等别名。
+#   例：TARGET_DOMAINS=smarthealth_lishen40
+#       TARGET_DOMAINS=smarthealth_catl280,smarthealth_eve280
+#
+# SEEDS：选择随机种子，默认 42 52 62；只跑一个 seed 时写 SEEDS=42。
+# GPU_IDS：提供物理 GPU 编号，逗号或空格分隔；例如 GPU_IDS=3,7。
+# JOBS_PER_GPU：每张 GPU 同时运行的任务数。调试或显存紧张时建议设为 1。
+#
+# DRY_RUN=1：只打印将要运行的任务，不启动训练；确认筛选范围后改为 0。
+# RESUME=1：跳过已经完整成功的 seed；失败任务仍会重跑。RESUME=0 强制重跑全部。
+# OUTPUT_ROOT：输出根目录；不要让两个同时运行的 launcher 使用同一批输出目录。
+# 如果 SmartHealth 预处理正在使用 --overwrite 写入数据，请等待它完成并通过
+# smarthealth_validate 后再启动训练，避免训练读取到不完整的 RAW/FEATURE 产品。
+#
+# 可直接复制的常用例子：
+#   # 只跑 Lishen40 的 FeatureMLP，seed 42
+#   STAGE=e1_feature TARGET_DOMAINS=smarthealth_lishen40 SEEDS=42 \
+#     GPU_IDS=7 JOBS_PER_GPU=1 DRY_RUN=0 \
+#     bash scripts/paper_v2/run_bol_soh_retraining.sh
+#
+#   # 跑 CATL/EVE 的 FeatureMLP，三个 seed
+#   STAGE=e1_feature TARGET_DOMAINS=smarthealth_catl280,smarthealth_eve280 \
+#     SEEDS="42 52 62" GPU_IDS="3 7" JOBS_PER_GPU=1 DRY_RUN=0 \
+#     bash scripts/paper_v2/run_bol_soh_retraining.sh
+#
+#   # 只跑 XJTU 和 MIT 的 RawMamba
+#   STAGE=e1_raw TARGET_DOMAINS="xjtu mit" SEEDS="42 52 62" \
+#     bash scripts/paper_v2/run_bol_soh_retraining.sh
+#
+#   # 只预览某一部分任务，不产生训练输出
+#   STAGE=e1_feature TARGET_DOMAINS=smarthealth_lishen40 SEEDS=42 \
+#     DRY_RUN=1 bash scripts/paper_v2/run_bol_soh_retraining.sh
+#
+# 注意：脚本设置 CUDA_VISIBLE_DEVICES=<GPU_IDS 中的物理编号> 后，训练进程
+# 只看到本地 cuda:0，因此 DEVICE_OVERRIDE 默认应保持 cuda:0，不要改成物理编号。
+
 STAGE="${STAGE:-all}"
 TARGET_SPEC="${TARGET_DOMAINS:-all}"
 SEED_SPEC="${SEEDS:-42 52 62}"
-GPU_SPEC="${GPU_IDS:-0 1 2}"
-JOBS_PER_GPU="${JOBS_PER_GPU:-2}"
-DRY_RUN="${DRY_RUN:-1}"
+GPU_SPEC="${GPU_IDS:-7}"
+JOBS_PER_GPU="${JOBS_PER_GPU:-3}"
+DRY_RUN="${DRY_RUN:-0}"
 RESUME="${RESUME:-1}"
 DEVICE_OVERRIDE="${DEVICE_OVERRIDE:-cuda:0}"
 BACKEND_OVERRIDE="${BACKEND_OVERRIDE:-}"
