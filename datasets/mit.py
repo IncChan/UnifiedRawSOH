@@ -291,6 +291,7 @@ def read_mit_raw_file(path, nominal_capacity=1.1, label_scale_mode="none"):
                     float(row["temperature_C"]),
                     float(row["SOH"]),
                     recorded_c_rate,
+                    float(row["capacity_Ah"]),
                 )
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"Invalid numeric row in {path}: {row}") from exc
@@ -428,7 +429,13 @@ def read_mit_raw_file(path, nominal_capacity=1.1, label_scale_mode="none"):
         soh_values = np.asarray([item[5] for item in rows], dtype=np.float32)
         if not np.allclose(soh_values, soh_values[0], rtol=1e-5, atol=1e-6):
             raise ValueError(f"SOH is not constant within cycle {cycle_id} in {path}")
+        capacity_values = np.asarray([item[7] for item in rows], dtype=np.float32)
+        if not np.all(np.isfinite(capacity_values)) or not np.all(capacity_values > 0.0):
+            raise ValueError(f"capacity_Ah is not finite and positive within cycle {cycle_id} in {path}")
+        if not np.allclose(capacity_values, capacity_values[0], rtol=1e-5, atol=1e-6):
+            raise ValueError(f"capacity_Ah is not constant within cycle {cycle_id} in {path}")
         raw_soh = float(soh_values[0])
+        capacity_ah = float(capacity_values[0])
         soh, scale_factor, resolved_mode = _normalize_mit_soh(
             raw_soh, nominal_capacity, label_scale_mode
         )
@@ -446,6 +453,11 @@ def read_mit_raw_file(path, nominal_capacity=1.1, label_scale_mode="none"):
                 "temperature": temperature,
                 "soh": float(soh),
                 "soh_raw": raw_soh,
+                # MIT's formal Paper-v2 source capacity is capacity_Ah;
+                # retaining it does not alter the historical SOH field.
+                "capacity_Ah": capacity_ah,
+                "capacity": capacity_ah,
+                "source_capacity_field": "capacity_Ah",
                 "soh_scale_factor": float(scale_factor),
                 "soh_scale_mode": resolved_mode,
                 "nominal_capacity": nominal_capacity,

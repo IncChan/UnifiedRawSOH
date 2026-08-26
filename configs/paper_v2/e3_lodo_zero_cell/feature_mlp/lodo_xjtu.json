@@ -1,0 +1,17 @@
+{
+  "status": "runnable",
+  "base_config": "./base.json",
+  "experiment": {
+    "name": "E3_LODO_ZeroCell_FeatureMLP_BOL_to_xjtu",
+    "source_domain_ids": [
+      "mit",
+      "smarthealth_lishen40",
+      "smarthealth_catl280",
+      "smarthealth_eve280"
+    ],
+    "target_domain_id": "xjtu"
+  },
+  "output": {
+    "data_id": "feature_lodo_zero_cell_to_xjtu"
+  }
+}

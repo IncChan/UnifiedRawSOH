@@ -19,6 +19,13 @@ from .splits import (
     split_records_from_spec,
 )
 from .xjtu import UnifiedCCCVSampleDataset, build_full_life_cycle_metadata
+from .soh_labels import (
+    BOL_LABEL_MODE,
+    BOL_RULE_VERSION,
+    apply_bol_relative_soh,
+    build_bol_references,
+    is_bol_label_mode,
+)
 
 
 def _resolve_path(repo_root, value):
@@ -177,6 +184,20 @@ def _build_raw_domain(config, repo_root, seed, domain_id, data_root):
         # Keep source ``dataset_id`` untouched for compatibility, while all
         # experiment composition/balancing/reporting uses the stable domain.
         record["domain_id"] = domain_id
+
+    # Paper-v2 labels are constructed once from the complete canonical
+    # trajectory, before invalid-cycle filtering, split assignment, debug
+    # truncation, or raw-window normalization.  Q_ref is never placed in a
+    # model input; only the derived soh_bol value is consumed downstream.
+    label_mode = BOL_LABEL_MODE if is_bol_label_mode(config) else "rated_relative"
+    label_provenance = {}
+    if label_mode == BOL_LABEL_MODE:
+        label_provenance = build_bol_references(records_before_filter, domain_id=domain_id)
+        records_before_filter = apply_bol_relative_soh(
+            records_before_filter,
+            label_provenance,
+            domain_id=domain_id,
+        )
     cycle_metadata = build_full_life_cycle_metadata(records_before_filter)
 
     records = records_before_filter
@@ -274,6 +295,14 @@ def _build_raw_domain(config, repo_root, seed, domain_id, data_root):
         "full_life_metadata_built_before_filter_and_split": True,
         "invalid_cycle_filter": invalid_cycle_audit,
         "sample_filter": filter_audit,
+        "label": {
+            "label_mode": label_mode,
+            "label_field": "soh_bol" if label_mode == BOL_LABEL_MODE else "soh",
+            "reference_rule": BOL_RULE_VERSION if label_mode == BOL_LABEL_MODE else None,
+            "reference_provenance": label_provenance,
+            "q_ref_is_model_input": False,
+            "q_ref_in_normalization": False,
+        },
         **split_meta,
     }
     return datasets, split_info

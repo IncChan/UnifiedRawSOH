@@ -1,0 +1,33 @@
+{
+  "status": "runnable",
+  "base_config": "./base.json",
+  "experiment": {
+    "name": "E1_SingleDomain_FeatureMLP_BOL_EVE",
+    "task": "paper_v2_e1_single_domain_feature_mlp",
+    "domain_id": "smarthealth_eve280",
+    "dataset_id": "smarthealth_eve280_features",
+    "loader": "feature_single_domain",
+    "split_file": "UnifiedRawSOH/splits/smarthealth/smarthealth_eve280_cell_split.json",
+    "batches": []
+  },
+  "output": {
+    "experiment_id": "e1_single_domain",
+    "model_id": "FeatureMLP-BOL",
+    "data_id": "smarthealth_eve280"
+  },
+  "data": {
+    "data_root": "UnifiedRawSOH/datasets/SmartHealth_features",
+    "domain_id": "smarthealth_eve280",
+    "dataset": "smarthealth_eve280_features",
+    "split_file": "UnifiedRawSOH/splits/smarthealth/smarthealth_eve280_cell_split.json",
+    "nominal_capacity": 280.0,
+    "feature_source": "canonical feature product",
+    "feature_target_mode": "bol_peak_relative",
+    "label_mode": "bol_peak_relative",
+    "label_field": "soh_bol",
+    "bol_reference_rule": "bol_peak_mean_top5_first100_v1",
+    "cycle_index_used_as_model_input": false,
+    "q_ref_is_model_input": false,
+    "q_ref_in_normalization": false
+  }
+}

@@ -1,0 +1,177 @@
+{
+  "status": "runnable",
+  "base_config": "../common/bol_soh_base.json",
+  "experiment": {
+    "name": "E3_LODO_ZeroCell_RawMamba_BOL_base",
+    "version": "UnifiedRawSOH/Paper-v2",
+    "task": "paper_v2_e3_lodo_zero_cell_raw_mamba",
+    "loader": "leave_one_domain_out",
+    "domain_ids": [
+      "xjtu",
+      "mit",
+      "smarthealth_lishen40",
+      "smarthealth_catl280",
+      "smarthealth_eve280"
+    ],
+    "output_root": "UnifiedRawSOH/outputs",
+    "label_mode": "bol_peak_relative",
+    "label_rule": "bol_peak_mean_top5_first100_v1"
+  },
+  "output": {
+    "experiment_id": "e3_lodo_zero_cell",
+    "model_id": "RawMamba-noCycleAux",
+    "data_id": "lodo_zero_cell_base"
+  },
+  "data": {
+    "data_root": null,
+    "data_roots": {
+      "xjtu": "UnifiedRawSOH/datasets/XJTU_raw",
+      "mit": "UnifiedRawSOH/datasets/MIT_raw",
+      "smarthealth_lishen40": "UnifiedRawSOH/datasets/SmartHealth_raw",
+      "smarthealth_catl280": "UnifiedRawSOH/datasets/SmartHealth_raw",
+      "smarthealth_eve280": "UnifiedRawSOH/datasets/SmartHealth_raw"
+    },
+    "batches_by_domain": {
+      "xjtu": [
+        "2C",
+        "3C",
+        "R2.5",
+        "R3",
+        "RW",
+        "satellite"
+      ],
+      "mit": [
+        "2017-05-12",
+        "2017-06-30",
+        "2018-04-12"
+      ],
+      "smarthealth_lishen40": [],
+      "smarthealth_catl280": [],
+      "smarthealth_eve280": []
+    },
+    "nominal_capacities": {
+      "xjtu": 2.0,
+      "mit": 1.1,
+      "smarthealth_lishen40": 40.0,
+      "smarthealth_catl280": 280.0,
+      "smarthealth_eve280": 280.0
+    },
+    "split_files": {
+      "xjtu": "UnifiedRawSOH/splits/xjtu/paper_v1_mixed_split.json",
+      "mit": "UnifiedRawSOH/splits/mit/mit_paper_physical124_v2_split.json",
+      "smarthealth_lishen40": "UnifiedRawSOH/splits/smarthealth/smarthealth_lishen40_cell_split.json",
+      "smarthealth_catl280": "UnifiedRawSOH/splits/smarthealth/smarthealth_catl280_cell_split.json",
+      "smarthealth_eve280": "UnifiedRawSOH/splits/smarthealth/smarthealth_eve280_cell_split.json"
+    },
+    "label_scale_modes": {
+      "xjtu": "auto_capacity_to_soh",
+      "mit": "none",
+      "smarthealth_lishen40": "label_capacity_to_nominal",
+      "smarthealth_catl280": "label_capacity_to_nominal",
+      "smarthealth_eve280": "label_capacity_to_nominal"
+    },
+    "normalizations": {
+      "xjtu": {
+        "mode": "physical_window",
+        "cc_voltage_low": 4.0,
+        "cc_voltage_high": 4.195,
+        "cv_current_low": 0.1,
+        "cv_current_high": 0.5,
+        "cc_current_ref": 4.0,
+        "cv_voltage_ref": 4.19975,
+        "cv_voltage_scale": 0.001,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      },
+      "mit": {
+        "mode": "physical_window",
+        "cc_voltage_low": 3.45,
+        "cc_voltage_high": 3.6,
+        "cv_current_low": 0.055,
+        "cv_current_high": 0.275,
+        "cc_current_ref": 1.0,
+        "cv_voltage_ref": 3.6,
+        "cv_voltage_scale": 0.001,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      },
+      "smarthealth_lishen40": {
+        "mode": "physical_window",
+        "cc_voltage_low": 3.45,
+        "cc_voltage_high": 3.58,
+        "cv_current_low": 2.0,
+        "cv_current_high": 10.0,
+        "cc_current_ref": 80.0,
+        "cv_voltage_ref": 3.6,
+        "cv_voltage_scale": 0.01,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      },
+      "smarthealth_catl280": {
+        "mode": "physical_window",
+        "cc_voltage_low": 3.45,
+        "cc_voltage_high": 3.58,
+        "cv_current_low": 14.0,
+        "cv_current_high": 70.0,
+        "cc_current_ref": 140.0,
+        "cv_voltage_ref": 3.6,
+        "cv_voltage_scale": 0.01,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      },
+      "smarthealth_eve280": {
+        "mode": "physical_window",
+        "cc_voltage_low": 3.45,
+        "cc_voltage_high": 3.58,
+        "cv_current_low": 14.0,
+        "cv_current_high": 70.0,
+        "cc_current_ref": 140.0,
+        "cv_voltage_ref": 3.6,
+        "cv_voltage_scale": 0.01,
+        "cc_current_mode": "physical",
+        "cv_voltage_mode": "physical",
+        "current_use_abs": true,
+        "temp_room": 25.0,
+        "temp_abs_scale": 20.0,
+        "temp_delta_scale": 10.0
+      }
+    },
+    "balance_mode": "domain_battery_hierarchical",
+    "label_mode": "bol_peak_relative",
+    "bol_reference_rule": "bol_peak_mean_top5_first100_v1",
+    "num_workers": 0,
+    "sample_filter_mode": "none",
+    "use_train_derived_statistics": false
+  },
+  "reusability": {
+    "protocol": "leave_one_domain_out",
+    "evaluation": "zero_shot",
+    "source_train_split": "train",
+    "source_validation_split": "val",
+    "target_test_split": "test",
+    "target_train_and_validation_usage": "forbidden",
+    "source_test_usage": "forbidden"
+  },
+  "train": {
+    "monitor": "valid_domain_macro_rmse",
+    "lambda_cycle": 0.0,
+    "cycle_loss_mode": "disabled"
+  },
+  "protocol": "Five-fold Paper-v2 LODO: source domains use only train/validation; target domain uses only final test; no-cycle auxiliary and domain-balanced hierarchical sampler are retained."
+}

@@ -1,0 +1,73 @@
+{
+  "status": "runnable",
+  "base_config": "../../common/bol_soh_base.json",
+  "experiment": {
+    "name": "E1_SingleDomain_FeatureMLP_BOL_base",
+    "task": "paper_v2_e1_single_domain_feature_mlp",
+    "loader": "feature_single_domain"
+  },
+  "output": {
+    "model_id": "FeatureMLP-BOL"
+  },
+  "data": {
+    "type": "stat_features",
+    "data_root": "UnifiedRawSOH/datasets/XJTU_features",
+    "domain_id": "xjtu",
+    "dataset": "XJTU_t_v1",
+    "data_mode": "all_batch_pooled",
+    "split_file": "UnifiedRawSOH/splits/xjtu/paper_v1_mixed_split.json",
+    "num_workers": 0,
+    "drop_3sigma_outliers": true,
+    "sample_mode": "adjacent_x1",
+    "cycle_column": "cycle index",
+    "cycle_index_mode": "pinn4soh_original",
+    "cycle_index_normalization": "not_used_as_model_input",
+    "feature_set": "pinn16_plus_temperature",
+    "feature_source": "canonical feature product",
+    "nominal_capacity": 2.0,
+    "normalization": "train_valid_minmax",
+    "normalization_scope": "pooled_non_test_train_val_cycles",
+    "normalization_eps": 1e-08,
+    "use_temperature_features": true,
+    "feature_target_mode": "bol_peak_relative",
+    "label_mode": "bol_peak_relative",
+    "label_field": "soh_bol",
+    "bol_reference_rule": "bol_peak_mean_top5_first100_v1",
+    "cycle_index_used_as_model_input": false,
+    "q_ref_is_model_input": false,
+    "q_ref_in_normalization": false
+  },
+  "model": {
+    "type": "PINNFOnlyMLP",
+    "input_dim": 24,
+    "encoder_hidden_dim": 60,
+    "encoder_output_dim": 32,
+    "encoder_layers_num": 3,
+    "predictor_hidden_dim": 32,
+    "dropout": 0.2,
+    "activation": "sin",
+    "match_original_pinn_f": true,
+    "uses_cycle_input": false,
+    "uses_pde_or_g_branch": false
+  },
+  "train": {
+    "seed": 42,
+    "device": "cuda",
+    "batch_size": 64,
+    "epochs": 500,
+    "patience": 30,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "grad_clip_norm": 1.0,
+    "loss": "mse",
+    "monitor": "valid_condition_macro_rmse",
+    "scheduler": {
+      "type": "reduce_on_plateau",
+      "mode": "min",
+      "factor": 0.5,
+      "patience": 10,
+      "threshold": 1e-05,
+      "min_lr": 1e-05
+    }
+  }
+}

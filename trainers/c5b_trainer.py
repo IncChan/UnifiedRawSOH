@@ -16,6 +16,12 @@ from UnifiedRawSOH.datasets.loaders import (
     build_unified_loaders,
 )
 from UnifiedRawSOH.evaluation.metrics import compute_metrics, grouped_metrics, macro_rmse_by_group
+from UnifiedRawSOH.evaluation.paper_v2_metrics import (
+    build_hierarchical_metric_tables,
+    test_metrics_payload,
+    write_metric_tables,
+)
+from UnifiedRawSOH.datasets.soh_labels import is_bol_label_mode
 from UnifiedRawSOH.models.raw_soh_model import build_raw_soh_model
 from UnifiedRawSOH.utils.config import save_json
 from UnifiedRawSOH.utils.output_layout import build_run_manifest, build_seed_output_dir
@@ -91,10 +97,19 @@ def build_test_metrics_by_domain(test_metrics):
     }
 
 
-def run_epoch(model, loader, criterion, device, optimizer=None, lambda_cycle=0.0):
+def run_epoch(
+    model,
+    loader,
+    criterion,
+    device,
+    optimizer=None,
+    lambda_cycle=0.0,
+    collect_predictions=False,
+):
     training = optimizer is not None
     model.train(training)
     truths, predictions, batteries, conditions, domains, cycle_truths, cycle_predictions = [], [], [], [], [], [], []
+    prediction_rows = []
     total_loss = 0.0
     total_soh_loss = 0.0
     total_cycle_loss = 0.0
@@ -131,7 +146,31 @@ def run_epoch(model, loader, criterion, device, optimizer=None, lambda_cycle=0.0
             predictions.extend(aux["soh_pred"].detach().cpu().numpy().reshape(-1).tolist())
             batteries.extend(list(batch["battery_id"]))
             conditions.extend(list(batch["condition"]))
-            domains.extend(list(batch.get("domain_id", batch["dataset_id"])))
+            batch_domains = list(batch.get("domain_id", batch["dataset_id"]))
+            domains.extend(batch_domains)
+            if collect_predictions:
+                batch_cycle_ids = batch.get("cycle_id")
+                if torch.is_tensor(batch_cycle_ids):
+                    batch_cycle_ids = batch_cycle_ids.detach().cpu().reshape(-1).tolist()
+                elif batch_cycle_ids is None:
+                    batch_cycle_ids = [None] * count
+                else:
+                    batch_cycle_ids = list(batch_cycle_ids)
+                batch_batteries = list(batch["battery_id"])
+                batch_conditions = list(batch["condition"])
+                batch_truths = tensors["soh"].detach().cpu().numpy().reshape(-1).tolist()
+                batch_predictions = aux["soh_pred"].detach().cpu().numpy().reshape(-1).tolist()
+                for index in range(count):
+                    prediction_rows.append(
+                        {
+                            "domain_id": str(batch_domains[index]),
+                            "group_id": str(batch_conditions[index]),
+                            "cell_id": str(batch_batteries[index]),
+                            "cycle_id": batch_cycle_ids[index],
+                            "y_true": float(batch_truths[index]),
+                            "y_pred": float(batch_predictions[index]),
+                        }
+                    )
             if aux["cycle_life_hat"] is not None and "cycle_life_norm_target" in tensors:
                 cycle_truths.extend(tensors["cycle_life_norm_target"].detach().cpu().numpy().reshape(-1).tolist())
                 cycle_predictions.extend(aux["cycle_life_hat"].detach().cpu().numpy().reshape(-1).tolist())
@@ -160,6 +199,8 @@ def run_epoch(model, loader, criterion, device, optimizer=None, lambda_cycle=0.0
     )
     if cycle_truths:
         metrics["cycle_metrics"] = compute_metrics(cycle_truths, cycle_predictions)
+    if collect_predictions:
+        metrics["_prediction_rows"] = prediction_rows
     return metrics
 
 
@@ -247,7 +288,16 @@ def train_from_config(config, repo_root, backend_override=None, device_override=
 
     if best_state is not None:
         model.load_state_dict(best_state)
-    test_metrics = run_epoch(model, loaders["test"], criterion, device)
+    paper_v2 = str(config.get("output", {}).get("paper_version", "")) == "Paper-v2" or is_bol_label_mode(config)
+    test_metrics = run_epoch(
+        model,
+        loaders["test"],
+        criterion,
+        device,
+        collect_predictions=paper_v2,
+    )
+    prediction_rows = test_metrics.pop("_prediction_rows", []) if paper_v2 else []
+    metric_tables = build_hierarchical_metric_tables(prediction_rows) if paper_v2 else None
     test_metrics_by_domain = build_test_metrics_by_domain(test_metrics)
     test_metrics["per_domain"] = test_metrics_by_domain["domains"]
     output_root = _resolve_path(repo_root, config["experiment"].get("output_root", "UnifiedRawSOH/outputs"))
@@ -259,6 +309,22 @@ def train_from_config(config, repo_root, backend_override=None, device_override=
     save_json(run_dir / "run_manifest.json", build_run_manifest(config, output_root, run_time, seed=seed))
     save_json(run_dir / "split_info.json", split_info)
     save_json(run_dir / "history.json", history)
+    if paper_v2:
+        write_metric_tables(run_dir, metric_tables)
+        hierarchical_payload = test_metrics_payload(metric_tables)
+        sample_metrics = dict(test_metrics)
+        test_metrics.update(hierarchical_payload)
+        test_metrics["loss"] = float(test_metrics["mse"])
+        test_metrics["soh_loss"] = float(test_metrics["mse"])
+        test_metrics["domain_macro_rmse"] = float(metric_tables["overall"]["rmse"])
+        test_metrics["condition_macro_rmse"] = float(metric_tables["overall"]["rmse"])
+        test_metrics["sample_micro_metrics"] = {
+            key: sample_metrics[key]
+            for key in ("mae", "mape", "mse", "rmse", "loss", "soh_loss", "condition_macro_rmse", "domain_macro_rmse")
+            if key in sample_metrics
+        }
+        test_metrics_by_domain = build_test_metrics_by_domain(test_metrics)
+        test_metrics["per_domain"] = test_metrics_by_domain["domains"]
     save_json(run_dir / "test_metrics.json", test_metrics)
     save_json(run_dir / "test_metrics_by_domain.json", test_metrics_by_domain)
     torch.save({"model": model.state_dict(), "config": config, "split_info": split_info}, run_dir / "best.pt")

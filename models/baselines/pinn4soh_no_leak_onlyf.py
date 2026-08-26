@@ -10,6 +10,7 @@ is never a model input or a physical-cycle matching key.
 
 from __future__ import annotations
 
+import copy
 import csv
 import re
 from pathlib import Path
@@ -18,7 +19,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
 from UnifiedRawSOH.datasets.domains import canonical_domain_id
 from UnifiedRawSOH.datasets.splits import (
@@ -30,6 +31,13 @@ from UnifiedRawSOH.datasets.mit import validate_mit_physical_cohort
 from UnifiedRawSOH.datasets.smarthealth import (
     SMARTHEALTH_CANONICAL_POLICY_VERSION,
     SMARTHEALTH_NOMINAL_CAPACITY_AH,
+)
+from UnifiedRawSOH.datasets.soh_labels import (
+    BOL_LABEL_MODE,
+    BOL_RULE_VERSION,
+    apply_bol_relative_soh,
+    build_bol_reference,
+    is_bol_label_mode,
 )
 
 
@@ -375,6 +383,44 @@ def load_feature_file(path, config):
         cycle_values = np.arange(len(frame), dtype=np.int64)
     if cycle_column in frame.columns:
         raise ValueError(f"Configured cycle column already exists in {path}: {cycle_column}")
+
+    configured_domain = config.get("experiment", {}).get(
+        "domain_id", config.get("experiment", {}).get(
+            "dataset_id", data_cfg.get("domain_id", data_cfg.get("dataset_id", "xjtu"))
+        )
+    )
+    resolved_domain = next(iter(observed_domains)) if observed_domains else canonical_domain_id(configured_domain)
+    label_provenance = None
+    if is_bol_label_mode(config):
+        condition, filename_battery_id = parse_file_identity(path)
+        label_records = []
+        for row_index in range(len(frame)):
+            source = {
+                "domain_id": resolved_domain,
+                "battery_id": filename_battery_id,
+                "cycle_id": int(cycle_values[row_index]),
+                "raw_cycle_order_index": int(row_index),
+            }
+            capacity = frame.iloc[row_index]["capacity"]
+            if resolved_domain == "mit":
+                source["capacity_Ah"] = capacity
+            elif str(resolved_domain).startswith("smarthealth_"):
+                source["label_capacity_Ah"] = frame.iloc[row_index].get("label_capacity_Ah", capacity)
+                source["label_source"] = frame.iloc[row_index].get("label_source", "")
+            else:
+                source["SOH"] = capacity
+            label_records.append(source)
+        label_provenance = build_bol_reference(label_records, domain_id=resolved_domain)
+        labeled = apply_bol_relative_soh(
+            label_records, label_provenance, domain_id=resolved_domain
+        )
+        label_by_source_row = {
+            int(row["raw_cycle_order_index"]): float(row["soh_bol"])
+            for row in labeled
+        }
+        frame["__soh_bol"] = [
+            label_by_source_row[int(value)] for value in range(len(frame))
+        ]
     frame.insert(frame.shape[1] - 1, cycle_column, cycle_values)
     if bool(data_cfg.get("drop_3sigma_outliers", True)):
         # "All-column" is the historical statistical feature table plus its
@@ -392,7 +438,9 @@ def load_feature_file(path, config):
     features = frame[feature_columns].to_numpy(dtype=np.float32)
     target_mode = str(data_cfg.get("feature_target_mode", "")).strip()
     label_column = str(data_cfg.get("feature_label_column", "")).strip()
-    if target_mode == "capacity_to_nominal":
+    if is_bol_label_mode(config):
+        soh = frame["__soh_bol"].to_numpy(dtype=np.float32).reshape(-1, 1)
+    elif target_mode == "capacity_to_nominal":
         # SmartHealth and the raw model now share the same fixed-nominal
         # capacity target.  ``capacity`` is the calibration-derived physical
         # capacity exported by the matching feature preprocessor, never a
@@ -438,6 +486,9 @@ def load_feature_file(path, config):
     return {
         "features": features,
         "soh": soh,
+        "soh_bol": soh if is_bol_label_mode(config) else None,
+        "soh_label_mode": BOL_LABEL_MODE if is_bol_label_mode(config) else "rated_relative",
+        "label_provenance": label_provenance,
         "battery_id": battery_id,
         "condition": condition,
         "cycle_id": frame[cycle_column].to_numpy(dtype=np.int64),
@@ -462,6 +513,11 @@ def build_adjacent_first_samples(payloads):
                 {
                     "features": payload["features"][index],
                     "soh": payload["soh"][index],
+                    "soh_bol": (
+                        None if payload.get("soh_bol") is None else payload["soh_bol"][index]
+                    ),
+                    "soh_label_mode": payload.get("soh_label_mode", "rated_relative"),
+                    "label_provenance": payload.get("label_provenance"),
                     "battery_id": payload["battery_id"],
                     "condition": payload["condition"],
                     "cycle_id": int(payload["cycle_id"][index]),
@@ -516,9 +572,10 @@ class StatFeatureDataset(Dataset):
 
     def __getitem__(self, index):
         row = self.rows[index]
-        return {
+        output = {
             "features": torch.from_numpy(np.asarray(row["features"], dtype=np.float32)),
             "soh": torch.from_numpy(np.asarray(row["soh"], dtype=np.float32)),
+            "soh_label_mode": row.get("soh_label_mode", "rated_relative"),
             "battery_id": row["battery_id"],
             "cycle_id": int(row["cycle_id"]),
             "condition": row["condition"],
@@ -527,10 +584,153 @@ class StatFeatureDataset(Dataset):
             "dataset_id": self.dataset_id,
             "domain_id": self.domain_id,
         }
+        if row.get("soh_bol") is not None:
+            output["soh_bol"] = torch.from_numpy(
+                np.asarray(row["soh_bol"], dtype=np.float32)
+            )
+        return output
 
+
+def build_feature_lodo_loaders(config, repo_root, seed=42):
+    """Build zero-shot Feature MLP LODO loaders from the shared single-domain path.
+
+    Each source domain is split with its own canonical split JSON. Only source
+    train/validation datasets are concatenated; the target domain contributes
+    only its original test dataset. This keeps the optional Feature MLP LODO
+    interface honest without duplicating feature-file or BOL-label code.
+    """
+
+    from UnifiedRawSOH.trainers.reusability import parse_reusability_protocol
+
+    protocol = parse_reusability_protocol(config)
+    if protocol["protocol"] != "leave_one_domain_out":
+        raise ValueError("Feature LODO requires reusability.protocol=leave_one_domain_out")
+    source_domain_ids = protocol["source_domain_ids"]
+    target_domain_ids = protocol["target_domain_ids"]
+    if len(target_domain_ids) != 1:
+        raise ValueError("Feature LODO requires exactly one target domain")
+    target_domain_id = target_domain_ids[0]
+    configured = [
+        canonical_domain_id(value)
+        for value in config.get("experiment", {}).get("domain_ids", [])
+    ]
+    expected = source_domain_ids + [target_domain_id]
+    if set(configured) != set(expected):
+        raise ValueError(
+            "Feature LODO experiment.domain_ids must equal source domains plus "
+            f"target domain; configured={configured}, expected={expected}"
+        )
+
+    data_cfg = config["data"]
+    roots = data_cfg.get("data_roots", {})
+    split_files = data_cfg.get("split_files", {})
+    nominal_capacities = data_cfg.get("nominal_capacities", {})
+    domain_loaders = {}
+    domain_info = {}
+    for index, domain_id in enumerate(expected):
+        domain_config = copy.deepcopy(config)
+        domain_config.setdefault("experiment", {})["loader"] = "feature_single_domain"
+        domain_config["experiment"]["domain_id"] = domain_id
+        domain_config["experiment"].pop("source_domain_ids", None)
+        domain_config["experiment"].pop("target_domain_id", None)
+        domain_config["experiment"].pop("target_domain_ids", None)
+        batches_by_domain = data_cfg.get("batches_by_domain", {})
+        if domain_id in batches_by_domain:
+            domain_config["experiment"]["batches"] = list(batches_by_domain[domain_id])
+        domain_config["data"] = copy.deepcopy(data_cfg)
+        root_value = roots.get(domain_id)
+        if not root_value:
+            raise ValueError(f"Feature LODO config has no data root for {domain_id!r}")
+        split_file = split_files.get(domain_id)
+        if not split_file:
+            raise ValueError(f"Feature LODO config has no split file for {domain_id!r}")
+        domain_config["data"]["data_root"] = root_value
+        domain_config["data"]["split_file"] = split_file
+        if domain_id in nominal_capacities:
+            domain_config["data"]["nominal_capacity"] = nominal_capacities[domain_id]
+        if domain_id == target_domain_id:
+            source_normalizers = [
+                domain_info[source_domain]["normalization"]
+                for source_domain in source_domain_ids
+            ]
+            minima = np.stack(
+                [np.asarray(item["min"], dtype=np.float64) for item in source_normalizers],
+                axis=0,
+            )
+            maxima = np.stack(
+                [np.asarray(item["max"], dtype=np.float64) for item in source_normalizers],
+                axis=0,
+            )
+            domain_config["feature_normalizer_override"] = {
+                "mode": "source_domains_train_val_minmax",
+                "feature_names": list(source_normalizers[0].get("feature_names") or []),
+                "min": np.min(minima, axis=0).tolist(),
+                "max": np.max(maxima, axis=0).tolist(),
+                "eps": float(source_normalizers[0].get("eps", 1e-8)),
+                "formula": "2 * (x - min) / max(max - min, eps) - 1",
+                "test_statistics_used": False,
+            }
+        domain_loaders[domain_id], domain_info[domain_id] = build_feature_loaders(
+            domain_config, repo_root, seed=int(seed) + index * 10_000
+        )
+
+    train_dataset = ConcatDataset(
+        [domain_loaders[domain_id]["train"].dataset for domain_id in source_domain_ids]
+    )
+    val_dataset = ConcatDataset(
+        [domain_loaders[domain_id]["val"].dataset for domain_id in source_domain_ids]
+    )
+    target_test_loader = domain_loaders[target_domain_id]["test"]
+    train_cfg = config["train"]
+    data_cfg = config["data"]
+    common = {
+        "batch_size": int(train_cfg.get("batch_size", 64)),
+        "num_workers": int(data_cfg.get("num_workers", 0)),
+    }
+    loaders = {
+        "train": DataLoader(train_dataset, shuffle=True, **common),
+        "val": DataLoader(val_dataset, shuffle=False, **common),
+        "test": target_test_loader,
+    }
+    return loaders, {
+        "loader_type": "feature_leave_one_domain_out",
+        "source_domain_ids": source_domain_ids,
+        "target_domain_id": target_domain_id,
+        "domain_ids": expected,
+        "domain_info": domain_info,
+        "sample_counts": {
+            "train": len(train_dataset),
+            "val": len(val_dataset),
+            "test": len(target_test_loader.dataset),
+        },
+        "target_train_validation_samples_not_emitted": {
+            "train": len(domain_loaders[target_domain_id]["train"].dataset),
+            "val": len(domain_loaders[target_domain_id]["val"].dataset),
+        },
+        "split_usage": {
+            "train": "source domains' original train split only",
+            "val": "source domains' original val split only",
+            "test": "left-out domain's original test split only",
+            "excluded": [
+                "source domains' test splits",
+                "left-out domain's train and val splits",
+            ],
+        },
+        "cycle_index_used_as_model_input": False,
+        "label": {
+            "label_mode": BOL_LABEL_MODE if is_bol_label_mode(config) else "rated_relative",
+            "label_field": "soh_bol" if is_bol_label_mode(config) else "soh",
+            "reference_rule": BOL_RULE_VERSION if is_bol_label_mode(config) else None,
+            "q_ref_is_model_input": False,
+            "q_ref_in_normalization": False,
+        },
+    }
 
 def build_feature_loaders(config, repo_root, seed=42):
     """Build the paired all-batch mixed-cycle F-only protocol."""
+
+    if config.get("experiment", {}).get("loader") == "feature_leave_one_domain_out":
+        return build_feature_lodo_loaders(config, repo_root, seed=seed)
 
     data_cfg = config["data"]
     train_cfg = config["train"]
@@ -591,6 +791,15 @@ def build_feature_loaders(config, repo_root, seed=42):
     raw_rows = {"train": [], "val": [], "test": []}
     per_batch = {}
     feature_names = None
+    label_provenance = {}
+
+    def load_payloads(paths):
+        payloads = [load_feature_file(path, config) for path in paths]
+        for payload in payloads:
+            if payload.get("label_provenance") is not None:
+                label_provenance[str(payload["battery_id"])] = payload["label_provenance"]
+        return payloads
+
     if dataset_id == "smarthealth_features":
         # v2 protocol: choose test logical sequences condition-by-condition,
         # then pool *all* development cycles in the family before one seed-420
@@ -609,10 +818,10 @@ def build_feature_loaders(config, repo_root, seed=42):
                 files, test_batteries=configured_test_batteries
             )
             pool = build_adjacent_first_samples(
-                [load_feature_file(path, config) for path in train_val_files]
+                load_payloads(train_val_files)
             )
             test_rows = build_adjacent_first_samples(
-                [load_feature_file(path, config) for path in test_files]
+                load_payloads(test_files)
             )
             development_pool.extend(pool)
             all_test_rows.extend(test_rows)
@@ -654,8 +863,8 @@ def build_feature_loaders(config, repo_root, seed=42):
             train_val_files, test_files = split_feature_files_by_battery(
                 files, test_batteries=configured_test_batteries
             )
-            pool = build_adjacent_first_samples([load_feature_file(path, config) for path in train_val_files])
-            test_rows = build_adjacent_first_samples([load_feature_file(path, config) for path in test_files])
+            pool = build_adjacent_first_samples(load_payloads(train_val_files))
+            test_rows = build_adjacent_first_samples(load_payloads(test_files))
             permutation = np.random.RandomState(
                 development_protocol["random_state"]
             ).permutation(len(pool))
@@ -682,9 +891,20 @@ def build_feature_loaders(config, repo_root, seed=42):
                 "test_batteries": sorted({row["battery_id"] for row in test_rows}),
             }
 
-    normalizer = fit_feature_minmax(raw_rows["train"] + raw_rows["val"], eps=float(data_cfg.get("normalization_eps", 1e-8)))
+    normalizer_override = (
+        config.get("feature_normalizer_override")
+        or data_cfg.get("feature_normalizer_override")
+    )
+    if normalizer_override is None:
+        normalizer = fit_feature_minmax(
+            raw_rows["train"] + raw_rows["val"],
+            eps=float(data_cfg.get("normalization_eps", 1e-8)),
+        )
+        normalizer["fit_scope"] = "pooled_non_test_train_val_cycles"
+    else:
+        normalizer = copy.deepcopy(normalizer_override)
+        normalizer["fit_scope"] = "source_domains_train_val_only"
     normalizer["feature_names"] = feature_names
-    normalizer["fit_scope"] = "pooled_non_test_train_val_cycles"
     normalizer["test_statistics_used"] = False
     rows = {name: apply_feature_minmax(values, normalizer) for name, values in raw_rows.items()}
     debug_n = int(config.get("debug", {}).get("debug_num_samples", 0) or 0)
@@ -725,6 +945,14 @@ def build_feature_loaders(config, repo_root, seed=42):
         "invalid_cycle_policy": data_cfg.get(
             "invalid_cycle_policy", "source_native_all_column_3sigma"
         ),
+        "label": {
+            "label_mode": BOL_LABEL_MODE if is_bol_label_mode(config) else "rated_relative",
+            "label_field": "soh_bol" if is_bol_label_mode(config) else "soh",
+            "reference_rule": BOL_RULE_VERSION if is_bol_label_mode(config) else None,
+            "reference_provenance": label_provenance,
+            "q_ref_is_model_input": False,
+            "q_ref_in_normalization": False,
+        },
         "train_val_battery_overlap_expected": development_protocol[
             "train_val_battery_overlap_expected"
         ],

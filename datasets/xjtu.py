@@ -118,6 +118,11 @@ def read_xjtu_file(path, nominal_capacity=2.0, label_scale_mode="auto_capacity_t
                 "temperature": temperature,
                 "soh": float(soh),
                 "soh_raw": raw_soh,
+                # XJTU names this Ah-like source capacity field ``SOH``.
+                # Preserve it for Paper-v2 Q_ref construction; the historical
+                # normalized ``soh`` value remains unchanged.
+                "SOH": raw_soh,
+                "source_capacity_field": "SOH",
                 "soh_scale_factor": float(scale_factor),
                 "soh_scale_mode": resolved_mode,
                 "nominal_capacity": float(nominal_capacity),
@@ -208,6 +213,7 @@ class UnifiedCCCVSampleDataset(Dataset):
         self.use_time = bool(self.data_config.get("use_real_time", True))
         self.use_temperature = bool(self.data_config.get("use_temperature", True))
         self.use_t0 = bool(self.data_config.get("use_t0_temperature_meta", True))
+        self.label_mode = str(self.data_config.get("label_mode", "rated_relative"))
         self.temperature_reference_c = float(self.data_config.get("temperature_reference_c", 25.0))
         self.temperature_scale_c = float(self.data_config.get("temperature_scale_c", 20.0))
         self.temperature_delta_scale_c = float(self.data_config.get("temperature_delta_scale_c", 10.0))
@@ -228,7 +234,17 @@ class UnifiedCCCVSampleDataset(Dataset):
             raise ValueError(f"No usable XJTU samples for split {split_name!r}: {dict(self.skipped)}")
 
     def _make_sample(self, record):
-        if not np.isfinite(record["soh"]) or not np.isfinite(record["soh_raw"]):
+        label_value = (
+            record.get("soh_bol")
+            if self.label_mode == "bol_peak_relative"
+            else record.get("soh")
+        )
+        if label_value is None:
+            raise ValueError(
+                "label_mode='bol_peak_relative' requires record['soh_bol']; "
+                "apply the shared BOL label transformation in the loader first."
+            )
+        if not np.isfinite(label_value) or not np.isfinite(record["soh_raw"]):
             self.skipped["nonfinite_label"] += 1
             return None
         segments = np.asarray(record["segment"], dtype=object)
@@ -291,7 +307,7 @@ class UnifiedCCCVSampleDataset(Dataset):
             "cc_temperature": cc["temperature"],
             "cv_temperature": cv["temperature"],
             "t0_temperature_norm": t0,
-            "soh": np.asarray([record["soh"]], dtype=np.float32),
+            "soh": np.asarray([label_value], dtype=np.float32),
             "soh_raw": float(record["soh_raw"]),
             "cycle_life_norm_target": np.asarray([cycle_norm], dtype=np.float32),
             "battery_id": battery_id,
@@ -302,6 +318,9 @@ class UnifiedCCCVSampleDataset(Dataset):
             "cycle_id": int(record["cycle_id"]),
             "split": self.split_name,
         }
+        if self.label_mode == "bol_peak_relative":
+            sample["soh_bol"] = np.asarray([label_value], dtype=np.float32)
+            sample["soh_label_mode"] = "bol_peak_relative"
         return sample
 
     def _phase(self, record, mask, target_len, phase, time_zero, temperature_zero):
@@ -378,4 +397,7 @@ class UnifiedCCCVSampleDataset(Dataset):
             "cycle_id": sample["cycle_id"],
             "split": sample["split"],
         }
+        if "soh_bol" in sample:
+            output["soh_bol"] = torch.from_numpy(sample["soh_bol"])
+            output["soh_label_mode"] = sample["soh_label_mode"]
         return output

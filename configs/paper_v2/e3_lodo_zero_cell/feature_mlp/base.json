@@ -1,0 +1,59 @@
+{
+  "status": "interface",
+  "base_config": "../../common/bol_soh_base.json",
+  "experiment": {
+    "name": "E3_LODO_ZeroCell_FeatureMLP_BOL_interface",
+    "task": "paper_v2_e3_lodo_zero_cell_feature_mlp",
+    "loader": "feature_leave_one_domain_out",
+    "domain_ids": [
+      "xjtu",
+      "mit",
+      "smarthealth_lishen40",
+      "smarthealth_catl280",
+      "smarthealth_eve280"
+    ],
+    "label_mode": "bol_peak_relative"
+  },
+  "output": {
+    "experiment_id": "e3_lodo_zero_cell",
+    "model_id": "FeatureMLP-BOL",
+    "data_id": "feature_lodo_zero_cell_interface"
+  },
+  "data": {
+    "type": "stat_features",
+    "label_mode": "bol_peak_relative",
+    "label_field": "soh_bol",
+    "feature_target_mode": "bol_peak_relative",
+    "bol_reference_rule": "bol_peak_mean_top5_first100_v1",
+    "cycle_index_used_as_model_input": false,
+    "q_ref_is_model_input": false,
+    "q_ref_in_normalization": false,
+    "data_roots": {
+      "xjtu": "UnifiedRawSOH/datasets/XJTU_features",
+      "mit": "UnifiedRawSOH/datasets/MIT_features",
+      "smarthealth_lishen40": "UnifiedRawSOH/datasets/SmartHealth_features",
+      "smarthealth_catl280": "UnifiedRawSOH/datasets/SmartHealth_features",
+      "smarthealth_eve280": "UnifiedRawSOH/datasets/SmartHealth_features"
+    },
+    "split_files": {
+      "xjtu": "UnifiedRawSOH/splits/xjtu/paper_v1_mixed_split.json",
+      "mit": "UnifiedRawSOH/splits/mit/mit_paper_physical124_v2_split.json",
+      "smarthealth_lishen40": "UnifiedRawSOH/splits/smarthealth/smarthealth_lishen40_cell_split.json",
+      "smarthealth_catl280": "UnifiedRawSOH/splits/smarthealth/smarthealth_catl280_cell_split.json",
+      "smarthealth_eve280": "UnifiedRawSOH/splits/smarthealth/smarthealth_eve280_cell_split.json"
+    },
+    "nominal_capacities": {
+      "xjtu": 2,
+      "mit": 1.1,
+      "smarthealth_lishen40": 40,
+      "smarthealth_catl280": 280,
+      "smarthealth_eve280": 280
+    }
+  },
+  "reusability": {
+    "protocol": "leave_one_domain_out",
+    "evaluation": "zero_shot",
+    "target_train_and_validation_usage": "forbidden",
+    "source_test_usage": "forbidden"
+  }
+}

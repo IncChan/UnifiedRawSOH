@@ -474,6 +474,9 @@ def read_smarthealth_raw_file(
                 "soh_scale_factor": factor,
                 "soh_scale_mode": mode,
                 "label_capacity_ah": label_capacity,
+                # Keep both spellings: the canonical CSV uses Ah, while the
+                # Python record contract historically used lower-case ``ah``.
+                "label_capacity_Ah": label_capacity,
                 "exported_soh": float(values[0]),
                 "nominal_capacity": float(nominal_capacity),
                 "label_source": str(cycle_provenance[cycle]["label_source"]),
