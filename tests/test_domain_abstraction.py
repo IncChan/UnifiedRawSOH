@@ -34,6 +34,7 @@ from UnifiedRawSOH.preprocess.smarthealth_common import (  # noqa: E402
     SourceIdentity,
     assign_chronological_cycle_ids,
     candidate_from_points,
+    _calibration_reason,
     resolve_duplicate_candidates,
     source_cycle_duration_hours,
     source_absolute_time,
@@ -338,6 +339,99 @@ class DomainAbstractionTest(unittest.TestCase):
     def test_smarthealth_source_cycle_duration_is_in_hours(self):
         start = datetime(2022, 1, 1)
         self.assertEqual(source_cycle_duration_hours(start, start + timedelta(hours=25)), 25.0)
+
+    def test_smarthealth_partial_dod_accepts_cc_without_lower_endpoint(self):
+        start = datetime(2022, 1, 1)
+        identity = SourceIdentity(
+            path=Path("/source/chunk.csv"),
+            relative_path="LISHEN/condition/cell-1C-60%DOD-1.csv",
+            config=LISHEN40_CONFIG,
+            source_series="cell-1C-60%DOD",
+            source_serial="cell",
+            condition="1C-60%DOD",
+            dod_percent=60,
+            chunk_id=1,
+            logical_sequence_id="smarthealth_lishen40__cell__1c_60_dod",
+            file_size_bytes=1,
+            file_mtime_ns=1,
+        )
+
+        def point(index, step_type, time_text, absolute_time, current, voltage, discharge):
+            return Point(
+                source_row_index=index,
+                cycle=1,
+                step_id="1" if step_type == "恒流恒压充电" else "2",
+                step_type=step_type,
+                time_text=time_text,
+                absolute_time=absolute_time,
+                current_a=current,
+                voltage_v=voltage,
+                charge_capacity_ah=0.0,
+                discharge_capacity_ah=discharge,
+                temperature_c=25.0,
+            )
+
+        points = [
+            point(0, "恒流恒压充电", "00:00:00", start, 40.0, 3.50, 0.0),
+            point(1, "恒流恒压充电", "00:00:01", start + timedelta(seconds=1), 40.0, 3.55, 0.0),
+            point(2, "恒流恒压充电", "00:00:02", start + timedelta(seconds=2), 40.0, 3.58, 0.0),
+            point(3, "恒流恒压充电", "00:00:03", start + timedelta(seconds=3), 10.08, 3.60, 0.0),
+            point(4, "恒流恒压充电", "00:00:04", start + timedelta(seconds=4), 2.0, 3.60, 0.0),
+            point(5, "恒流放电", "00:10:00", start + timedelta(minutes=10), -40.0, 3.30, 0.0),
+            point(6, "恒流放电", "00:10:01", start + timedelta(minutes=10, seconds=1), -40.0, 3.20, 40.0),
+        ]
+        args = SimpleNamespace(
+            min_cc_points=2,
+            min_cv_points=2,
+            min_selected_cc_points=2,
+            min_selected_cv_points=2,
+            cc_reference_fraction=0.2,
+            cc_reference_min_points=2,
+            cc_reference_quantile=0.9,
+            cv_taper_fraction=0.01,
+            cv_persistence_points=2,
+            cv_voltage_tolerance_v=0.02,
+            max_source_cycle_duration_hours=24.0,
+        )
+
+        candidate = candidate_from_points(identity, 1, points, True, args)
+
+        self.assertTrue(candidate.candidate_eligible)
+        self.assertFalse(candidate.phase.cc_window_complete)
+        self.assertTrue(candidate.phase.cc_window_accepted)
+        self.assertIn("partial_dod_cc_lower_coverage_not_required", candidate.candidate_eligibility_reason)
+
+    def test_smarthealth_calibration_does_not_require_model_window_eligibility(self):
+        identity = SourceIdentity(
+            path=Path("/source/chunk.csv"),
+            relative_path="LISHEN/condition/cell-1C-60%DOD-1.csv",
+            config=LISHEN40_CONFIG,
+            source_series="cell-1C-60%DOD",
+            source_serial="cell",
+            condition="1C-60%DOD",
+            dod_percent=60,
+            chunk_id=1,
+            logical_sequence_id="smarthealth_lishen40__cell__1c_60_dod",
+            file_size_bytes=1,
+            file_mtime_ns=1,
+        )
+        candidate = CycleCandidate(
+            identity=identity,
+            source_cycle=1,
+            source_absolute_start_time=datetime(2022, 1, 1),
+            source_absolute_end_time=datetime(2022, 1, 1, 1),
+            source_rows=10,
+            source_temperature_column_present=True,
+            phase=PhaseResult(status="no_persistent_taper", reason="no_persistent_taper"),
+            cycle_discharge_capacity_ah=39.0,
+            candidate_eligible=False,
+            candidate_eligibility_reason="incomplete_selected_cc_voltage_window",
+        )
+
+        self.assertEqual(
+            _calibration_reason(candidate),
+            "periodic_full_capacity_discharge_threshold",
+        )
 
     def test_smarthealth_rejects_source_cycle_longer_than_duration_limit(self):
         start = datetime(2022, 1, 1)

@@ -26,9 +26,9 @@ source-cycle numbers.  The source columns include cycle, step number/type,
 time, current, voltage, charge/discharge capacity, and usually temp1_1.
 EVE's first chunk for each logical series lacks temp1_1.
 
-## Canonical v3 policy
+## Canonical v5 policy
 
-The v3 implementation has one RAW entry point and one FEATURE entry point per
+The v5 implementation has one RAW entry point and one FEATURE entry point per
 battery family. The shared launcher can run all three sequentially, but never
 mixes families in one preprocessing job. `smarthealth_common.py` supplies only
 shared parsing and audit rules.
@@ -38,9 +38,15 @@ The source's combined `恒流恒压充电` event is handled in two separate step
 1. infer the CC→CV boundary as the first persistent 1% current taper occurring
    within 0.02 V of the selected charge event's voltage maximum;
 2. select model points only from the inferred partitions: CC `3.45–3.58 V`
-   and CV `0.25C–0.05C`, where `C=abs(current_A)/nominal_capacity_Ah`.
+   and CV `0.25C–0.05C`, where `C=abs(current_A)/nominal_capacity_Ah`. For
+   `100%DOD`, the selected CC points must cover both voltage endpoints. For
+   partial-DOD conditions, the source charge can legitimately begin above
+   3.45 V, so lower-endpoint coverage is recorded but is not required; the
+   selected CC trace must still reach 3.58 V and contain the minimum point
+   count. The audit distinguishes physical `cc_window_complete` from policy
+   `cc_window_accepted`.
 
-`3.58 V` is the v3 SmartHealth CC upper bound. A representative read-only
+`3.58 V` is the v5 SmartHealth CC upper bound. A representative read-only
 audit found stable CC coverage through 3.58 V across LISHEN/CATL/EVE and their
 sampled DOD/C-rate conditions; 3.60 V was often already the taper transition
 or was not stably reached before it. The nominal 3.65 V cutoff is not used as
@@ -63,10 +69,12 @@ never imputed or exported when no valid duplicate exists.
 Capacity labels are calibration-based: the principal discharge capacity of
 reliable, periodic full-capacity calibrations supplies direct labels, while
 normal cycles are linearly interpolated only between bracketing reliable
-calibrations. `Q_ref=median(first three)` remains audit provenance, but the
+calibrations. Calibration eligibility is independent of model CC/CV eligibility,
+so a valid full-capacity discharge can supply a label even when the paired
+high-rate/partial-DOD charge trace is not a model input. `Q_ref=median(first three)` remains audit provenance, but the
 Paper experiment target is `label_capacity_Ah / fixed nominal capacity`
 (40 Ah for LISHEN; 280 Ah for CATL/EVE), matching XJTU/MIT. There is no
-leading/trailing extrapolation, RUL, or EOL in v3.
+leading/trailing extrapolation, RUL, or EOL in v5.
 
 For every condition, exactly three eligible logical sequences are required.
 `smarthealth_condition_cell_split_2development_1test_v3` sorts the stable

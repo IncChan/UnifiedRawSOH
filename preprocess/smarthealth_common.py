@@ -34,10 +34,12 @@ import numpy as np
 
 
 SOURCE_ENCODING = "gb18030"
-# v4 retains v3's absolute-time chronology, and additionally reconciles an
-# overlapping source-cycle that was copied into adjacent numbered chunks.
-# Every canonical cycle still retains the local source ``循环号`` as provenance.
-POLICY_VERSION = "smarthealth_cccv_calibration_v4"
+# v5 retains v4's absolute-time chronology and overlap reconciliation. It also
+# separates model-window eligibility from calibration eligibility: partial-DOD
+# charge traces may start above the common CC lower bound, while a valid
+# full-capacity discharge can calibrate labels even when its charge trace is
+# not a model input.
+POLICY_VERSION = "smarthealth_cccv_calibration_v5"
 SPLIT_STRATEGY_VERSION = "smarthealth_condition_cell_split_2development_1test_v3"
 DEFAULT_MAX_SOURCE_CYCLE_DURATION_HOURS = 24.0
 CHARGE_STEP = "恒流恒压充电"
@@ -279,6 +281,7 @@ CYCLE_PROVENANCE_COLUMNS = [
     "cc_window_lower_covered",
     "cc_window_upper_covered",
     "cc_window_complete",
+    "cc_window_accepted",
     "cv_window_high_covered",
     "cv_window_low_covered",
     "cv_window_complete",
@@ -436,6 +439,11 @@ class PhaseResult:
     cc_window_lower_covered: bool = False
     cc_window_upper_covered: bool = False
     cc_window_complete: bool = False
+    # ``cc_window_complete`` records physical coverage of both configured
+    # endpoints. ``cc_window_accepted`` records the protocol decision: a
+    # partial-DOD cycle may be accepted without the lower endpoint when it has
+    # enough selected CC points and reaches the upper endpoint.
+    cc_window_accepted: bool = False
     cv_window_high_covered: bool = False
     cv_window_low_covered: bool = False
     cv_window_complete: bool = False
@@ -907,6 +915,29 @@ def select_model_windows(
     )
 
 
+def model_cc_window_accepted(
+    phase: PhaseResult, dod_percent: int, args: argparse.Namespace
+) -> bool:
+    """Return whether the selected CC trace is usable as a model input.
+
+    A full-DOD charge is expected to cover the common 3.45--3.58 V interval.
+    In a partial-DOD protocol, however, the source charge legitimately starts
+    at a higher state of charge, so the lower endpoint is not observable. We
+    still require the configured minimum number of points and upper-endpoint
+    coverage; this does not admit empty or short CC fragments.
+    """
+
+    if phase.status != "ok":
+        return False
+    if phase.cc_window_complete:
+        return True
+    return bool(
+        dod_percent < 100
+        and phase.selected_cc_points >= args.min_selected_cc_points
+        and phase.cc_window_upper_covered
+    )
+
+
 def principal_discharge_capacity(points: Sequence[Point]) -> float:
     """Use the largest discharge-capacity span, not charge throughput, as Q."""
 
@@ -935,6 +966,9 @@ def candidate_from_points(
 ) -> CycleCandidate:
     phase = split_combined_charge(points, args)
     select_model_windows(phase, identity.config, args)
+    phase.cc_window_accepted = model_cc_window_accepted(
+        phase, identity.dod_percent, args
+    )
     discharge_capacity = principal_discharge_capacity(points)
     source_times = [point.absolute_time for point in points]
     if not source_times:
@@ -955,7 +989,7 @@ def candidate_from_points(
     if phase.status != "ok":
         reasons.append(phase.reason)
     else:
-        if not phase.cc_window_complete:
+        if not phase.cc_window_accepted:
             reasons.append("incomplete_selected_cc_voltage_window")
         if not phase.cv_window_complete:
             reasons.append("incomplete_selected_cv_c_rate_window")
@@ -973,7 +1007,15 @@ def candidate_from_points(
         phase=phase,
         cycle_discharge_capacity_ah=discharge_capacity,
         candidate_eligible=not reasons,
-        candidate_eligibility_reason=";".join(reasons) if reasons else "phase_window_temperature_and_discharge_valid",
+        candidate_eligibility_reason=(
+            ";".join(reasons)
+            if reasons
+            else (
+                "phase_window_temperature_and_discharge_valid_partial_dod_cc_lower_coverage_not_required"
+                if not phase.cc_window_complete
+                else "phase_window_temperature_and_discharge_valid"
+            )
+        ),
     )
     # The first streaming pass retains only audit summaries.  Pass two re-reads
     # the selected source candidate and verifies these decisions before export.
@@ -1425,10 +1467,29 @@ def canonical_cycle_id(candidate: CycleCandidate) -> int:
     return int(candidate.canonical_cycle)
 
 
-def _calibration_reason(candidate: CycleCandidate) -> str:
-    """Recognize only source-supported, full-capacity discharge calibrations."""
+def _calibration_reason(
+    candidate: CycleCandidate,
+    max_source_cycle_duration_hours: float = DEFAULT_MAX_SOURCE_CYCLE_DURATION_HOURS,
+) -> str:
+    """Recognize source-supported full-capacity discharge calibrations.
 
-    if not candidate.candidate_eligible:
+    Calibration eligibility is intentionally independent of model CC/CV
+    eligibility. A source cycle may contain a valid full-capacity discharge
+    after a partial-DOD/high-rate charge whose CC trace does not cover 3.45 V.
+    """
+
+    if (
+        source_cycle_duration_hours(
+            candidate.source_absolute_start_time,
+            candidate.source_absolute_end_time,
+        )
+        > max_source_cycle_duration_hours
+    ):
+        return ""
+    if (
+        not math.isfinite(candidate.cycle_discharge_capacity_ah)
+        or candidate.cycle_discharge_capacity_ah <= 0
+    ):
         return ""
     identity = candidate.identity
     if identity.dod_percent == 100:
@@ -1442,6 +1503,7 @@ def _calibration_reason(candidate: CycleCandidate) -> str:
 def label_calibration_soh(
     selected: Mapping[tuple[str, int], CycleCandidate],
     cells: Mapping[str, CellSummary],
+    max_source_cycle_duration_hours: float = DEFAULT_MAX_SOURCE_CYCLE_DURATION_HOURS,
 ) -> None:
     """Attach calibration capacities and fixed-nominal SOH without extrapolation.
 
@@ -1459,7 +1521,7 @@ def label_calibration_soh(
         series = sorted(by_cell.get(logical_sequence_id, []), key=chronological_candidate_key)
         direct: list[CycleCandidate] = []
         for candidate in series:
-            reason = _calibration_reason(candidate)
+            reason = _calibration_reason(candidate, max_source_cycle_duration_hours)
             candidate.calibration_reason = reason
             candidate.calibration_direct_candidate = bool(reason)
             if reason:
@@ -1753,10 +1815,14 @@ def prepare_domain_output(
 
 
 def _selected_phase_for_export(
-    points: Sequence[Point], config: DomainConfig, args: argparse.Namespace
+    points: Sequence[Point],
+    config: DomainConfig,
+    dod_percent: int,
+    args: argparse.Namespace,
 ) -> PhaseResult:
     phase = split_combined_charge(points, args)
     select_model_windows(phase, config, args)
+    phase.cc_window_accepted = model_cc_window_accepted(phase, dod_percent, args)
     return phase
 
 
@@ -1770,6 +1836,7 @@ def _same_phase_summary(left: PhaseResult, right: PhaseResult) -> bool:
         and left.selected_cv_points == right.selected_cv_points
         and left.cv_start_source_row_index == right.cv_start_source_row_index
         and left.cc_window_complete == right.cc_window_complete
+        and left.cc_window_accepted == right.cc_window_accepted
         and left.cv_window_complete == right.cv_window_complete
         and left.temperature_complete == right.temperature_complete
     )
@@ -1901,7 +1968,9 @@ def export_one_logical_sequence(
                             "Non-reproducible source time-interval identity in "
                             f"{identity.relative_path}, source cycle {source_cycle_id}"
                         )
-                    phase = _selected_phase_for_export(points, identity.config, args)
+                    phase = _selected_phase_for_export(
+                        points, identity.config, candidate.identity.dod_percent, args
+                    )
                     if not _same_phase_summary(candidate.phase, phase):
                         raise RuntimeError(
                             "Non-reproducible CC/CV decision in "
@@ -2097,6 +2166,7 @@ def candidate_provenance(candidate: CycleCandidate) -> dict[str, object]:
         "cc_window_lower_covered": phase.cc_window_lower_covered,
         "cc_window_upper_covered": phase.cc_window_upper_covered,
         "cc_window_complete": phase.cc_window_complete,
+        "cc_window_accepted": phase.cc_window_accepted,
         "cv_window_high_covered": phase.cv_window_high_covered,
         "cv_window_low_covered": phase.cv_window_low_covered,
         "cv_window_complete": phase.cv_window_complete,
@@ -2199,6 +2269,7 @@ def build_raw_report(
             "boundary_success": sum(candidate.phase.status == "ok" for candidate in condition_selected),
             "boundary_failure": sum(candidate.phase.status != "ok" for candidate in condition_selected),
             "cc_window_coverage": sum(candidate.phase.cc_window_complete for candidate in condition_selected),
+            "cc_window_accepted_coverage": sum(candidate.phase.cc_window_accepted for candidate in condition_selected),
             "cv_window_coverage": sum(candidate.phase.cv_window_complete for candidate in condition_selected),
             "temperature_exclusions": sum(
                 candidate.selected_candidate
@@ -2230,7 +2301,7 @@ def build_raw_report(
             ),
         }
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "strategy_version": POLICY_VERSION,
         "preprocessing_strategy_version": POLICY_VERSION,
         "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -2261,6 +2332,7 @@ def build_raw_report(
         "boundary_detection_success": sum(candidate.phase.status == "ok" for candidate in selected),
         "boundary_detection_failure": sum(candidate.phase.status != "ok" for candidate in selected),
         "cc_window_coverage": sum(candidate.phase.cc_window_complete for candidate in selected),
+        "cc_window_accepted_coverage": sum(candidate.phase.cc_window_accepted for candidate in selected),
         "cv_window_coverage": sum(candidate.phase.cv_window_complete for candidate in selected),
         "temperature_exclusions": sum(
             candidate.selected_candidate and "temperature" in candidate.candidate_eligibility_reason
@@ -2289,6 +2361,11 @@ def build_raw_report(
             "source_charge_step": CHARGE_STEP,
             "boundary": "first persistent current taper near source charge-voltage maximum",
             "cc_window_v": [config.cc_voltage_low_v, config.cc_voltage_high_v],
+            "cc_window_acceptance": (
+                "100%DOD requires lower and upper CC coverage; partial-DOD accepts "
+                "the observable CC interval when it has the minimum selected-point "
+                "count and reaches the upper endpoint"
+            ),
             "cv_window_c_rate": [config.cv_c_rate_low, config.cv_c_rate_high],
             "current_normalization": "abs(current_A) / nominal_capacity_Ah only",
             "temperature": "all selected CC/CV points must have finite source temperature; no imputation",
@@ -2299,7 +2376,7 @@ def build_raw_report(
             "direct": "calibration_direct",
             "interpolation": "linear only between direct calibration cycles; no leading/trailing extrapolation",
             "excluded": "partial-DOD discharge capacity / nominal capacity is never an SOH label",
-            "rul_eol": "not generated in v3",
+            "rul_eol": "not generated in v5",
         },
         "split_file": str(split_path),
     }
@@ -2423,7 +2500,11 @@ def run_raw_preprocessing(config: DomainConfig, argv: Sequence[str] | None = Non
     candidates, cells, source_audit = scan_sources(identities, args)
     selected_events = resolve_duplicate_candidates(candidates, cells)
     selected = assign_chronological_cycle_ids(selected_events, candidates)
-    label_calibration_soh(selected, cells)
+    label_calibration_soh(
+        selected,
+        cells,
+        max_source_cycle_duration_hours=args.max_source_cycle_duration_hours,
+    )
     split_payload = assign_split_roles(config, cells, signature)
     apply_split_roles_to_candidates(
         (candidate for per_cycle in candidates.values() for candidate in per_cycle),
@@ -2486,7 +2567,7 @@ def run_raw_preprocessing(config: DomainConfig, argv: Sequence[str] | None = Non
     write_json(
         raw_domain_directory / raw_manifest_name,
         {
-            "schema_version": 4,
+            "schema_version": 5,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -2916,7 +2997,7 @@ def run_feature_extraction(config: DomainConfig, argv: Sequence[str] | None = No
     write_json(
         feature_domain_directory / pointer_name,
         {
-            "schema_version": 4,
+            "schema_version": 5,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -2937,7 +3018,7 @@ def run_feature_extraction(config: DomainConfig, argv: Sequence[str] | None = No
     write_json(
         feature_domain_directory / report_name,
         {
-            "schema_version": 4,
+            "schema_version": 5,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,

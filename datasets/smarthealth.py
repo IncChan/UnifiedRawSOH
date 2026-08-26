@@ -1,7 +1,7 @@
-"""SmartHealth source audit and v3 time-ordered canonical raw-cycle adapter.
+"""SmartHealth source audit and v5 time-ordered canonical raw-cycle adapter.
 
 The GB18030 source has a combined ``恒流恒压充电`` step and is audit-only when
-supplied directly.  The three family-specific v3 RAW preprocessors write the
+supplied directly.  The three family-specific v5 RAW preprocessors write the
 validated boundary, selected CC/CV windows, calibration-derived capacity, and
 cell/cycle provenance that this adapter consumes.
 """
@@ -42,7 +42,7 @@ SMARTHEALTH_NOMINAL_CAPACITY_AH = {
     "smarthealth_catl280": 280.0,
     "smarthealth_eve280": 280.0,
 }
-SMARTHEALTH_CANONICAL_POLICY_VERSION = "smarthealth_cccv_calibration_v4"
+SMARTHEALTH_CANONICAL_POLICY_VERSION = "smarthealth_cccv_calibration_v5"
 SMARTHEALTH_CC_VOLTAGE_RANGE = (3.45, 3.58)
 SMARTHEALTH_CV_C_RATE_RANGE = (0.05, 0.25)
 SMARTHEALTH_CV_SELECTION_TOLERANCE_C = 0.002

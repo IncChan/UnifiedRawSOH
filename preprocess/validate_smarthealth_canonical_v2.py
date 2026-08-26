@@ -14,6 +14,7 @@ import argparse
 import csv
 import json
 import math
+import re
 import sys
 from collections import Counter
 from datetime import datetime
@@ -100,6 +101,34 @@ def required_fields(path: Path, actual: Iterable[str] | None, required: Iterable
         raise ValidationError(f"{path}: missing required columns {missing}")
 
 
+def _true(row: dict[str, str], name: str) -> bool:
+    return str(row.get(name, "")).strip().lower() in {"true", "1"}
+
+
+def validate_exported_cc_window(row: dict[str, str], path: Path) -> None:
+    """Validate the v5 distinction between physical and accepted CC coverage."""
+
+    if not _true(row, "cc_window_accepted"):
+        raise ValidationError(f"{path}: exported cycle lacks cc_window_accepted")
+    if _true(row, "cc_window_complete"):
+        return
+    match = re.search(r"-(\d+)%DOD$", str(row.get("condition", "")).strip(), re.IGNORECASE)
+    if match is None or int(match.group(1)) >= 100:
+        raise ValidationError(
+            f"{path}: incomplete CC coverage is only allowed for partial-DOD exports"
+        )
+    if not _true(row, "cc_window_upper_covered"):
+        raise ValidationError(f"{path}: accepted partial-DOD CC window lacks upper coverage")
+    try:
+        selected_cc_points = int(float(row["selected_cc_points"]))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValidationError(f"{path}: invalid selected_cc_points") from exc
+    if selected_cc_points < 10:
+        raise ValidationError(
+            f"{path}: accepted partial-DOD CC window has only {selected_cc_points} selected points"
+        )
+
+
 def load_manifest(config: DomainConfig, raw_root: Path) -> tuple[dict, Path]:
     raw_directory = raw_root / config.domain_id
     path = raw_directory / "SMARTHEALTH_CANONICAL_MANIFEST.json"
@@ -142,8 +171,13 @@ def load_exported_provenance(
                 "raw_rows_written",
                 "SOH",
                 "label_source",
-                "temperature_complete",
+                "condition",
+                "selected_cc_points",
+                "cc_window_lower_covered",
+                "cc_window_upper_covered",
                 "cc_window_complete",
+                "cc_window_accepted",
+                "temperature_complete",
                 "cv_window_complete",
                 "split_role",
                 "split_status",
@@ -174,9 +208,10 @@ def load_exported_provenance(
             key = (logical_sequence_id, cycle)
             if key in expected:
                 raise ValidationError(f"{path}: duplicate selected/exported provenance {key}")
-            for boolean in ("temperature_complete", "cc_window_complete", "cv_window_complete"):
+            for boolean in ("temperature_complete", "cc_window_accepted", "cv_window_complete"):
                 if str(row[boolean]).lower() not in {"true", "1"}:
                     raise ValidationError(f"{path}: exported cycle lacks {boolean}: {key}")
+            validate_exported_cc_window(row, path)
             expected[key] = row
     for logical_sequence_id, events in selected_timeline.items():
         ordered = sorted(events)
