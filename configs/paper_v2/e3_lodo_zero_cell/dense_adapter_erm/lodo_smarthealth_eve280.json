@@ -1,0 +1,10 @@
+{
+  "status": "runnable",
+  "base_config": "./base.json",
+  "experiment": {
+    "name": "E3_LODO_ZeroCell_RawMambaV2_DenseAdapter_ERM_to_EVE",
+    "source_domain_ids": ["xjtu", "mit", "smarthealth_lishen40", "smarthealth_catl280"],
+    "target_domain_id": "smarthealth_eve280"
+  },
+  "output": {"data_id": "lodo_zero_cell_to_smarthealth_eve280"}
+}

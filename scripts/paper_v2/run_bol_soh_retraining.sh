@@ -32,6 +32,8 @@ PYTHON_BIN="${PYTHON_BIN:-$(${REPO_ROOT}/scripts/resolve_python_bin.sh)}"
 # SEEDS：选择随机种子，默认 42 52 62；只跑一个 seed 时写 SEEDS=42。
 # GPU_IDS：提供物理 GPU 编号，逗号或空格分隔；例如 GPU_IDS=3,7。
 # JOBS_PER_GPU：每张 GPU 同时运行的任务数。调试或显存紧张时建议设为 1。
+# 多 GPU 调度是动态的：任意一个 GPU 槽位释放后，都会立即领取下一组待运行实验，
+# 不需要等其它 GPU 的任务一起结束；该调度依赖 Bash 5.1+ 的 wait -n -p。
 #
 # DRY_RUN=1：只打印将要运行的任务，不启动训练；确认筛选范围后改为 0。
 # RESUME=1：跳过已经完整成功的 seed；失败任务仍会重跑。RESUME=0 强制重跑全部。
@@ -61,10 +63,10 @@ PYTHON_BIN="${PYTHON_BIN:-$(${REPO_ROOT}/scripts/resolve_python_bin.sh)}"
 # 注意：脚本设置 CUDA_VISIBLE_DEVICES=<GPU_IDS 中的物理编号> 后，训练进程
 # 只看到本地 cuda:0，因此 DEVICE_OVERRIDE 默认应保持 cuda:0，不要改成物理编号。
 
-STAGE="${STAGE:-all}"
-TARGET_SPEC="${TARGET_DOMAINS:-all}"
+STAGE="${STAGE:-all}" # all|e1_feature|e1_raw|e2_full|e3_lodo
+TARGET_SPEC="${TARGET_DOMAINS:-all}" # all|xjtu|mit|smarthealth_lishen40|smarthealth_catl280|smarthealth_eve280
 SEED_SPEC="${SEEDS:-42 52 62}"
-GPU_SPEC="${GPU_IDS:-7}"
+GPU_SPEC="${GPU_IDS:-3 7}"
 JOBS_PER_GPU="${JOBS_PER_GPU:-3}"
 DRY_RUN="${DRY_RUN:-0}"
 RESUME="${RESUME:-1}"
@@ -169,16 +171,14 @@ is_complete() {
   [[ -f "${run_dir}/completed.status" ]] && grep -q '^completed$' "${run_dir}/completed.status" && [[ -s "${run_dir}/test_metrics.json" ]] && [[ -s "${run_dir}/metrics_by_cell.csv" ]] && [[ -s "${run_dir}/metrics_by_group.csv" ]] && [[ -s "${run_dir}/metrics_by_domain.csv" ]]
 }
 
-preview_index=0
 for job_index in "${!JOB_CONFIG[@]}"; do
   for seed in "${SEED_LIST[@]}"; do
-    lane=$((preview_index % TOTAL_LANES)); gpu="${LANE_GPU[${lane}]}"; run_dir="${JOB_BATCH_ROOT[${job_index}]}/seed_${seed}"
+    run_dir="${JOB_BATCH_ROOT[${job_index}]}/seed_${seed}"
     if [[ "${RESUME}" == 1 ]] && is_complete "${run_dir}"; then
-      echo "[resume] stage=${JOB_STAGE[${job_index}]} domain=${JOB_DOMAIN[${job_index}]}; seed=${seed}; GPU=${gpu}; output=${run_dir}"
+      echo "[resume] stage=${JOB_STAGE[${job_index}]} domain=${JOB_DOMAIN[${job_index}]}; seed=${seed}; GPU=dynamic; output=${run_dir}"
     else
-      echo "[job] stage=${JOB_STAGE[${job_index}]}; domain/fold=${JOB_DOMAIN[${job_index}]}; seed=${seed}; GPU=${gpu}; config=${JOB_CONFIG[${job_index}]}; output=${run_dir}"
+      echo "[job] stage=${JOB_STAGE[${job_index}]}; domain/fold=${JOB_DOMAIN[${job_index}]}; seed=${seed}; GPU=dynamic; config=${JOB_CONFIG[${job_index}]}; output=${run_dir}"
     fi
-    preview_index=$((preview_index + 1))
   done
 done
 
@@ -217,26 +217,96 @@ run_one() {
   return "${code}"
 }
 
-declare -a LANE_PIDS=()
-for ((lane=0; lane<TOTAL_LANES; lane++)); do LANE_PIDS+=(""); done
 overall_status=0
-launch_index=0
+declare -a PENDING_JOB_INDEX=()
+declare -a PENDING_SEEDS=()
 for job_index in "${!JOB_CONFIG[@]}"; do
   for seed in "${SEED_LIST[@]}"; do
-    lane=$((launch_index % TOTAL_LANES)); gpu="${LANE_GPU[${lane}]}"; run_dir="${JOB_BATCH_ROOT[${job_index}]}/seed_${seed}"
-    if [[ "${RESUME}" == 1 ]] && is_complete "${run_dir}"; then launch_index=$((launch_index + 1)); continue; fi
-    if [[ -n "${LANE_PIDS[$lane]:-}" ]]; then
-      if ! wait "${LANE_PIDS[$lane]}"; then overall_status=1; fi
-      LANE_PIDS[$lane]=
+    run_dir="${JOB_BATCH_ROOT[${job_index}]}/seed_${seed}"
+    if [[ "${RESUME}" == 1 ]] && is_complete "${run_dir}"; then
+      continue
     fi
-    run_one "${job_index}" "${seed}" "${gpu}" &
-    LANE_PIDS[$lane]=$!
-    launch_index=$((launch_index + 1))
+    PENDING_JOB_INDEX+=("${job_index}")
+    PENDING_SEEDS+=("${seed}")
   done
 done
-for ((lane=0; lane<TOTAL_LANES; lane++)); do
-  if [[ -n "${LANE_PIDS[$lane]:-}" ]]; then if ! wait "${LANE_PIDS[$lane]}"; then overall_status=1; fi; fi
-done
+
+if (( ${#PENDING_JOB_INDEX[@]} > 0 )); then
+  # Bash 5.1+ 的 wait -n -p 会返回“刚刚结束的那个后台进程”的 PID。
+  # 因此某张 GPU 的一个任务结束后，可以立即复用该 GPU，而无需等待
+  # 其它 GPU 上仍在运行的任务；JOBS_PER_GPU 仍然限制每张 GPU 的并发数。
+  wait_help="$(help wait 2>/dev/null || true)"
+  if [[ "${wait_help}" != *"-p"* ]]; then
+    echo "需要 Bash 5.1+ 才能进行动态 GPU 调度（缺少 wait -n -p）。当前 Bash: ${BASH_VERSION}" >&2
+    exit 2
+  fi
+
+  declare -a LANE_PIDS=()
+  declare -A PID_LANE=()
+  for ((lane=0; lane<TOTAL_LANES; lane++)); do LANE_PIDS+=(""); done
+
+  pending_count=${#PENDING_JOB_INDEX[@]}
+  next_pending=0
+  active_jobs=0
+
+  while (( next_pending < pending_count || active_jobs > 0 )); do
+    # 先填满所有空闲槽位。每个槽位绑定一张 GPU，保证单卡并发上限不变。
+    while (( next_pending < pending_count && active_jobs < TOTAL_LANES )); do
+      free_lane=-1
+      for ((candidate=0; candidate<TOTAL_LANES; candidate++)); do
+        if [[ -z "${LANE_PIDS[$candidate]:-}" ]]; then
+          free_lane=${candidate}
+          break
+        fi
+      done
+
+      if (( free_lane < 0 )); then
+        echo "[scheduler-error] 没有找到空闲 GPU 槽位，但 active_jobs=${active_jobs}" >&2
+        overall_status=1
+        break
+      fi
+
+      job_index="${PENDING_JOB_INDEX[$next_pending]}"
+      seed="${PENDING_SEEDS[$next_pending]}"
+      gpu="${LANE_GPU[$free_lane]}"
+      run_one "${job_index}" "${seed}" "${gpu}" &
+      pid=$!
+      LANE_PIDS[$free_lane]="${pid}"
+      PID_LANE[$pid]="${free_lane}"
+      next_pending=$((next_pending + 1))
+      active_jobs=$((active_jobs + 1))
+    done
+
+    if (( active_jobs == 0 )); then
+      break
+    fi
+
+    # 等待任意一个任务结束，而不是等待当前 lane 的任务结束。
+    finished_pid=""
+    if wait -n -p finished_pid; then
+      :
+    else
+      overall_status=1
+    fi
+    finished_lane=""
+    if [[ -n "${finished_pid}" ]]; then
+      finished_lane="${PID_LANE[$finished_pid]:-}"
+    fi
+    if [[ -z "${finished_lane}" ]]; then
+      echo "[scheduler-error] 无法找到已结束进程 ${finished_pid} 对应的 GPU 槽位" >&2
+      overall_status=1
+      # 理论上不应发生；如果发生，仍等待剩余任务，避免留下孤儿进程。
+      for pid in "${!PID_LANE[@]}"; do
+        if ! wait "${pid}"; then overall_status=1; fi
+      done
+      break
+    fi
+
+    unset "PID_LANE[${finished_pid}]"
+    LANE_PIDS[$finished_lane]=
+    active_jobs=$((active_jobs - 1))
+  done
+fi
 
 if (( overall_status != 0 )); then
   echo "one or more Paper-v2 jobs failed; no aggregate summary was generated." >&2

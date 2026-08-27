@@ -65,6 +65,7 @@
   },
   "model": {
     "type": "PaperRawSOHModel",
+    "variant": "base",
     "backend": "mamba_ssm.Mamba",
     "input_dim": 4,
     "d_model": 32,
@@ -135,6 +136,9 @@
       "threshold": 1e-05,
       "min_lr": 1e-05
     }
+  },
+  "trainer": {
+    "variant": "erm"
   },
   "eval": {
     "metrics": [

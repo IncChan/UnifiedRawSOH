@@ -24,11 +24,16 @@ if str(PROJECT_ROOT) not in sys.path:
 from UnifiedRawSOH.datasets.loaders import _make_balanced_sampler, build_lodo_loaders
 from UnifiedRawSOH.datasets.soh_labels import (
     BOL_LABEL_MODE,
+    BOL_REFERENCE_SOURCE,
     BOL_RULE_VERSION,
     BOLReferenceError,
     apply_bol_relative_soh,
     build_bol_reference,
     build_bol_references,
+    frozen_smarthealth_bol_references,
+)
+from UnifiedRawSOH.preprocess.smarthealth_bol import (
+    build_frozen_smarthealth_bol_reference,
 )
 from UnifiedRawSOH.models.c5b_model import build_c5b_model
 from UnifiedRawSOH.models.baselines.pinn4soh_no_leak_onlyf import (
@@ -143,6 +148,21 @@ class PaperV2BOLTest(unittest.TestCase):
         self.assertEqual(reference["selected_cycle_ids"], [1, 2, 3, 101, 102])
         self.assertEqual(reference["candidate_count"], 5)
 
+    def test_smarthealth_expands_after_mad_rejects_one_of_first_five(self):
+        capacities = [42.0, 39.1, 39.0] + [80.0] * 97 + [38.9, 38.8, 38.7]
+        sources = (
+            ["calibration_direct"] * 3
+            + ["calibration_interpolated"] * 97
+            + ["calibration_direct"] * 3
+        )
+        reference = build_bol_reference(smarthealth_records(capacities, sources))
+        self.assertAlmostEqual(reference["Q_ref"], (39.1 + 39.0 + 38.9 + 38.8 + 38.7) / 5.0)
+        self.assertEqual(reference["candidate_count"], 6)
+        self.assertEqual(reference["valid_candidate_count_after_outlier_filter"], 5)
+        self.assertEqual(reference["reference_window_end_cycle"], 103)
+        self.assertTrue(reference["reference_window_expanded_after_mad"])
+        self.assertEqual([item["cycle_id"] for item in reference["rejected_outliers"]], [1])
+
     def test_mad_filter_failure_mentions_cell_id(self):
         with self.assertRaisesRegex(BOLReferenceError, "cell-outlier"):
             build_bol_reference(xjtu_records([1, 1, 1, 1, 100], "cell-outlier"))
@@ -166,6 +186,75 @@ class PaperV2BOLTest(unittest.TestCase):
             {row["cycle"]: row["soh_bol"] for row in raw_labeled},
             {row["cycle"]: row["soh_bol"] for row in feature_labeled},
         )
+
+    def test_preprocessing_reference_keeps_model_ineligible_direct_calibrations(self):
+        provenance = [
+            {
+                "cycle_id": cycle,
+                "capacity_Ah": capacity,
+                "calibration_direct": True,
+                "model_eligible": cycle >= 3,
+                "label_source": "calibration_direct" if cycle >= 3 else "",
+            }
+            for cycle, capacity in enumerate([40.0, 39.0, 38.0, 37.0, 36.0], start=1)
+        ]
+        reference = build_frozen_smarthealth_bol_reference(
+            provenance,
+            domain_id="smarthealth_lishen40",
+            cell_id="smart-a",
+        )
+        self.assertAlmostEqual(reference["Q_ref"], 38.0)
+        self.assertEqual(reference["selected_cycle_ids"], [1, 2, 3, 4, 5])
+        self.assertEqual(
+            reference["source_model_ineligible_direct_calibration_count"], 2
+        )
+        self.assertEqual(reference["reference_source"], BOL_REFERENCE_SOURCE)
+
+    def test_smarthealth_raw_and_feature_consume_same_frozen_reference(self):
+        def records():
+            return [
+                {
+                    "domain_id": "smarthealth_lishen40",
+                    "battery_id": "same-smart-cell",
+                    "cycle": cycle,
+                    "label_capacity_Ah": capacity,
+                    "label_source": "calibration_direct",
+                    "bol_q_ref_Ah": 40.0,
+                    "bol_q_ref_rule": BOL_RULE_VERSION,
+                    "bol_q_ref_source": BOL_REFERENCE_SOURCE,
+                }
+                for cycle, capacity in enumerate([40.0, 39.0, 38.0], start=1)
+            ]
+
+        raw_reference = frozen_smarthealth_bol_references(records())
+        feature_reference = frozen_smarthealth_bol_references(records())
+        raw_labeled = apply_bol_relative_soh(records(), raw_reference)
+        feature_labeled = apply_bol_relative_soh(records(), feature_reference)
+        self.assertEqual(raw_reference, feature_reference)
+        self.assertEqual(
+            [row["soh_bol"] for row in raw_labeled],
+            [row["soh_bol"] for row in feature_labeled],
+        )
+
+    def test_smarthealth_frozen_reference_is_fail_fast(self):
+        missing = smarthealth_records(
+            [40.0, 39.0, 38.0, 37.0, 36.0], ["calibration_direct"] * 5
+        )
+        with self.assertRaisesRegex(BOLReferenceError, "regenerate canonical RAW"):
+            frozen_smarthealth_bol_references(missing)
+
+        inconsistent = []
+        for index, row in enumerate(missing):
+            inconsistent.append(
+                {
+                    **row,
+                    "bol_q_ref_Ah": 40.0 if index == 0 else 39.0,
+                    "bol_q_ref_rule": BOL_RULE_VERSION,
+                    "bol_q_ref_source": BOL_REFERENCE_SOURCE,
+                }
+            )
+        with self.assertRaisesRegex(BOLReferenceError, "inconsistent"):
+            frozen_smarthealth_bol_references(inconsistent)
 
     def test_v1_config_remains_rated_and_outside_v2_namespace(self):
         v1 = load_config(V1_CONFIG)
@@ -293,7 +382,7 @@ class PaperV2BOLTest(unittest.TestCase):
                     self.assertFalse(config["model"]["use_predicted_cycle_for_soh"])
                     self.assertEqual(config["train"]["lambda_cycle"], 0.0)
 
-    def test_launcher_dry_run_assigns_gpu_lanes_and_writes_no_output(self):
+    def test_launcher_dry_run_lists_dynamic_gpu_jobs_and_writes_no_output(self):
         with tempfile.TemporaryDirectory() as directory:
             environment = dict(os.environ)
             environment.update(
@@ -318,9 +407,9 @@ class PaperV2BOLTest(unittest.TestCase):
                 text=True,
             )
             self.assertIn("maximum aggregate processes: 4", result.stdout)
-            self.assertIn("stage=e1_raw; domain/fold=xjtu; seed=42; GPU=0", result.stdout)
-            self.assertIn("stage=e1_raw; domain/fold=xjtu; seed=52; GPU=0", result.stdout)
-            self.assertIn("stage=e1_raw; domain/fold=xjtu; seed=62; GPU=1", result.stdout)
+            self.assertIn("stage=e1_raw; domain/fold=xjtu; seed=42; GPU=dynamic", result.stdout)
+            self.assertIn("stage=e1_raw; domain/fold=xjtu; seed=52; GPU=dynamic", result.stdout)
+            self.assertIn("stage=e1_raw; domain/fold=xjtu; seed=62; GPU=dynamic", result.stdout)
             self.assertIn("dry run complete", result.stdout)
             self.assertFalse((Path(directory) / "Paper-v2").exists())
 

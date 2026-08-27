@@ -37,6 +37,7 @@ from UnifiedRawSOH.datasets.soh_labels import (
     BOL_RULE_VERSION,
     apply_bol_relative_soh,
     build_bol_reference,
+    frozen_smarthealth_bol_references,
     is_bol_label_mode,
 )
 
@@ -270,9 +271,18 @@ def split_feature_files_by_battery(files, test_batteries=None):
 
 
 def delete_3sigma(frame, columns=None):
-    values = frame.replace([np.inf, -np.inf], np.nan).dropna().reset_index(drop=True)
+    values = frame.replace([np.inf, -np.inf], np.nan)
+    # SmartHealth canonical products intentionally leave optional audit fields
+    # such as ``split_issue`` blank.  ``columns`` is the statistical cleaning
+    # contract; metadata NaN values must not delete otherwise valid samples.
+    cleaning_columns = (
+        list(values.columns)
+        if columns is None
+        else [column for column in columns if column in values.columns]
+    )
+    values = values.dropna(subset=cleaning_columns).reset_index(drop=True)
     outlier_indices = set()
-    for column in list(columns) if columns is not None else list(values.columns):
+    for column in cleaning_columns:
         if column not in values.columns:
             continue
         # Canonical physical products add string provenance columns.  They are
@@ -335,6 +345,10 @@ def load_feature_file(path, config):
             "source_absolute_start_time",
             "source_absolute_end_time",
         }
+        if is_bol_label_mode(config):
+            required_lineage.update(
+                {"bol_q_ref_Ah", "bol_q_ref_rule", "bol_q_ref_source"}
+            )
         missing_lineage = sorted(required_lineage - set(frame.columns))
         if missing_lineage:
             raise ValueError(
@@ -407,10 +421,21 @@ def load_feature_file(path, config):
             elif str(resolved_domain).startswith("smarthealth_"):
                 source["label_capacity_Ah"] = frame.iloc[row_index].get("label_capacity_Ah", capacity)
                 source["label_source"] = frame.iloc[row_index].get("label_source", "")
+                source["bol_q_ref_Ah"] = frame.iloc[row_index].get("bol_q_ref_Ah")
+                source["bol_q_ref_rule"] = frame.iloc[row_index].get("bol_q_ref_rule")
+                source["bol_q_ref_source"] = frame.iloc[row_index].get("bol_q_ref_source")
             else:
                 source["SOH"] = capacity
             label_records.append(source)
-        label_provenance = build_bol_reference(label_records, domain_id=resolved_domain)
+        if str(resolved_domain).startswith("smarthealth_"):
+            frozen = frozen_smarthealth_bol_references(
+                label_records, domain_id=resolved_domain
+            )
+            label_provenance = frozen[filename_battery_id]
+        else:
+            label_provenance = build_bol_reference(
+                label_records, domain_id=resolved_domain
+            )
         labeled = apply_bol_relative_soh(
             label_records, label_provenance, domain_id=resolved_domain
         )

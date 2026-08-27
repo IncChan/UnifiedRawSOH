@@ -24,6 +24,7 @@ from .soh_labels import (
     BOL_RULE_VERSION,
     apply_bol_relative_soh,
     build_bol_references,
+    frozen_smarthealth_bol_references,
     is_bol_label_mode,
 )
 
@@ -192,7 +193,14 @@ def _build_raw_domain(config, repo_root, seed, domain_id, data_root):
     label_mode = BOL_LABEL_MODE if is_bol_label_mode(config) else "rated_relative"
     label_provenance = {}
     if label_mode == BOL_LABEL_MODE:
-        label_provenance = build_bol_references(records_before_filter, domain_id=domain_id)
+        if str(domain_id).startswith("smarthealth_"):
+            label_provenance = frozen_smarthealth_bol_references(
+                records_before_filter, domain_id=domain_id
+            )
+        else:
+            label_provenance = build_bol_references(
+                records_before_filter, domain_id=domain_id
+            )
         records_before_filter = apply_bol_relative_soh(
             records_before_filter,
             label_provenance,

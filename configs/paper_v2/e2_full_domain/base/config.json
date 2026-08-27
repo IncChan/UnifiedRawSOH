@@ -1,0 +1,26 @@
+{
+  "status": "runnable",
+  "base_config": "../raw_mamba_domain_balanced.json",
+  "experiment": {
+    "name": "E2_FullDomain_RawMambaV2_Base_ERM"
+  },
+  "output": {
+    "model_id": "RawMambaV2-Base-ERM",
+    "data_id": "full_domain_base_erm"
+  },
+  "data": {
+    "sampler": {
+      "kind": "hierarchical",
+      "num_samples": null
+    }
+  },
+  "model": {
+    "variant": "base"
+  },
+  "train": {
+    "lambda_balance": 0.0
+  },
+  "trainer": {
+    "variant": "erm"
+  }
+}

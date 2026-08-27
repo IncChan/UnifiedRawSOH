@@ -1,0 +1,22 @@
+{
+  "status": "interface",
+  "base_config": "../moe_erm/base.json",
+  "experiment": {
+    "name": "E3_LODO_ZeroCell_RawMambaV2_ResidualMoE_DG"
+  },
+  "output": {
+    "model_id": "RawMambaV2-ResidualMoE-DG",
+    "data_id": "lodo_zero_cell_residual_moe_dg"
+  },
+  "trainer": {
+    "variant": "first_order_mldg",
+    "inner_steps": 1,
+    "inner_learning_rate": 0.001,
+    "beta": 1.0,
+    "dataset_episode_probability": 0.5,
+    "strategy_episode_probability": 0.5,
+    "episode_source": "source_train_only",
+    "episode_batch_size": 8,
+    "episodes_per_epoch": 8
+  }
+}

@@ -39,6 +39,7 @@
   },
   "model": {
     "type": "PINNFOnlyMLP",
+    "variant": "feature_mlp",
     "input_dim": 24,
     "encoder_hidden_dim": 60,
     "encoder_output_dim": 32,

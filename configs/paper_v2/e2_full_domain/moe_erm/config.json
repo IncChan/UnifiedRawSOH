@@ -1,0 +1,26 @@
+{
+  "status": "runnable",
+  "base_config": "../base/config.json",
+  "experiment": {
+    "name": "E2_FullDomain_RawMambaV2_ResidualMoE_ERM"
+  },
+  "output": {
+    "model_id": "RawMambaV2-ResidualMoE-ERM",
+    "data_id": "full_domain_residual_moe_erm"
+  },
+  "model": {
+    "variant": "residual_moe",
+    "num_experts": 8,
+    "top_k": 2,
+    "expert_bottleneck_dim": 16,
+    "expert_init": "zero_output",
+    "router_input": "z_base",
+    "adapter_dropout": 0.0
+  },
+  "train": {
+    "lambda_balance": 0.01
+  },
+  "trainer": {
+    "variant": "erm"
+  }
+}

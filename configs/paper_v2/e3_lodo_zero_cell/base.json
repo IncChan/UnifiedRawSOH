@@ -1,5 +1,5 @@
 {
-  "status": "runnable",
+  "status": "interface",
   "base_config": "../common/bol_soh_base.json",
   "experiment": {
     "name": "E3_LODO_ZeroCell_RawMamba_BOL_base",

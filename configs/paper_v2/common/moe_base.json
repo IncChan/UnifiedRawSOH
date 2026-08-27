@@ -1,0 +1,25 @@
+{
+  "status": "interface",
+  "base_config": "./bol_soh_base.json",
+  "model": {
+    "variant": "residual_moe",
+    "num_experts": 8,
+    "top_k": 2,
+    "expert_bottleneck_dim": 16,
+    "expert_init": "zero_output",
+    "router_input": "z_base",
+    "adapter_dropout": 0.0
+  },
+  "data": {
+    "sampler": {
+      "kind": "hierarchical",
+      "num_samples": null
+    }
+  },
+  "train": {
+    "lambda_balance": 0.01
+  },
+  "trainer": {
+    "variant": "erm"
+  }
+}

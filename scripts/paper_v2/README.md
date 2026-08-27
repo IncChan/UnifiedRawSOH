@@ -1,12 +1,27 @@
-# Paper-v2 BOL retraining
+# Paper-v2 launchers
 
-"run_bol_soh_retraining.sh" is the only Paper-v2 training launcher. It
-defaults to DRY_RUN=1, so previewing the job matrix never starts training and
-does not create output files. Set DRY_RUN=0 only when the formal retraining
-is intended.
+"run_bol_soh_retraining.sh" remains the compatibility launcher for the
+existing BOL baseline matrix. The P0–P2-native E2/E3 launchers below use the
+independent V2 entry point. All launchers default to DRY_RUN=1, so previewing a
+job matrix never starts training or creates output files.
 
 The launcher schedules at most GPU_COUNT * JOBS_PER_GPU child processes. Each
 child receives one CUDA_VISIBLE_DEVICES value and uses cuda:0 internally.
+
+The original `run_bol_soh_retraining.sh` is intentionally retained for the
+existing BOL baseline matrix. P0–P2 V2-native launchers are separate:
+
+| Component | Status | Config | Command | Output | Tests | Last verified | Limitations |
+|---|---|---|---|---|---|---|---|
+| E2 seen-domain Base/Dense/MoE-ERM | runnable | `configs/paper_v2/e2_full_domain/*/config.json` | `DRY_RUN=1 bash scripts/paper_v2/run_e2_seen_domain.sh` | `outputs/Paper-v2/e2_full_domain/...` | config/shell smoke | 2026-08-27 | formal jobs are opt-in |
+| E3 zero-cell Base/Dense/MoE-ERM/MoE-DG | runnable | `configs/paper_v2/e3_lodo_zero_cell/*/lodo_*.json` | `DRY_RUN=1 bash scripts/paper_v2/run_e3_zero_cell.sh` | `outputs/Paper-v2/e3_lodo_zero_cell/...` | leakage/config smoke | 2026-08-27 | formal jobs are opt-in |
+| V2 Python entry point | smoke-tested | resolved Paper-v2 config | `python scripts/paper_v2/train.py --config <config> --validate_only` | none in validation mode | `--help`, contract tests | 2026-08-27 | feature MLP remains on its compatibility launcher |
+
+Both new launchers default to `DRY_RUN=1`, accept `SEEDS`, `GPU_IDS`,
+`JOBS_PER_GPU`, `TARGET_DOMAINS`, and `RESUME`, and do not create output during
+dry-run validation. Formal jobs run the read-only declared data-root and
+split-file readiness check by default (`CHECK_DATA_READINESS=1`); `RESUME`
+checks the expected checkpoint/metric artifacts before scheduling a seed.
 
 Stage commands:
 
@@ -71,6 +86,5 @@ launcher writes outputs/Paper-v1.
 Bounded smoke test:
 
 ~~~bash
-PYTHONPATH=.. /data/chenyanxi/miniconda3/envs/pinn/bin/python \
-  tests/paper_v2_smoke_test.py
+PYTHONPATH=.. python tests/paper_v2_smoke_test.py
 ~~~

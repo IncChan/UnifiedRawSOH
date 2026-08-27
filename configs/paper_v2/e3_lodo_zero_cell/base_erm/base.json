@@ -1,0 +1,26 @@
+{
+  "status": "interface",
+  "base_config": "../base.json",
+  "experiment": {
+    "name": "E3_LODO_ZeroCell_RawMambaV2_Base_ERM"
+  },
+  "output": {
+    "model_id": "RawMambaV2-Base-ERM",
+    "data_id": "lodo_zero_cell_base_erm"
+  },
+  "data": {
+    "sampler": {
+      "kind": "hierarchical",
+      "num_samples": null
+    }
+  },
+  "model": {
+    "variant": "base"
+  },
+  "train": {
+    "lambda_balance": 0.0
+  },
+  "trainer": {
+    "variant": "erm"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "status": "runnable",
+  "base_config": "./base.json",
+  "experiment": {
+    "name": "E3_LODO_ZeroCell_RawMambaV2_Base_ERM_to_XJTU",
+    "source_domain_ids": ["mit", "smarthealth_lishen40", "smarthealth_catl280", "smarthealth_eve280"],
+    "target_domain_id": "xjtu"
+  },
+  "output": {"data_id": "lodo_zero_cell_to_xjtu"}
+}

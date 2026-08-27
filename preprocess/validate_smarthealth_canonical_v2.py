@@ -22,6 +22,9 @@ from pathlib import Path
 from typing import Iterable
 
 from smarthealth_common import (
+    BOL_REFERENCE_CONTRACT_VERSION,
+    BOL_REFERENCE_SOURCE,
+    BOL_RULE_VERSION,
     CATL280_CONFIG,
     EVE280_CONFIG,
     FEATURE_COLUMNS,
@@ -140,9 +143,19 @@ def load_manifest(config: DomainConfig, raw_root: Path) -> tuple[dict, Path]:
         raise ValidationError(f"{path}: domain mismatch")
     if manifest.get("strategy_version") != POLICY_VERSION:
         raise ValidationError(f"{path}: strategy version mismatch")
+    if int(manifest.get("schema_version", 0)) < 6:
+        raise ValidationError(f"{path}: schema predates frozen BOL references")
     if manifest.get("split_strategy_version") != SPLIT_STRATEGY_VERSION:
         raise ValidationError(f"{path}: split strategy version mismatch")
     required_fields(path, manifest.get("raw_schema"), RAW_COLUMNS)
+    bol_contract = manifest.get("bol_reference_contract", {})
+    if (
+        bol_contract.get("contract_version") != BOL_REFERENCE_CONTRACT_VERSION
+        or bol_contract.get("rule_version") != BOL_RULE_VERSION
+        or bol_contract.get("reference_source") != BOL_REFERENCE_SOURCE
+        or not isinstance(bol_contract.get("cell_references"), dict)
+    ):
+        raise ValidationError(f"{path}: incompatible frozen BOL reference contract")
     return manifest, raw_directory
 
 
@@ -171,6 +184,9 @@ def load_exported_provenance(
                 "raw_rows_written",
                 "SOH",
                 "label_source",
+                "bol_q_ref_Ah",
+                "bol_q_ref_rule",
+                "bol_q_ref_source",
                 "condition",
                 "selected_cc_points",
                 "cc_window_lower_covered",
@@ -232,7 +248,10 @@ def load_exported_provenance(
 
 
 def validate_raw_domain(
-    config: DomainConfig, raw_root: Path, expected: dict[tuple[str, int], dict[str, str]]
+    config: DomainConfig,
+    raw_root: Path,
+    expected: dict[tuple[str, int], dict[str, str]],
+    manifest: dict,
 ) -> dict[tuple[str, int], dict[str, object]]:
     raw_directory = raw_root / config.domain_id
     files = sorted(raw_directory.glob(f"{config.domain_id}__*.csv"))
@@ -267,6 +286,14 @@ def validate_raw_domain(
                 if label_source not in {"calibration_direct", "calibration_interpolated"}:
                     raise ValidationError(f"{path}: invalid label source for {active_key}: {label_source!r}")
                 soh = finite(active[0], "SOH", path)
+                bol_q_ref = finite(active[0], "bol_q_ref_Ah", path)
+                if bol_q_ref <= 0.0:
+                    raise ValidationError(f"{path}: non-positive frozen Q_ref for {active_key}")
+                if (
+                    active[0]["bol_q_ref_rule"] != BOL_RULE_VERSION
+                    or active[0]["bol_q_ref_source"] != BOL_REFERENCE_SOURCE
+                ):
+                    raise ValidationError(f"{path}: frozen BOL contract mismatch for {active_key}")
                 lineage = (
                     integer(active[0], "source_cycle", path),
                     source_time(active[0], "source_absolute_start_time", path),
@@ -288,6 +315,17 @@ def validate_raw_domain(
                         finite(row, "SOH", path), soh, rel_tol=1e-7, abs_tol=1e-8
                     ):
                         raise ValidationError(f"{path}: label varies within {active_key}")
+                    if (
+                        not math.isclose(
+                            finite(row, "bol_q_ref_Ah", path),
+                            bol_q_ref,
+                            rel_tol=1e-12,
+                            abs_tol=1e-12,
+                        )
+                        or row["bol_q_ref_rule"] != BOL_RULE_VERSION
+                        or row["bol_q_ref_source"] != BOL_REFERENCE_SOURCE
+                    ):
+                        raise ValidationError(f"{path}: frozen BOL reference varies within {active_key}")
                     row_lineage = (
                         integer(row, "source_cycle", path),
                         source_time(row, "source_absolute_start_time", path),
@@ -317,6 +355,17 @@ def validate_raw_domain(
                     float(provenance["SOH"]), soh, rel_tol=1e-7, abs_tol=1e-8
                 ) or provenance["label_source"] != label_source:
                     raise ValidationError(f"{path}: RAW/provenance label mismatch for {active_key}")
+                if (
+                    not math.isclose(
+                        float(provenance["bol_q_ref_Ah"]),
+                        bol_q_ref,
+                        rel_tol=1e-12,
+                        abs_tol=1e-12,
+                    )
+                    or provenance["bol_q_ref_rule"] != BOL_RULE_VERSION
+                    or provenance["bol_q_ref_source"] != BOL_REFERENCE_SOURCE
+                ):
+                    raise ValidationError(f"{path}: RAW/provenance frozen BOL mismatch for {active_key}")
                 if integer(provenance, "raw_rows_written", path) != len(active):
                     raise ValidationError(f"{path}: RAW/provenance row-count mismatch for {active_key}")
                 provenance_lineage = (
@@ -330,6 +379,9 @@ def validate_raw_domain(
                     "rows": len(active),
                     "soh": soh,
                     "label_source": label_source,
+                    "bol_q_ref_Ah": bol_q_ref,
+                    "bol_q_ref_rule": BOL_RULE_VERSION,
+                    "bol_q_ref_source": BOL_REFERENCE_SOURCE,
                     "cell": active[0]["cell"],
                     "condition": active[0]["condition"],
                     "split_role": active[0]["split_role"],
@@ -358,6 +410,20 @@ def validate_raw_domain(
             f"missing={sorted(set(expected) - set(observed))[:8]}, "
             f"unexpected={sorted(set(observed) - set(expected))[:8]}"
         )
+    references = manifest["bol_reference_contract"]["cell_references"]
+    by_cell: dict[str, set[float]] = {}
+    for row in observed.values():
+        by_cell.setdefault(str(row["cell"]), set()).add(float(row["bol_q_ref_Ah"]))
+    if set(by_cell) != set(references):
+        raise ValidationError(f"{config.domain_id}: RAW/manifest BOL cell inventory mismatch")
+    for cell_id, values in by_cell.items():
+        manifest_q_ref = float(references[cell_id]["Q_ref"])
+        if len(values) != 1 or not math.isclose(
+            next(iter(values)), manifest_q_ref, rel_tol=1e-12, abs_tol=1e-12
+        ):
+            raise ValidationError(
+                f"{config.domain_id}: RAW/manifest frozen BOL mismatch for {cell_id}"
+            )
     return observed
 
 
@@ -374,6 +440,8 @@ def validate_feature_domain(
         payload = json.load(handle)
     if payload.get("domain_id") != config.domain_id or payload.get("strategy_version") != POLICY_VERSION:
         raise ValidationError(f"{pointer}: incompatible feature pointer")
+    if int(payload.get("schema_version", 0)) < 6:
+        raise ValidationError(f"{pointer}: feature schema predates frozen BOL references")
     if payload.get("split_strategy_version") != SPLIT_STRATEGY_VERSION:
         raise ValidationError(f"{pointer}: incompatible feature split strategy")
     files = sorted(directory.glob(f"{config.domain_id}__*.csv"))
@@ -395,6 +463,17 @@ def validate_feature_domain(
                     finite(row, "SOH", path), float(raw["soh"]), rel_tol=1e-7, abs_tol=1e-8
                 ):
                     raise ValidationError(f"{path}: feature/RAW label mismatch for {key}")
+                if (
+                    not math.isclose(
+                        finite(row, "bol_q_ref_Ah", path),
+                        float(raw["bol_q_ref_Ah"]),
+                        rel_tol=1e-12,
+                        abs_tol=1e-12,
+                    )
+                    or row["bol_q_ref_rule"] != raw["bol_q_ref_rule"]
+                    or row["bol_q_ref_source"] != raw["bol_q_ref_source"]
+                ):
+                    raise ValidationError(f"{path}: feature/RAW frozen BOL mismatch for {key}")
                 if (
                     row["split_role"] != raw["split_role"]
                     or row["split_status"] != raw["split_status"]
@@ -572,9 +651,9 @@ def main() -> int:
     summary: dict[str, object] = {"strategy_version": POLICY_VERSION, "domains": {}}
     for domain in domains:
         config = CONFIGS[domain]
-        load_manifest(config, args.raw_root)
+        manifest, _ = load_manifest(config, args.raw_root)
         expected = load_exported_provenance(config, args.raw_root)
-        raw_cycles = validate_raw_domain(config, args.raw_root, expected)
+        raw_cycles = validate_raw_domain(config, args.raw_root, expected, manifest)
         features = validate_feature_domain(config, args.feature_root, raw_cycles)
         split_summary = validate_split_domain(config, args.split_root, raw_cycles)
         validate_report_domain(config, args.raw_root, raw_cycles, split_summary)

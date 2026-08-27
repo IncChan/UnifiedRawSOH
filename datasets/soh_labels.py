@@ -18,8 +18,12 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Iterable
 
+from ..preprocess.smarthealth_bol import (
+    BOL_REFERENCE_CONTRACT_VERSION,
+    BOL_REFERENCE_SOURCE,
+    BOL_RULE_VERSION,
+)
 
-BOL_RULE_VERSION = "bol_peak_mean_top5_first100_v1"
 BOL_LABEL_MODE = "bol_peak_relative"
 BOL_EARLY_WINDOW_SIZE = 100
 BOL_TOP_K = 5
@@ -319,6 +323,7 @@ def build_bol_reference(
     smarthealth = _looks_smarthealth(domain, rows[0]["record"])
     initial_window = valid_rows[: int(early_window_size)]
     reference_window = list(initial_window)
+    expanded_after_mad = False
     if smarthealth:
         direct_in_initial = sum(item["smarthealth_direct"] for item in initial_window)
         if direct_in_initial < BOL_TOP_K:
@@ -346,6 +351,25 @@ def build_bol_reference(
             f"the reference-window policy; {BOL_TOP_K} are required"
         )
     kept, rejected = _reject_outliers(candidates, cell_id)
+
+    # A partial-DOD SmartHealth trajectory may have fewer than five direct
+    # calibration points in the first usable window.  The historical fallback
+    # above stops exactly at the fifth direct point; if MAD rejects one of those
+    # points, the loader used to fail even when a later direct calibration point
+    # was available.  Extend only SmartHealth's reference window in that case,
+    # preserve the same MAD cutoff/top-k selection, and never use interpolated
+    # labels as BOL candidates.  Non-SmartHealth callers retain the original
+    # strict failure behavior.
+    if smarthealth and len(kept) < BOL_TOP_K:
+        next_index = len(reference_window)
+        while len(kept) < BOL_TOP_K and next_index < len(valid_rows):
+            reference_window.append(valid_rows[next_index])
+            next_index += 1
+            if not reference_window[-1]["smarthealth_direct"]:
+                continue
+            expanded_after_mad = True
+            candidates = [item for item in reference_window if item["smarthealth_direct"]]
+            kept, rejected = _reject_outliers(candidates, cell_id)
     if len(kept) < BOL_TOP_K:
         raise BOLReferenceError(
             f"Cell {cell_id!r}: MAD filtering left {len(kept)} valid points; "
@@ -379,6 +403,7 @@ def build_bol_reference(
         "reference_window_end_cycle": _plain(reference_window[-1]["cycle_id"]),
         "reference_window_observation_count": int(len(reference_window)),
         "reference_window_initial_size": int(min(len(valid_rows), int(early_window_size))),
+        "reference_window_expanded_after_mad": bool(expanded_after_mad),
         "smarthealth_direct_interpolated_status": {
             "is_smarthealth": bool(smarthealth),
             "direct_count_in_trajectory": int(direct_total),
@@ -424,6 +449,84 @@ def build_bol_references(
     }
 
 
+def frozen_smarthealth_bol_references(
+    records: Iterable[Mapping[str, Any]],
+    *,
+    domain_id: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Read and validate preprocessing-frozen SmartHealth Q_ref values.
+
+    This function deliberately performs no reference calculation.  Missing or
+    inconsistent fields mean the canonical product predates the frozen
+    reference contract and must be regenerated from source provenance.
+    """
+
+    rows = _records_list(records)
+    if not rows:
+        raise BOLReferenceError("Cannot read frozen SmartHealth Q_ref from an empty record set")
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        grouped[_cell_id(row)].append(row)
+    references: dict[str, dict[str, Any]] = {}
+    required = ("bol_q_ref_Ah", "bol_q_ref_rule", "bol_q_ref_source")
+    for cell_id, cell_rows in sorted(grouped.items()):
+        for row in cell_rows:
+            missing = [
+                field
+                for field in required
+                if field not in row or row[field] is None or str(row[field]).strip() == ""
+            ]
+            if missing:
+                raise BOLReferenceError(
+                    f"Cell {cell_id!r} is missing frozen SmartHealth BOL fields {missing}; "
+                    "regenerate canonical RAW and FEATURE products with schema_version >= 6"
+                )
+        q_refs = [
+            _number(
+                row["bol_q_ref_Ah"],
+                field="bol_q_ref_Ah",
+                cell_id=cell_id,
+                cycle_id=_cycle_id(row, index),
+            )
+            for index, row in enumerate(cell_rows)
+        ]
+        if any(not math.isfinite(value) or value <= 0.0 for value in q_refs):
+            raise BOLReferenceError(f"Cell {cell_id!r} has invalid frozen bol_q_ref_Ah")
+        if any(
+            not math.isclose(value, q_refs[0], rel_tol=1e-12, abs_tol=1e-12)
+            for value in q_refs[1:]
+        ):
+            raise BOLReferenceError(
+                f"Cell {cell_id!r} has inconsistent frozen bol_q_ref_Ah values"
+            )
+        rules = {str(row["bol_q_ref_rule"]).strip() for row in cell_rows}
+        sources = {str(row["bol_q_ref_source"]).strip() for row in cell_rows}
+        if rules != {BOL_RULE_VERSION}:
+            raise BOLReferenceError(
+                f"Cell {cell_id!r} has incompatible frozen BOL rules {sorted(rules)}; "
+                f"expected {BOL_RULE_VERSION!r}"
+            )
+        if sources != {BOL_REFERENCE_SOURCE}:
+            raise BOLReferenceError(
+                f"Cell {cell_id!r} has incompatible frozen BOL sources {sorted(sources)}; "
+                f"expected {BOL_REFERENCE_SOURCE!r}"
+            )
+        resolved_domain = _domain_id(cell_rows[0], domain_id)
+        references[cell_id] = {
+            "contract_version": BOL_REFERENCE_CONTRACT_VERSION,
+            "domain_id": resolved_domain,
+            "battery_id": cell_id,
+            "cell_id": cell_id,
+            "rule_version": BOL_RULE_VERSION,
+            "reference_source": BOL_REFERENCE_SOURCE,
+            "source_capacity_field": "source_calibration_discharge_capacity_Ah",
+            "Q_ref": float(q_refs[0]),
+            "q_ref": float(q_refs[0]),
+            "frozen_in_canonical_preprocessing": True,
+        }
+    return references
+
+
 def _is_single_reference(reference: Any) -> bool:
     return isinstance(reference, Mapping) and ("Q_ref" in reference or "q_ref" in reference)
 
@@ -438,16 +541,23 @@ def apply_bol_relative_soh(
     """Add ``soh_bol`` to records without overwriting the source label.
 
     A single reference may be passed for one cell, or a cell-ID keyed
-    reference mapping may be passed for a mixed set.  If omitted, references
-    are built with :func:`build_bol_references` using the exact same code path
-    as the raw and Feature MLP loaders.
+    reference mapping may be passed for a mixed set.  If omitted,
+    non-SmartHealth references are built from the supplied full trajectory.
+    SmartHealth instead requires preprocessing-frozen fields and is never
+    reconstructed from model-facing rows.
     """
 
     rows = _records_list(records)
     if not rows:
         return []
     if reference is None:
-        references: Mapping[str, Any] = build_bol_references(rows, domain_id=domain_id)
+        resolved_domain = _domain_id(rows[0], domain_id)
+        if _looks_smarthealth(resolved_domain, rows[0]):
+            references = frozen_smarthealth_bol_references(
+                rows, domain_id=resolved_domain
+            )
+        else:
+            references = build_bol_references(rows, domain_id=resolved_domain)
     elif _is_single_reference(reference):
         references = {_cell_id(rows[0]): reference}
     else:
@@ -484,11 +594,14 @@ __all__ = [
     "BOL_EARLY_WINDOW_SIZE",
     "BOL_LABEL_MODE",
     "BOL_MAD_THRESHOLD",
+    "BOL_REFERENCE_CONTRACT_VERSION",
+    "BOL_REFERENCE_SOURCE",
     "BOL_RULE_VERSION",
     "BOLReferenceError",
     "apply_bol_relative_soh",
     "build_bol_reference",
     "build_bol_references",
+    "frozen_smarthealth_bol_references",
     "is_bol_label_mode",
     "serialize_reference_provenance",
 ]

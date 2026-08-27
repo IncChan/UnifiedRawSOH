@@ -18,6 +18,7 @@ from pathlib import Path
 import numpy as np
 
 from .base import RawTerminalSignalUnavailable
+from ..preprocess.smarthealth_bol import BOL_REFERENCE_SOURCE, BOL_RULE_VERSION
 
 
 SMARTHEALTH_ENCODING = "gb18030"
@@ -86,6 +87,11 @@ SMARTHEALTH_PROCESSED_REQUIRED_COLUMNS = {
     "cc_voltage_high_V",
     "cv_c_rate_low",
     "cv_c_rate_high",
+}
+SMARTHEALTH_FROZEN_BOL_COLUMNS = {
+    "bol_q_ref_Ah",
+    "bol_q_ref_rule",
+    "bol_q_ref_source",
 }
 
 
@@ -325,6 +331,13 @@ def read_smarthealth_raw_file(
         missing = sorted(SMARTHEALTH_PROCESSED_REQUIRED_COLUMNS - fields)
         if missing:
             raise ValueError(f"Canonical SmartHealth raw file {path} is missing: {missing}")
+        frozen_bol_fields = SMARTHEALTH_FROZEN_BOL_COLUMNS & fields
+        if frozen_bol_fields and frozen_bol_fields != SMARTHEALTH_FROZEN_BOL_COLUMNS:
+            raise ValueError(
+                f"Canonical SmartHealth raw file {path} has a partial frozen BOL "
+                f"contract; found={sorted(frozen_bol_fields)}"
+            )
+        has_frozen_bol = frozen_bol_fields == SMARTHEALTH_FROZEN_BOL_COLUMNS
         if requires_label_capacity and "label_capacity_Ah" not in fields:
             raise ValueError(
                 f"Canonical SmartHealth raw file {path} lacks label_capacity_Ah required "
@@ -394,6 +407,29 @@ def read_smarthealth_raw_file(
                 "split_strategy_version": str(row["split_strategy_version"]).strip(),
                 "label_source": str(row["label_source"]).strip(),
             }
+            if has_frozen_bol:
+                try:
+                    bol_q_ref = float(row["bol_q_ref_Ah"])
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(
+                        f"Invalid frozen bol_q_ref_Ah in canonical SmartHealth row: {path}"
+                    ) from exc
+                bol_rule = str(row["bol_q_ref_rule"]).strip()
+                bol_source = str(row["bol_q_ref_source"]).strip()
+                if not math.isfinite(bol_q_ref) or bol_q_ref <= 0.0:
+                    raise ValueError(f"Invalid frozen bol_q_ref_Ah in {path}")
+                if bol_rule != BOL_RULE_VERSION or bol_source != BOL_REFERENCE_SOURCE:
+                    raise ValueError(
+                        f"Frozen SmartHealth BOL contract mismatch in {path}: "
+                        f"rule={bol_rule!r}, source={bol_source!r}"
+                    )
+                provenance.update(
+                    {
+                        "bol_q_ref_Ah": bol_q_ref,
+                        "bol_q_ref_rule": bol_rule,
+                        "bol_q_ref_source": bol_source,
+                    }
+                )
             previous = cycle_provenance.setdefault(cycle, provenance)
             if previous != provenance:
                 raise ValueError(
@@ -406,6 +442,16 @@ def read_smarthealth_raw_file(
     battery_id = next(iter(battery_ids))
     current_domain = next(iter(domains))
     condition = next(iter(conditions))
+    if has_frozen_bol:
+        file_q_refs = {
+            float(item["bol_q_ref_Ah"]) for item in cycle_provenance.values()
+        }
+        file_rules = {str(item["bol_q_ref_rule"]) for item in cycle_provenance.values()}
+        file_sources = {str(item["bol_q_ref_source"]) for item in cycle_provenance.values()}
+        if len(file_q_refs) != 1 or file_rules != {BOL_RULE_VERSION} or file_sources != {
+            BOL_REFERENCE_SOURCE
+        }:
+            raise ValueError(f"Frozen SmartHealth BOL reference varies within {path}")
     canonical_cycles = sorted(grouped)
     if not canonical_cycles or canonical_cycles[0] <= 0:
         raise ValueError(

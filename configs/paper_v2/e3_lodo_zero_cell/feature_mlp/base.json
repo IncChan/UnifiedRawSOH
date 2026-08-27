@@ -50,6 +50,10 @@
       "smarthealth_eve280": 280
     }
   },
+  "model": {
+    "type": "PINNFOnlyMLP",
+    "variant": "feature_mlp"
+  },
   "reusability": {
     "protocol": "leave_one_domain_out",
     "evaluation": "zero_shot",

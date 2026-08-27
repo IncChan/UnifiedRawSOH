@@ -1,0 +1,24 @@
+{
+  "status": "interface",
+  "base_config": "../base_erm/base.json",
+  "experiment": {
+    "name": "E3_LODO_ZeroCell_RawMambaV2_DenseAdapter_ERM"
+  },
+  "output": {
+    "model_id": "RawMambaV2-DenseAdapter-ERM",
+    "data_id": "lodo_zero_cell_dense_adapter_erm"
+  },
+  "model": {
+    "variant": "dense_adapter",
+    "adapter_bottleneck_dim": 136,
+    "adapter_init": "zero_output",
+    "adapter_dropout": 0.0,
+    "parameter_match_target": "residual_moe_default"
+  },
+  "train": {
+    "lambda_balance": 0.0
+  },
+  "trainer": {
+    "variant": "erm"
+  }
+}

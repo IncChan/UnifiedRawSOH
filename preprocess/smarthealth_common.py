@@ -32,6 +32,21 @@ from typing import Callable, Iterable, Iterator, Mapping, Sequence
 
 import numpy as np
 
+try:
+    from .smarthealth_bol import (
+        BOL_REFERENCE_CONTRACT_VERSION,
+        BOL_REFERENCE_SOURCE,
+        BOL_RULE_VERSION,
+        build_frozen_smarthealth_bol_reference,
+    )
+except ImportError:  # Family entry points also support direct script execution.
+    from smarthealth_bol import (  # type: ignore[no-redef]
+        BOL_REFERENCE_CONTRACT_VERSION,
+        BOL_REFERENCE_SOURCE,
+        BOL_RULE_VERSION,
+        build_frozen_smarthealth_bol_reference,
+    )
+
 
 SOURCE_ENCODING = "gb18030"
 # v5 retains v4's absolute-time chronology and overlap reconciliation. It also
@@ -42,6 +57,18 @@ SOURCE_ENCODING = "gb18030"
 POLICY_VERSION = "smarthealth_cccv_calibration_v5"
 SPLIT_STRATEGY_VERSION = "smarthealth_condition_cell_split_2development_1test_v3"
 DEFAULT_MAX_SOURCE_CYCLE_DURATION_HOURS = 24.0
+# CV boundary detection is dataset/DoD dependent because the source devices do
+# not all record the same length of the current-taper tail.  These are detection
+# thresholds only: they do not change the canonical RAW schema, label policy,
+# split strategy, or either version identifier above.  An omitted domain/DoD
+# keeps the historical parser default (60 points).
+CV_MIN_POINTS_BY_DOMAIN_DOD: dict[str, dict[int, int]] = {
+    "smarthealth_eve280": {
+        20: 30,
+        60: 30,
+        100: 30,
+    },
+}
 CHARGE_STEP = "恒流恒压充电"
 DISCHARGE_STEP = "恒流放电"
 SOURCE_POINT_REQUIRED_COLUMNS = (
@@ -139,6 +166,9 @@ RAW_COLUMNS = [
     "cycle_discharge_capacity_Ah",
     "label_capacity_Ah",
     "reference_calibration_capacity_Ah",
+    "bol_q_ref_Ah",
+    "bol_q_ref_rule",
+    "bol_q_ref_source",
     "split_role",
     "split_status",
     "split_issue",
@@ -226,6 +256,9 @@ FEATURE_PREFIX_COLUMNS = [
     "cycle_discharge_capacity_Ah",
     "label_capacity_Ah",
     "reference_calibration_capacity_Ah",
+    "bol_q_ref_Ah",
+    "bol_q_ref_rule",
+    "bol_q_ref_source",
     "split_role",
     "split_status",
     "split_issue",
@@ -297,6 +330,9 @@ CYCLE_PROVENANCE_COLUMNS = [
     "calibration_direct_candidate",
     "calibration_reason",
     "reference_calibration_capacity_Ah",
+    "bol_q_ref_Ah",
+    "bol_q_ref_rule",
+    "bol_q_ref_source",
     "label_capacity_Ah",
     "SOH",
     "label_source",
@@ -335,6 +371,22 @@ CELL_PROVENANCE_COLUMNS = [
     "reference_calibration_cycle_count",
     "first_calibration_cycle",
     "last_calibration_cycle",
+    "bol_q_ref_Ah",
+    "bol_q_ref_rule",
+    "bol_q_ref_source",
+    "bol_reference_candidate_count",
+    "bol_reference_valid_candidate_count_after_outlier_filter",
+    "bol_reference_window_start_cycle",
+    "bol_reference_window_end_cycle",
+    "bol_reference_window_observation_count",
+    "bol_reference_window_initial_size",
+    "bol_reference_window_expanded_after_mad",
+    "bol_reference_source_observation_count",
+    "bol_reference_source_direct_calibration_count",
+    "bol_reference_source_model_ineligible_direct_calibration_count",
+    "bol_reference_selected_cycle_ids_json",
+    "bol_reference_selected_capacities_Ah_json",
+    "bol_reference_rejected_outliers_json",
     "raw_rows_written",
     "split_role",
     "split_status",
@@ -476,6 +528,9 @@ class CycleCandidate:
     calibration_direct_candidate: bool = False
     calibration_reason: str = ""
     reference_calibration_capacity_ah: float = math.nan
+    bol_q_ref_ah: float = math.nan
+    bol_q_ref_rule: str = ""
+    bol_q_ref_source: str = ""
     label_capacity_ah: float = math.nan
     soh: float = math.nan
     label_source: str = ""
@@ -511,6 +566,7 @@ class CellSummary:
     reference_calibration_cycle_count: int = 0
     first_calibration_cycle: int | None = None
     last_calibration_cycle: int | None = None
+    bol_reference: dict[str, object] = field(default_factory=dict)
     raw_rows_written: int = 0
     split_role: str = ""
     split_status: str = ""
@@ -754,8 +810,27 @@ def pick_event(
     return index, list(selected)
 
 
-def split_combined_charge(points: Sequence[Point], args: argparse.Namespace) -> PhaseResult:
+def min_cv_points_for_condition(
+    domain_id: str, dod_percent: int, default_min_cv_points: int
+) -> int:
+    """Resolve the CV detection threshold without changing the data contract."""
+
+    return CV_MIN_POINTS_BY_DOMAIN_DOD.get(domain_id, {}).get(
+        int(dod_percent), default_min_cv_points
+    )
+
+
+def split_combined_charge(
+    points: Sequence[Point],
+    args: argparse.Namespace,
+    *,
+    min_cv_points: int | None = None,
+) -> PhaseResult:
     """Infer CC/CV inside the source's combined ``恒流恒压充电`` step."""
+
+    # ``args.min_cv_points`` remains the historical fallback.  Callers that
+    # know the source domain/DoD pass the resolved condition-specific value.
+    min_cv_points = args.min_cv_points if min_cv_points is None else min_cv_points
 
     charge_events = events(points, CHARGE_STEP)
     discharge_events = events(points, DISCHARGE_STEP)
@@ -779,7 +854,7 @@ def split_combined_charge(points: Sequence[Point], args: argparse.Namespace) -> 
         charge_step_id=event[0].step_id,
         charge_points=len(event),
     )
-    if len(event) < args.min_cc_points + args.min_cv_points:
+    if len(event) < args.min_cc_points + min_cv_points:
         result.reason = "combined_charge_too_short"
         return result
 
@@ -816,7 +891,7 @@ def split_combined_charge(points: Sequence[Point], args: argparse.Namespace) -> 
     taper = current <= cc_reference * (1.0 - args.cv_taper_fraction)
     voltage_max = float(np.max(voltage))
     boundary: int | None = None
-    for index in range(args.min_cc_points, len(event) - args.min_cv_points + 1):
+    for index in range(args.min_cc_points, len(event) - min_cv_points + 1):
         if index + args.cv_persistence_points > len(event):
             break
         if not np.all(taper[index : index + args.cv_persistence_points]):
@@ -839,7 +914,7 @@ def split_combined_charge(points: Sequence[Point], args: argparse.Namespace) -> 
     result.cv_start_source_row_index = result.cv[0].source_row_index
     result.cv_start_voltage_v = float(voltage[boundary])
     result.cv_start_current_a = float(current[boundary])
-    if result.inferred_cc_points < args.min_cc_points or result.inferred_cv_points < args.min_cv_points:
+    if result.inferred_cc_points < args.min_cc_points or result.inferred_cv_points < min_cv_points:
         result.reason = "phase_point_count_below_minimum"
         return result
     result.status = "ok"
@@ -964,7 +1039,13 @@ def candidate_from_points(
     source_temperature_column_present: bool,
     args: argparse.Namespace,
 ) -> CycleCandidate:
-    phase = split_combined_charge(points, args)
+    phase = split_combined_charge(
+        points,
+        args,
+        min_cv_points=min_cv_points_for_condition(
+            identity.config.domain_id, identity.dod_percent, args.min_cv_points
+        ),
+    )
     select_model_windows(phase, identity.config, args)
     phase.cc_window_accepted = model_cc_window_accepted(
         phase, identity.dod_percent, args
@@ -1594,6 +1675,38 @@ def label_calibration_soh(
             if label_source == "calibration_interpolated":
                 cell.interpolated_label_cycles += 1
 
+        # Freeze the Paper-v2 denominator here, while the complete selected
+        # source chronology is still available.  A direct calibration remains
+        # a reference candidate even when its charge trace failed the model
+        # window/temperature gate and will not be exported as a training row.
+        if cell.selected_output_cycles:
+            source_reference_rows = []
+            for candidate in series:
+                capacity = (
+                    candidate.cycle_discharge_capacity_ah
+                    if candidate.calibration_direct_candidate
+                    else candidate.label_capacity_ah
+                )
+                source_reference_rows.append(
+                    {
+                        "cycle_id": canonical_cycle_id(candidate),
+                        "capacity_Ah": capacity,
+                        "calibration_direct": candidate.calibration_direct_candidate,
+                        "model_eligible": candidate.candidate_eligible,
+                        "label_source": candidate.label_source,
+                    }
+                )
+            bol_reference = build_frozen_smarthealth_bol_reference(
+                source_reference_rows,
+                domain_id=cell.identity.config.domain_id,
+                cell_id=logical_sequence_id,
+            )
+            cell.bol_reference = bol_reference
+            for candidate in series:
+                candidate.bol_q_ref_ah = float(bol_reference["Q_ref"])
+                candidate.bol_q_ref_rule = str(bol_reference["rule_version"])
+                candidate.bol_q_ref_source = str(bol_reference["reference_source"])
+
 
 def inventory_signature(identities: Sequence[SourceIdentity]) -> str:
     digest = hashlib.sha256()
@@ -1820,7 +1933,13 @@ def _selected_phase_for_export(
     dod_percent: int,
     args: argparse.Namespace,
 ) -> PhaseResult:
-    phase = split_combined_charge(points, args)
+    phase = split_combined_charge(
+        points,
+        args,
+        min_cv_points=min_cv_points_for_condition(
+            config.domain_id, dod_percent, args.min_cv_points
+        ),
+    )
     select_model_windows(phase, config, args)
     phase.cc_window_accepted = model_cc_window_accepted(phase, dod_percent, args)
     return phase
@@ -1870,6 +1989,9 @@ def make_raw_row(
         "cycle_discharge_capacity_Ah": candidate.cycle_discharge_capacity_ah,
         "label_capacity_Ah": candidate.label_capacity_ah,
         "reference_calibration_capacity_Ah": candidate.reference_calibration_capacity_ah,
+        "bol_q_ref_Ah": candidate.bol_q_ref_ah,
+        "bol_q_ref_rule": candidate.bol_q_ref_rule,
+        "bol_q_ref_source": candidate.bol_q_ref_source,
         "split_role": candidate.split_role,
         "split_status": candidate.split_status,
         "split_issue": candidate.split_issue,
@@ -2182,6 +2304,9 @@ def candidate_provenance(candidate: CycleCandidate) -> dict[str, object]:
         "calibration_direct_candidate": candidate.calibration_direct_candidate,
         "calibration_reason": candidate.calibration_reason,
         "reference_calibration_capacity_Ah": candidate.reference_calibration_capacity_ah,
+        "bol_q_ref_Ah": candidate.bol_q_ref_ah,
+        "bol_q_ref_rule": candidate.bol_q_ref_rule,
+        "bol_q_ref_source": candidate.bol_q_ref_source,
         "label_capacity_Ah": candidate.label_capacity_ah,
         "SOH": candidate.soh,
         "label_source": candidate.label_source,
@@ -2198,6 +2323,7 @@ def candidate_provenance(candidate: CycleCandidate) -> dict[str, object]:
 
 def cell_provenance(cell: CellSummary) -> dict[str, object]:
     identity = cell.identity
+    bol = cell.bol_reference
     return {
         "dataset": "smarthealth",
         "domain_id": identity.config.domain_id,
@@ -2223,6 +2349,40 @@ def cell_provenance(cell: CellSummary) -> dict[str, object]:
         "reference_calibration_cycle_count": cell.reference_calibration_cycle_count,
         "first_calibration_cycle": cell.first_calibration_cycle,
         "last_calibration_cycle": cell.last_calibration_cycle,
+        "bol_q_ref_Ah": bol.get("Q_ref", math.nan),
+        "bol_q_ref_rule": bol.get("rule_version", ""),
+        "bol_q_ref_source": bol.get("reference_source", ""),
+        "bol_reference_candidate_count": bol.get("candidate_count", 0),
+        "bol_reference_valid_candidate_count_after_outlier_filter": bol.get(
+            "valid_candidate_count_after_outlier_filter", 0
+        ),
+        "bol_reference_window_start_cycle": bol.get("reference_window_start_cycle", ""),
+        "bol_reference_window_end_cycle": bol.get("reference_window_end_cycle", ""),
+        "bol_reference_window_observation_count": bol.get(
+            "reference_window_observation_count", 0
+        ),
+        "bol_reference_window_initial_size": bol.get("reference_window_initial_size", 0),
+        "bol_reference_window_expanded_after_mad": bol.get(
+            "reference_window_expanded_after_mad", False
+        ),
+        "bol_reference_source_observation_count": bol.get("source_observation_count", 0),
+        "bol_reference_source_direct_calibration_count": bol.get(
+            "source_direct_calibration_count", 0
+        ),
+        "bol_reference_source_model_ineligible_direct_calibration_count": bol.get(
+            "source_model_ineligible_direct_calibration_count", 0
+        ),
+        "bol_reference_selected_cycle_ids_json": json.dumps(
+            bol.get("selected_cycle_ids", []), ensure_ascii=False, separators=(",", ":")
+        ),
+        "bol_reference_selected_capacities_Ah_json": json.dumps(
+            bol.get("selected_top5_capacity_values_Ah", []),
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ),
+        "bol_reference_rejected_outliers_json": json.dumps(
+            bol.get("rejected_outliers", []), ensure_ascii=False, separators=(",", ":")
+        ),
         "raw_rows_written": cell.raw_rows_written,
         "split_role": cell.split_role,
         "split_status": cell.split_status,
@@ -2301,7 +2461,7 @@ def build_raw_report(
             ),
         }
     return {
-        "schema_version": 5,
+        "schema_version": 6,
         "strategy_version": POLICY_VERSION,
         "preprocessing_strategy_version": POLICY_VERSION,
         "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -2377,6 +2537,16 @@ def build_raw_report(
             "interpolation": "linear only between direct calibration cycles; no leading/trailing extrapolation",
             "excluded": "partial-DOD discharge capacity / nominal capacity is never an SOH label",
             "rul_eol": "not generated in v5",
+        },
+        "bol_reference_contract": {
+            "contract_version": BOL_REFERENCE_CONTRACT_VERSION,
+            "rule_version": BOL_RULE_VERSION,
+            "reference_source": BOL_REFERENCE_SOURCE,
+            "cell_references": {
+                key: cells[key].bol_reference
+                for key in sorted(cells)
+                if cells[key].bol_reference
+            },
         },
         "split_file": str(split_path),
     }
@@ -2567,7 +2737,7 @@ def run_raw_preprocessing(config: DomainConfig, argv: Sequence[str] | None = Non
     write_json(
         raw_domain_directory / raw_manifest_name,
         {
-            "schema_version": 5,
+            "schema_version": 6,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -2591,6 +2761,16 @@ def run_raw_preprocessing(config: DomainConfig, argv: Sequence[str] | None = Non
                 "max_source_cycle_duration_hours": args.max_source_cycle_duration_hours,
             },
             "raw_schema": RAW_COLUMNS,
+            "bol_reference_contract": {
+                "contract_version": BOL_REFERENCE_CONTRACT_VERSION,
+                "rule_version": BOL_RULE_VERSION,
+                "reference_source": BOL_REFERENCE_SOURCE,
+                "cell_references": {
+                    key: cells[key].bol_reference
+                    for key in sorted(cells)
+                    if cells[key].bol_reference
+                },
+            },
             "audit_files": {name: str(path) for name, path in audit_paths.items()},
             "split_file": str(split_path),
             "feature_input_contract": "feature extraction reads this canonical RAW directory and its cycle provenance only; never source CSV",
@@ -2688,6 +2868,9 @@ def _raw_required_fields() -> set[str]:
         "cycle_discharge_capacity_Ah",
         "label_capacity_Ah",
         "reference_calibration_capacity_Ah",
+        "bol_q_ref_Ah",
+        "bol_q_ref_rule",
+        "bol_q_ref_source",
         "split_role",
         "split_status",
         "split_issue",
@@ -2725,6 +2908,9 @@ def _feature_row_from_raw_cycle(
             row["cycle"],
             row["SOH"],
             row["label_source"],
+            row["bol_q_ref_Ah"],
+            row["bol_q_ref_rule"],
+            row["bol_q_ref_source"],
             row["source_file"],
             row["chunk_id"],
             row["source_cycle"],
@@ -2766,6 +2952,13 @@ def _feature_row_from_raw_cycle(
     first = rows[0]
     soh = _as_finite(first, "SOH", path)
     label_capacity = _as_finite(first, "label_capacity_Ah", path)
+    bol_q_ref = _as_finite(first, "bol_q_ref_Ah", path)
+    if bol_q_ref <= 0.0:
+        raise ValueError(f"{path}: frozen bol_q_ref_Ah must be positive")
+    if str(first["bol_q_ref_rule"]) != BOL_RULE_VERSION:
+        raise ValueError(f"{path}: frozen BOL rule version mismatch")
+    if str(first["bol_q_ref_source"]) != BOL_REFERENCE_SOURCE:
+        raise ValueError(f"{path}: frozen BOL reference source mismatch")
     row: dict[str, object] = {
         "dataset": str(first["dataset"]),
         "dataset_id": str(first.get("dataset_id", first["dataset"])),
@@ -2785,6 +2978,9 @@ def _feature_row_from_raw_cycle(
         "reference_calibration_capacity_Ah": _as_finite(
             first, "reference_calibration_capacity_Ah", path
         ),
+        "bol_q_ref_Ah": bol_q_ref,
+        "bol_q_ref_rule": str(first["bol_q_ref_rule"]),
+        "bol_q_ref_source": str(first["bol_q_ref_source"]),
         "split_role": str(first.get("split_role", "")),
         "split_status": str(first.get("split_status", "")),
         "split_issue": str(first.get("split_issue", "")),
@@ -2844,8 +3040,19 @@ def _load_exported_cycle_provenance(
         manifest = json.load(handle)
     if manifest.get("domain_id") != config.domain_id or manifest.get("strategy_version") != POLICY_VERSION:
         raise ValueError(f"{manifest_path}: incompatible canonical RAW manifest")
+    if int(manifest.get("schema_version", 0)) < 6:
+        raise ValueError(
+            f"{manifest_path}: canonical RAW schema predates frozen BOL references"
+        )
     if manifest.get("split_strategy_version") != SPLIT_STRATEGY_VERSION:
         raise ValueError(f"{manifest_path}: incompatible canonical split strategy")
+    bol_contract = manifest.get("bol_reference_contract", {})
+    if (
+        bol_contract.get("contract_version") != BOL_REFERENCE_CONTRACT_VERSION
+        or bol_contract.get("rule_version") != BOL_RULE_VERSION
+        or bol_contract.get("reference_source") != BOL_REFERENCE_SOURCE
+    ):
+        raise ValueError(f"{manifest_path}: incompatible frozen BOL reference contract")
     cycle_path = Path(manifest["audit_files"]["cycle_provenance"])
     if not cycle_path.is_file():
         raise FileNotFoundError(f"Missing canonical cycle provenance: {cycle_path}")
@@ -2861,6 +3068,9 @@ def _load_exported_cycle_provenance(
         "raw_rows_written",
         "SOH",
         "label_source",
+        "bol_q_ref_Ah",
+        "bol_q_ref_rule",
+        "bol_q_ref_source",
         "split_role",
         "split_status",
         "split_strategy_version",
@@ -2997,7 +3207,7 @@ def run_feature_extraction(config: DomainConfig, argv: Sequence[str] | None = No
     write_json(
         feature_domain_directory / pointer_name,
         {
-            "schema_version": 5,
+            "schema_version": 6,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -3012,13 +3222,14 @@ def run_feature_extraction(config: DomainConfig, argv: Sequence[str] | None = No
             "split_file": manifest["split_file"],
             "raw_source_manifest_signature_sha256": manifest["source_manifest_signature_sha256"],
             "feature_schema": [*FEATURE_PREFIX_COLUMNS, *FEATURE_COLUMNS],
+            "bol_reference_contract": manifest["bol_reference_contract"],
             "feature_contract": "one feature row for each exported canonical RAW cycle; no source CSV parsing",
         },
     )
     write_json(
         feature_domain_directory / report_name,
         {
-            "schema_version": 5,
+            "schema_version": 6,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -3032,6 +3243,7 @@ def run_feature_extraction(config: DomainConfig, argv: Sequence[str] | None = No
             "electrical_features": len(FEATURE_ELECTRICAL_COLUMNS),
             "temperature_features": len(FEATURE_TEMPERATURE_COLUMNS),
             "capacity": "calibration-labelled capacity, never partial-DOD source capacity",
+            "bol_reference_contract_version": BOL_REFERENCE_CONTRACT_VERSION,
         },
     )
     print(

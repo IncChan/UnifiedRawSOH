@@ -1,0 +1,24 @@
+{
+  "status": "runnable",
+  "base_config": "../base/config.json",
+  "experiment": {
+    "name": "E2_FullDomain_RawMambaV2_DenseAdapter_ERM"
+  },
+  "output": {
+    "model_id": "RawMambaV2-DenseAdapter-ERM",
+    "data_id": "full_domain_dense_adapter_erm"
+  },
+  "model": {
+    "variant": "dense_adapter",
+    "adapter_bottleneck_dim": 136,
+    "adapter_init": "zero_output",
+    "adapter_dropout": 0.0,
+    "parameter_match_target": "residual_moe_default"
+  },
+  "train": {
+    "lambda_balance": 0.0
+  },
+  "trainer": {
+    "variant": "erm"
+  }
+}
