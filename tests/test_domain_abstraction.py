@@ -26,6 +26,7 @@ from UnifiedRawSOH.datasets.smarthealth import (  # noqa: E402
     read_smarthealth_raw_file,
 )
 from UnifiedRawSOH.preprocess.smarthealth_common import (  # noqa: E402
+    EVE280_CONFIG,
     LISHEN40_CONFIG,
     CellSummary,
     CycleCandidate,
@@ -33,9 +34,13 @@ from UnifiedRawSOH.preprocess.smarthealth_common import (  # noqa: E402
     Point,
     SourceIdentity,
     assign_chronological_cycle_ids,
+    build_raw_parser,
     candidate_from_points,
-    _calibration_reason,
+    _direct_capacity_reason,
+    label_calibration_soh,
     resolve_duplicate_candidates,
+    select_model_windows,
+    split_combined_charge,
     source_cycle_duration_hours,
     source_absolute_time,
     visit_cycles,
@@ -173,7 +178,8 @@ class DomainAbstractionTest(unittest.TestCase):
                 "cycle": "7",
                 "SOH": "0.99",
                 "label_capacity_Ah": "40.0",
-                "label_source": "calibration_direct",
+                "label_source": "capacity_direct",
+                "model_input_role": "normal_direct_input",
                 "split_role": "development",
                 "split_status": "complete",
                 "split_issue": "",
@@ -190,9 +196,28 @@ class DomainAbstractionTest(unittest.TestCase):
                 "cc_voltage_high_V": "3.58",
                 "cv_c_rate_low": "0.05",
                 "cv_c_rate_high": "0.25",
+                "source_row_index": "0",
+                "point_origin": "source",
+                "window_endpoint": "",
+                "interpolation_left_source_row_index": "",
+                "interpolation_right_source_row_index": "",
             }
             rows = [
-                {**base, "segment": "CC", "cycle_point_index": "0", "segment_point_index": "0", "relative_time": "0", "voltage_V": "3.45", "current_A": "40", "c_rate": "1.0"},
+                {
+                    **base,
+                    "segment": "CC",
+                    "cycle_point_index": "0",
+                    "segment_point_index": "0",
+                    "relative_time": "0",
+                    "voltage_V": "3.45",
+                    "current_A": "40",
+                    "c_rate": "1.0",
+                    "source_row_index": "",
+                    "point_origin": "interpolated_window_endpoint",
+                    "window_endpoint": "cc_voltage_low",
+                    "interpolation_left_source_row_index": "0",
+                    "interpolation_right_source_row_index": "1",
+                },
                 {**base, "segment": "CC", "cycle_point_index": "1", "segment_point_index": "1", "relative_time": "1", "voltage_V": "3.58", "current_A": "40", "c_rate": "1.0"},
                 {**base, "segment": "CV", "cycle_point_index": "2", "segment_point_index": "0", "relative_time": "2", "voltage_V": "3.60", "current_A": "10.08", "c_rate": "0.252"},
                 {**base, "segment": "CV", "cycle_point_index": "3", "segment_point_index": "1", "relative_time": "3", "voltage_V": "3.60", "current_A": "2.0", "c_rate": "0.05"},
@@ -401,6 +426,202 @@ class DomainAbstractionTest(unittest.TestCase):
         self.assertTrue(candidate.phase.cc_window_accepted)
         self.assertIn("partial_dod_cc_lower_coverage_not_required", candidate.candidate_eligibility_reason)
 
+    def test_smarthealth_v7_uses_mit_style_short_taper_defaults(self):
+        args = build_raw_parser(EVE280_CONFIG).parse_args([])
+        self.assertEqual(args.min_cc_points, 8)
+        self.assertEqual(args.min_cv_points, 8)
+        self.assertEqual(args.cc_reference_min_points, 8)
+        self.assertEqual(args.cv_persistence_points, 5)
+
+        start = datetime(2022, 1, 1)
+        points = []
+        for index in range(20):
+            points.append(
+                Point(
+                    source_row_index=index,
+                    cycle=1,
+                    step_id="1",
+                    step_type="恒流恒压充电",
+                    time_text=f"00:00:{index:02d}",
+                    absolute_time=start + timedelta(seconds=index),
+                    current_a=280.0,
+                    voltage_v=3.45 + 0.15 * index / 19,
+                    charge_capacity_ah=float(index),
+                    discharge_capacity_ah=0.0,
+                    temperature_c=25.0,
+                )
+            )
+        for offset in range(8):
+            index = 20 + offset
+            points.append(
+                Point(
+                    source_row_index=index,
+                    cycle=1,
+                    step_id="1",
+                    step_type="恒流恒压充电",
+                    time_text=f"00:00:{index:02d}",
+                    absolute_time=start + timedelta(seconds=index),
+                    current_a=260.0 - 20.0 * offset,
+                    voltage_v=3.60,
+                    charge_capacity_ah=float(index),
+                    discharge_capacity_ah=0.0,
+                    temperature_c=25.0,
+                )
+            )
+        phase = split_combined_charge(points, args)
+        self.assertEqual(phase.status, "ok")
+        self.assertEqual(phase.inferred_cv_points, 8)
+
+    def test_smarthealth_partial_dod_calibrations_are_anchor_only(self):
+        logical_id = "smarthealth_eve280__cell__1c_20_dod"
+        identity = SourceIdentity(
+            path=Path("/source/eve.csv"),
+            relative_path="EVE/condition/cell-1C-20%DOD-1.csv",
+            config=EVE280_CONFIG,
+            source_series="cell-1C-20%DOD",
+            source_serial="cell",
+            condition="1C-20%DOD",
+            dod_percent=20,
+            chunk_id=1,
+            logical_sequence_id=logical_id,
+            file_size_bytes=1,
+            file_mtime_ns=1,
+        )
+        start = datetime(2022, 1, 1)
+        capacities = {1: 280.0, 3: 278.0, 5: 276.0, 7: 274.0, 9: 272.0}
+        selected = {}
+        for cycle in range(1, 10):
+            candidate = CycleCandidate(
+                identity=identity,
+                source_cycle=cycle,
+                source_absolute_start_time=start + timedelta(days=cycle),
+                source_absolute_end_time=start + timedelta(days=cycle, hours=1),
+                source_rows=100,
+                source_temperature_column_present=True,
+                phase=PhaseResult(status="ok", reason="ok", temperature_complete=True),
+                cycle_discharge_capacity_ah=capacities.get(cycle, 56.0),
+                candidate_eligible=True,
+                candidate_eligibility_reason="eligible",
+                canonical_cycle=cycle,
+                selected_candidate=True,
+            )
+            selected[(logical_id, cycle)] = candidate
+        cells = {logical_id: CellSummary(identity=identity)}
+
+        label_calibration_soh(selected, cells)
+
+        for cycle in capacities:
+            anchor = selected[(logical_id, cycle)]
+            self.assertTrue(anchor.calibration_anchor_only)
+            self.assertEqual(anchor.model_input_role, "calibration_anchor_only")
+            self.assertEqual(anchor.output_status, "excluded")
+            self.assertEqual(anchor.output_reason, "calibration_anchor_only_not_model_input")
+        normal = selected[(logical_id, 4)]
+        self.assertEqual(normal.label_source, "calibration_interpolated")
+        self.assertEqual(normal.model_input_role, "normal_interpolated_input")
+        self.assertEqual(normal.output_status, "selected_pending_export")
+        self.assertAlmostEqual(normal.label_capacity_ah, 277.0)
+        self.assertEqual(cells[logical_id].calibration_anchor_only_cycles, 5)
+
+    def test_smarthealth_100_dod_cycles_remain_direct_model_inputs(self):
+        logical_id = "smarthealth_eve280__cell__05c_100_dod"
+        identity = SourceIdentity(
+            path=Path("/source/eve.csv"),
+            relative_path="EVE/condition/cell-0.5C-100%DOD-1.csv",
+            config=EVE280_CONFIG,
+            source_series="cell-0.5C-100%DOD",
+            source_serial="cell",
+            condition="0.5C-100%DOD",
+            dod_percent=100,
+            chunk_id=1,
+            logical_sequence_id=logical_id,
+            file_size_bytes=1,
+            file_mtime_ns=1,
+        )
+        start = datetime(2022, 1, 1)
+        selected = {}
+        for cycle in range(1, 6):
+            selected[(logical_id, cycle)] = CycleCandidate(
+                identity=identity,
+                source_cycle=cycle,
+                source_absolute_start_time=start + timedelta(days=cycle),
+                source_absolute_end_time=start + timedelta(days=cycle, hours=1),
+                source_rows=100,
+                source_temperature_column_present=True,
+                phase=PhaseResult(status="ok", reason="ok", temperature_complete=True),
+                cycle_discharge_capacity_ah=280.0 - cycle,
+                candidate_eligible=True,
+                candidate_eligibility_reason="eligible",
+                canonical_cycle=cycle,
+                selected_candidate=True,
+            )
+        cells = {logical_id: CellSummary(identity=identity)}
+
+        label_calibration_soh(selected, cells)
+
+        for candidate in selected.values():
+            self.assertFalse(candidate.calibration_anchor_only)
+            self.assertEqual(candidate.label_source, "capacity_direct")
+            self.assertEqual(candidate.model_input_role, "normal_direct_input")
+            self.assertEqual(candidate.output_status, "selected_pending_export")
+        self.assertEqual(cells[logical_id].normal_direct_input_cycles, 5)
+
+    def test_smarthealth_fixed_windows_insert_traceable_bracketed_endpoints(self):
+        start = datetime(2022, 1, 1)
+
+        def point(index, seconds, current, voltage):
+            return Point(
+                source_row_index=index,
+                cycle=1,
+                step_id="1",
+                step_type="恒流恒压充电",
+                time_text=f"00:00:{seconds:02d}",
+                absolute_time=start + timedelta(seconds=seconds),
+                current_a=current,
+                voltage_v=voltage,
+                charge_capacity_ah=float(seconds),
+                discharge_capacity_ah=0.0,
+                temperature_c=25.0 + seconds,
+            )
+
+        phase = PhaseResult(
+            status="ok",
+            reason="synthetic_boundary",
+            cc=[
+                point(10, 0, 280.0, 3.55),
+                point(11, 1, 280.0, 3.5699),
+                point(12, 2, 280.0, 3.5810),
+                point(13, 3, 280.0, 3.5934),
+            ],
+            cv=[
+                point(14, 4, 84.0, 3.5998),
+                point(15, 5, 72.8, 3.5997),
+                point(16, 6, 66.36, 3.5996),
+                point(17, 7, 28.0, 3.5995),
+                point(18, 8, 13.72, 3.5994),
+            ],
+        )
+        args = SimpleNamespace(min_selected_cc_points=2, min_selected_cv_points=2)
+
+        select_model_windows(phase, EVE280_CONFIG, args)
+
+        self.assertEqual(phase.selected_cc_interpolated_endpoint_points, 1)
+        self.assertAlmostEqual(phase.selected_cc[-1].voltage_v, 3.58)
+        self.assertEqual(phase.selected_cc[-1].window_endpoint, "cc_voltage_high")
+        self.assertEqual(
+            (
+                phase.selected_cc[-1].interpolation_left_source_row_index,
+                phase.selected_cc[-1].interpolation_right_source_row_index,
+            ),
+            (11, 12),
+        )
+        self.assertTrue(phase.cc_window_upper_covered)
+        self.assertFalse(phase.cc_window_lower_covered)
+        self.assertEqual(phase.selected_cv_interpolated_endpoint_points, 2)
+        self.assertAlmostEqual(abs(phase.selected_cv[0].current_a) / 280.0, 0.25)
+        self.assertAlmostEqual(abs(phase.selected_cv[-1].current_a) / 280.0, 0.05)
+        self.assertTrue(phase.cv_window_complete)
+
     def test_smarthealth_calibration_does_not_require_model_window_eligibility(self):
         identity = SourceIdentity(
             path=Path("/source/chunk.csv"),
@@ -429,7 +650,7 @@ class DomainAbstractionTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            _calibration_reason(candidate),
+            _direct_capacity_reason(candidate),
             "periodic_full_capacity_discharge_threshold",
         )
 

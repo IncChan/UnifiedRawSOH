@@ -1,0 +1,16 @@
+{
+  "base_config": "./terminal_sequence_base.json",
+  "model": {
+    "type": "VanillaMamba",
+    "input_dim": 5,
+    "d_model": 32,
+    "num_layers": 3,
+    "d_state": 8,
+    "d_conv": 4,
+    "expand": 2,
+    "dt_rank": "auto",
+    "dropout": 0.1,
+    "head_hidden_dim": 128,
+    "backend": "mamba_ssm.Mamba"
+  }
+}

@@ -2,6 +2,7 @@
 
 - `paper_v1/` contains versioned experiment launchers and experiment notes.
 - `paper_v2/` is reserved for V2 launchers after V1 diagnosis.
+- `paper_backup/` contains the isolated terminal/full E1-E3 launchers.
 - `setup/`, `run_seed_batch.sh`, `resolve_python_bin.sh`, and reporting scripts
   are shared infrastructure and remain version-neutral.
 

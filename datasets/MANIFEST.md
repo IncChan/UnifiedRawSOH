@@ -88,16 +88,16 @@ as RawMamba.
 
 The external SmartHealth source has 1,128 GB18030 CSV chunks and 45
 filename-level logical series. The current code contract is
-`smarthealth_cccv_calibration_v5`; any older raw/feature/split products
+`smarthealth_cccv_calibration_v7`; all v6 raw/feature/split products
 must be regenerated before SmartHealth training. The source and generated
 products are local-only; this repository records their contract but does not
 redistribute them.
 
 | Domain | Source files / series | Temperature-header audit | Canonical status |
 |---|---:|---|---|
-| smarthealth_lishen40 (C1) | 629 / 27 | `temp1_1` in audited headers | v5 regenerated locally |
-| smarthealth_catl280 (C2) | 200 / 9 | `temp1_1` in audited headers | v5 regeneration pending |
-| smarthealth_eve280 (C3) | 299 / 9 | 9 chunks lack `temp1_1` | v5 regeneration pending; missing-T candidates remain excluded |
+| smarthealth_lishen40 (C1) | 629 / 27 | `temp1_1` in audited headers | v7 regeneration pending |
+| smarthealth_catl280 (C2) | 200 / 9 | `temp1_1` in audited headers | v7 regeneration pending |
+| smarthealth_eve280 (C3) | 299 / 9 | 9 chunks lack `temp1_1` | v7 regeneration pending; short persistent tapers accepted; partial-DOD calibrations anchor-only; missing-T candidates excluded |
 
 Canonical raw files are namespaced under
 `datasets/SmartHealth_raw/<domain>`; matching features are under

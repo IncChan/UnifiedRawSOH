@@ -1,0 +1,16 @@
+{
+  "base_config": "./feature_base.json",
+  "experiment": {
+    "domain_id": "mit",
+    "dataset_id": "mit_features",
+    "split_file": "splits/mit/mit_paper_physical124_v2_split.json",
+    "batches": ["2017-05-12", "2017-06-30", "2018-04-12"]
+  },
+  "data": {
+    "domain_id": "mit",
+    "dataset": "mit_features",
+    "data_root": "datasets/MIT_features",
+    "split_file": "splits/mit/mit_paper_physical124_v2_split.json",
+    "nominal_capacity": 1.1
+  }
+}

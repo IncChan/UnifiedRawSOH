@@ -1,0 +1,31 @@
+{
+  "base_config": "./terminal_sequence_base.json",
+  "experiment": {
+    "domain_id": "mit",
+    "dataset_id": "mit_raw",
+    "split_file": "splits/mit/mit_paper_physical124_v2_split.json",
+    "batches": ["2017-05-12", "2017-06-30", "2018-04-12"]
+  },
+  "data": {
+    "domain_id": "mit",
+    "dataset": "mit_raw",
+    "adapter_id": "mit_raw",
+    "terminal_data_root": "datasets/MIT_raw",
+    "nominal_capacity": 1.1,
+    "label_scale_mode": "none"
+  },
+  "normalization": {
+    "raw_voltage_low": 3.45,
+    "raw_voltage_high": 3.60,
+    "raw_current_scale": 1.1,
+    "cc_voltage_low": 3.45,
+    "cc_voltage_high": 3.60,
+    "cv_current_low": 0.055,
+    "cv_current_high": 0.275,
+    "cc_current_ref": 1.1,
+    "cv_voltage_ref": 3.60,
+    "temp_room": 25.0,
+    "temp_abs_scale": 20.0,
+    "temp_delta_scale": 10.0
+  }
+}

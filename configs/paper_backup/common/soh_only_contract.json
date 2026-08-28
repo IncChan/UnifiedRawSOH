@@ -1,0 +1,29 @@
+{
+  "schema_version": "paper_backup_soh_only_v1",
+  "output": {
+    "paper_version": "Paper-Backup",
+    "root": "outputs/Paper-Backup"
+  },
+  "train": {
+    "seed": 42,
+    "epochs": 100,
+    "patience": 20,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "monitor": "battery_macro.rmse",
+    "lambda_cycle": 0.0,
+    "cycle_loss_mode": "disabled",
+    "device": "cuda"
+  },
+  "debug": {
+    "debug_num_samples": 0
+  },
+  "contract": {
+    "target": "SOH only",
+    "cycle_lifetime_auxiliary": false,
+    "metadata_in_forward": false,
+    "strategy_input": false,
+    "full_input_must_be_point_level": true
+  }
+}

@@ -200,7 +200,12 @@ def _smarthealth_direct(record: Mapping[str, Any]) -> bool:
     value = str(
         record.get("label_source", record.get("smarthealth_label_status", record.get("capacity_source", "")))
     ).strip().lower()
-    return value in {"calibration_direct", "direct", "calibration-direct"}
+    return value in {
+        "capacity_direct",
+        "calibration_direct",
+        "direct",
+        "calibration-direct",
+    }
 
 
 def _smarthealth_interpolated(record: Mapping[str, Any]) -> bool:
@@ -479,7 +484,7 @@ def frozen_smarthealth_bol_references(
             if missing:
                 raise BOLReferenceError(
                     f"Cell {cell_id!r} is missing frozen SmartHealth BOL fields {missing}; "
-                    "regenerate canonical RAW and FEATURE products with schema_version >= 6"
+                    "regenerate canonical RAW and FEATURE products with schema_version >= 8"
                 )
         q_refs = [
             _number(

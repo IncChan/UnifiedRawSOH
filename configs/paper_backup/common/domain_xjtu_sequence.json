@@ -1,0 +1,31 @@
+{
+  "base_config": "./terminal_sequence_base.json",
+  "experiment": {
+    "domain_id": "xjtu",
+    "dataset_id": "xjtu_raw",
+    "split_file": "splits/xjtu/paper_v1_mixed_split.json",
+    "batches": ["2C", "3C", "R2.5", "R3", "RW", "satellite"]
+  },
+  "data": {
+    "domain_id": "xjtu",
+    "dataset": "xjtu_raw",
+    "adapter_id": "xjtu",
+    "terminal_data_root": "datasets/XJTU_raw",
+    "nominal_capacity": 2.0,
+    "label_scale_mode": "auto_capacity_to_soh"
+  },
+  "normalization": {
+    "raw_voltage_low": 4.0,
+    "raw_voltage_high": 4.19975,
+    "raw_current_scale": 4.0,
+    "cc_voltage_low": 4.0,
+    "cc_voltage_high": 4.195,
+    "cv_current_low": 0.1,
+    "cv_current_high": 0.5,
+    "cc_current_ref": 4.0,
+    "cv_voltage_ref": 4.19975,
+    "temp_room": 25.0,
+    "temp_abs_scale": 20.0,
+    "temp_delta_scale": 10.0
+  }
+}

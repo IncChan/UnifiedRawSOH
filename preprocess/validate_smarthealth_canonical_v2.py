@@ -109,7 +109,7 @@ def _true(row: dict[str, str], name: str) -> bool:
 
 
 def validate_exported_cc_window(row: dict[str, str], path: Path) -> None:
-    """Validate the v5 distinction between physical and accepted CC coverage."""
+    """Validate the v7 distinction between physical and accepted CC coverage."""
 
     if not _true(row, "cc_window_accepted"):
         raise ValidationError(f"{path}: exported cycle lacks cc_window_accepted")
@@ -132,6 +132,45 @@ def validate_exported_cc_window(row: dict[str, str], path: Path) -> None:
         )
 
 
+def validate_point_origin(
+    row: dict[str, str], path: Path, *, segment: str, voltage: float, c_rate: float
+) -> None:
+    """Validate source-row or exact interpolated-endpoint provenance."""
+
+    origin = str(row.get("point_origin", "")).strip()
+    source_index = str(row.get("source_row_index", "")).strip()
+    endpoint = str(row.get("window_endpoint", "")).strip()
+    left_text = str(row.get("interpolation_left_source_row_index", "")).strip()
+    right_text = str(row.get("interpolation_right_source_row_index", "")).strip()
+    if origin == "source":
+        try:
+            valid_source_index = int(source_index) >= 0
+        except ValueError:
+            valid_source_index = False
+        if not valid_source_index or endpoint or left_text or right_text:
+            raise ValidationError(f"{path}: invalid source-point provenance")
+        return
+    if origin != "interpolated_window_endpoint" or source_index:
+        raise ValidationError(f"{path}: invalid point_origin={origin!r}")
+    try:
+        left = int(left_text)
+        right = int(right_text)
+    except ValueError as exc:
+        raise ValidationError(f"{path}: invalid endpoint interpolation bracket") from exc
+    if left < 0 or right <= left:
+        raise ValidationError(f"{path}: non-ordered endpoint bracket {left}, {right}")
+    exact = {
+        ("CC", "cc_voltage_low"): math.isclose(voltage, 3.45, rel_tol=0.0, abs_tol=1e-9),
+        ("CC", "cc_voltage_high"): math.isclose(voltage, 3.58, rel_tol=0.0, abs_tol=1e-9),
+        ("CV", "cv_c_rate_low"): math.isclose(c_rate, 0.05, rel_tol=0.0, abs_tol=1e-9),
+        ("CV", "cv_c_rate_high"): math.isclose(c_rate, 0.25, rel_tol=0.0, abs_tol=1e-9),
+    }.get((segment, endpoint), False)
+    if not exact:
+        raise ValidationError(
+            f"{path}: endpoint metadata/value mismatch for {segment}/{endpoint}"
+        )
+
+
 def load_manifest(config: DomainConfig, raw_root: Path) -> tuple[dict, Path]:
     raw_directory = raw_root / config.domain_id
     path = raw_directory / "SMARTHEALTH_CANONICAL_MANIFEST.json"
@@ -143,8 +182,8 @@ def load_manifest(config: DomainConfig, raw_root: Path) -> tuple[dict, Path]:
         raise ValidationError(f"{path}: domain mismatch")
     if manifest.get("strategy_version") != POLICY_VERSION:
         raise ValidationError(f"{path}: strategy version mismatch")
-    if int(manifest.get("schema_version", 0)) < 6:
-        raise ValidationError(f"{path}: schema predates frozen BOL references")
+    if int(manifest.get("schema_version", 0)) < 8:
+        raise ValidationError(f"{path}: schema predates v7 anchor/input roles")
     if manifest.get("split_strategy_version") != SPLIT_STRATEGY_VERSION:
         raise ValidationError(f"{path}: split strategy version mismatch")
     required_fields(path, manifest.get("raw_schema"), RAW_COLUMNS)
@@ -181,9 +220,13 @@ def load_exported_provenance(
                 "source_absolute_end_time",
                 "selected_candidate",
                 "output_status",
+                "output_reason",
                 "raw_rows_written",
                 "SOH",
                 "label_source",
+                "model_input_role",
+                "direct_capacity_observation",
+                "calibration_anchor_only",
                 "bol_q_ref_Ah",
                 "bol_q_ref_rule",
                 "bol_q_ref_source",
@@ -219,8 +262,28 @@ def load_exported_provenance(
             if end < start:
                 raise ValidationError(f"{path}: reversed source time interval for {logical_sequence_id}/{cycle}")
             selected_timeline.setdefault(logical_sequence_id, []).append((cycle, start, end))
+            anchor_only = str(row["calibration_anchor_only"]).lower() in {"true", "1"}
+            if anchor_only:
+                if str(row["direct_capacity_observation"]).lower() not in {"true", "1"}:
+                    raise ValidationError(f"{path}: anchor lacks a direct capacity observation")
+                finite(row, "label_capacity_Ah", path)
+                finite(row, "SOH", path)
+                if row["output_status"] != "excluded":
+                    raise ValidationError(f"{path}: calibration anchor entered model output: {(logical_sequence_id, cycle)}")
+                if row["output_reason"] != "calibration_anchor_only_not_model_input":
+                    raise ValidationError(f"{path}: invalid calibration-anchor exclusion reason")
+                if row["label_source"] != "calibration_anchor_only" or row["model_input_role"] != "calibration_anchor_only":
+                    raise ValidationError(f"{path}: inconsistent calibration-anchor provenance")
             if row["output_status"] != "exported":
                 continue
+            if anchor_only:
+                raise ValidationError(f"{path}: exported calibration anchor")
+            expected_role = {
+                "capacity_direct": "normal_direct_input",
+                "calibration_interpolated": "normal_interpolated_input",
+            }.get(row["label_source"])
+            if expected_role is None or row["model_input_role"] != expected_role:
+                raise ValidationError(f"{path}: invalid exported model-input role")
             key = (logical_sequence_id, cycle)
             if key in expected:
                 raise ValidationError(f"{path}: duplicate selected/exported provenance {key}")
@@ -283,8 +346,14 @@ def validate_raw_domain(
                 ):
                     raise ValidationError(f"{path}: non-contiguous CC/CV segments for {active_key}")
                 label_source = active[0]["label_source"]
-                if label_source not in {"calibration_direct", "calibration_interpolated"}:
+                if label_source not in {"capacity_direct", "calibration_interpolated"}:
                     raise ValidationError(f"{path}: invalid label source for {active_key}: {label_source!r}")
+                expected_role = {
+                    "capacity_direct": "normal_direct_input",
+                    "calibration_interpolated": "normal_interpolated_input",
+                }[label_source]
+                if active[0]["model_input_role"] != expected_role:
+                    raise ValidationError(f"{path}: invalid model-input role for {active_key}")
                 soh = finite(active[0], "SOH", path)
                 bol_q_ref = finite(active[0], "bol_q_ref_Ah", path)
                 if bol_q_ref <= 0.0:
@@ -304,6 +373,8 @@ def validate_raw_domain(
                 for row in active:
                     if row["domain_id"] != config.domain_id or row["strategy_version"] != POLICY_VERSION:
                         raise ValidationError(f"{path}: metadata policy/domain mismatch for {active_key}")
+                    if row["model_input_role"] != expected_role:
+                        raise ValidationError(f"{path}: model-input role varies for {active_key}")
                     if row["split_strategy_version"] != SPLIT_STRATEGY_VERSION:
                         raise ValidationError(f"{path}: split strategy mismatch for {active_key}")
                     if row["split_status"] not in {
@@ -350,11 +421,20 @@ def validate_raw_domain(
                         <= config.cv_c_rate_high + config.cv_selection_tolerance_c + 1e-9
                     ):
                         raise ValidationError(f"{path}: CV point outside v3 C-rate window for {active_key}")
+                    validate_point_origin(
+                        row,
+                        path,
+                        segment=segment,
+                        voltage=voltage,
+                        c_rate=c_rate,
+                    )
                 provenance = expected[active_key]
                 if not math.isclose(
                     float(provenance["SOH"]), soh, rel_tol=1e-7, abs_tol=1e-8
                 ) or provenance["label_source"] != label_source:
                     raise ValidationError(f"{path}: RAW/provenance label mismatch for {active_key}")
+                if provenance["model_input_role"] != expected_role:
+                    raise ValidationError(f"{path}: RAW/provenance model-input role mismatch for {active_key}")
                 if (
                     not math.isclose(
                         float(provenance["bol_q_ref_Ah"]),
@@ -379,6 +459,7 @@ def validate_raw_domain(
                     "rows": len(active),
                     "soh": soh,
                     "label_source": label_source,
+                    "model_input_role": expected_role,
                     "bol_q_ref_Ah": bol_q_ref,
                     "bol_q_ref_rule": BOL_RULE_VERSION,
                     "bol_q_ref_source": BOL_REFERENCE_SOURCE,
@@ -440,8 +521,8 @@ def validate_feature_domain(
         payload = json.load(handle)
     if payload.get("domain_id") != config.domain_id or payload.get("strategy_version") != POLICY_VERSION:
         raise ValidationError(f"{pointer}: incompatible feature pointer")
-    if int(payload.get("schema_version", 0)) < 6:
-        raise ValidationError(f"{pointer}: feature schema predates frozen BOL references")
+    if int(payload.get("schema_version", 0)) < 8:
+        raise ValidationError(f"{pointer}: feature schema predates v7 anchor/input roles")
     if payload.get("split_strategy_version") != SPLIT_STRATEGY_VERSION:
         raise ValidationError(f"{pointer}: incompatible feature split strategy")
     files = sorted(directory.glob(f"{config.domain_id}__*.csv"))
@@ -459,8 +540,12 @@ def validate_feature_domain(
                 raw = raw_cycles.get(key)
                 if raw is None:
                     raise ValidationError(f"{path}: feature cycle absent from RAW {key}")
-                if row["label_source"] != raw["label_source"] or not math.isclose(
+                if (
+                    row["label_source"] != raw["label_source"]
+                    or row["model_input_role"] != raw["model_input_role"]
+                    or not math.isclose(
                     finite(row, "SOH", path), float(raw["soh"]), rel_tol=1e-7, abs_tol=1e-8
+                    )
                 ):
                     raise ValidationError(f"{path}: feature/RAW label mismatch for {key}")
                 if (

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plot SmartHealth exported capacity labels against canonical source cycle.
+"""Plot SmartHealth model-input labels and anchor-only calibrations by cycle.
 
 This diagnostic reads the cycle-level provenance files rather than the
 point-level CSVs.  Each domain produces one figure; each operating condition
@@ -24,6 +24,7 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.lines import Line2D
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +53,8 @@ REQUIRED_COLUMNS = {
     "split_role",
     "selected_candidate",
     "output_status",
+    "calibration_anchor_only",
+    "model_input_role",
 }
 
 
@@ -94,6 +97,7 @@ class CellTrajectory:
     source_serial: str
     split_role: str
     points: list[CapacityPoint] = field(default_factory=list)
+    anchors: list[CapacityPoint] = field(default_factory=list)
 
     def ordered_points(self) -> list[CapacityPoint]:
         ordered = sorted(self.points, key=lambda item: item.cycle)
@@ -105,17 +109,38 @@ class CellTrajectory:
     def summary(self) -> dict[str, object]:
         ordered = self.ordered_points()
         capacity = np.asarray([item.capacity_ah for item in ordered], dtype=float)
+        cycles = np.asarray([item.cycle for item in ordered], dtype=int)
+        direct_cycles = np.asarray(
+            [item.cycle for item in ordered if item.label_source == "capacity_direct"],
+            dtype=int,
+        )
+        anchor_cycles = np.asarray(
+            [item.cycle for item in sorted(self.anchors, key=lambda item: item.cycle)],
+            dtype=int,
+        )
+        reference_cycles = anchor_cycles if anchor_cycles.size else direct_cycles
+        cycle_gaps = np.diff(cycles) - 1
+        calibration_gaps = (
+            np.diff(reference_cycles) if reference_cycles.size >= 2 else np.asarray([])
+        )
         return {
             "source_serial": self.source_serial,
             "split_role": self.split_role,
             "exported_cycles": len(ordered),
             "cycle_range": [int(ordered[0].cycle), int(ordered[-1].cycle)],
             "label_capacity_Ah_range": [float(np.min(capacity)), float(np.max(capacity))],
-            "calibration_direct_cycles": sum(
-                item.label_source == "calibration_direct" for item in ordered
+            "capacity_direct_cycles": sum(
+                item.label_source == "capacity_direct" for item in ordered
             ),
             "calibration_interpolated_cycles": sum(
                 item.label_source == "calibration_interpolated" for item in ordered
+            ),
+            "calibration_anchor_only_cycles": len(self.anchors),
+            "longest_missing_export_run_cycles": (
+                int(np.max(cycle_gaps)) if cycle_gaps.size else 0
+            ),
+            "largest_capacity_reference_interval_cycles": (
+                int(np.max(calibration_gaps)) if calibration_gaps.size else None
             ),
         }
 
@@ -138,9 +163,9 @@ def load_domain(raw_root: Path, domain_id: str) -> dict[str, list[CellTrajectory
         for line_number, row in enumerate(reader, start=2):
             if row.get("domain_id") != domain_id or not truth(row.get("selected_candidate")):
                 continue
-            # Non-exported rows have no usable capacity label and must not
-            # become a fictitious zero/NaN point in the diagnostic.
-            if row.get("output_status") != "exported":
+            exported = row.get("output_status") == "exported"
+            anchor_only = truth(row.get("calibration_anchor_only"))
+            if not exported and not anchor_only:
                 continue
             cycle_value = finite(row.get("cycle"), column="cycle", path=path, line_number=line_number)
             if not cycle_value.is_integer() or cycle_value <= 0:
@@ -155,18 +180,27 @@ def load_domain(raw_root: Path, domain_id: str) -> dict[str, list[CellTrajectory
                     split_role=str(row.get("split_role") or "unknown"),
                 )
                 cells[logical_id] = cell
-            cell.points.append(
-                CapacityPoint(
-                    cycle=int(cycle_value),
-                    capacity_ah=finite(
-                        row.get("label_capacity_Ah"),
-                        column="label_capacity_Ah",
-                        path=path,
-                        line_number=line_number,
-                    ),
-                    label_source=str(row.get("label_source") or "unknown"),
-                )
+            label_source = str(row.get("label_source") or "unknown")
+            expected_sources = (
+                {"calibration_anchor_only"}
+                if anchor_only
+                else {"capacity_direct", "calibration_interpolated"}
             )
+            if label_source not in expected_sources:
+                raise ValueError(
+                    f"{path}:{line_number}: unexpected label_source={label_source!r}"
+                )
+            point = CapacityPoint(
+                cycle=int(cycle_value),
+                capacity_ah=finite(
+                    row.get("label_capacity_Ah"),
+                    column="label_capacity_Ah",
+                    path=path,
+                    line_number=line_number,
+                ),
+                label_source=label_source,
+            )
+            (cell.anchors if anchor_only else cell.points).append(point)
 
     by_condition: dict[str, list[CellTrajectory]] = defaultdict(list)
     for cell in cells.values():
@@ -184,6 +218,24 @@ def load_domain(raw_root: Path, domain_id: str) -> dict[str, list[CellTrajectory
 def display_name(cell: CellTrajectory) -> str:
     role = "test" if cell.split_role == "test" else "development"
     return f"{cell.source_serial or cell.logical_sequence_id} ({role})"
+
+
+def break_at_missing_cycles(
+    cycle: np.ndarray, capacity: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Insert NaNs so plotting never bridges absent canonical cycles."""
+
+    if cycle.size != capacity.size or cycle.size == 0:
+        raise ValueError("Cycle/capacity arrays must be non-empty and aligned")
+    output_cycle: list[float] = [float(cycle[0])]
+    output_capacity: list[float] = [float(capacity[0])]
+    for previous, current, value in zip(cycle, cycle[1:], capacity[1:]):
+        if int(current) != int(previous) + 1:
+            output_cycle.append(math.nan)
+            output_capacity.append(math.nan)
+        output_cycle.append(float(current))
+        output_capacity.append(float(value))
+    return np.asarray(output_cycle), np.asarray(output_capacity)
 
 
 def plot_domain(domain_id: str, trajectories: dict[str, list[CellTrajectory]], output_path: Path) -> None:
@@ -211,18 +263,49 @@ def plot_domain(domain_id: str, trajectories: dict[str, list[CellTrajectory]], o
             capacity_values.extend(capacity.tolist())
             color = palette(cell_index % palette.N)
             is_test = cell.split_role == "test"
+            line_cycle, line_capacity = break_at_missing_cycles(cycle, capacity)
             axis.plot(
-                cycle,
-                capacity,
+                line_cycle,
+                line_capacity,
                 color=color,
                 linewidth=1.2 if is_test else 0.95,
                 linestyle="--" if is_test else "-",
                 alpha=0.92,
                 label=display_name(cell),
             )
-            direct = np.asarray([item.label_source == "calibration_direct" for item in points])
+            direct = np.asarray([item.label_source == "capacity_direct" for item in points])
             if np.any(direct):
-                axis.scatter(cycle[direct], capacity[direct], color=color, s=8, alpha=0.9, zorder=3)
+                axis.scatter(cycle[direct], capacity[direct], color=color, s=11, alpha=0.95, zorder=4)
+            interpolated = np.asarray(
+                [item.label_source == "calibration_interpolated" for item in points]
+            )
+            if np.any(interpolated):
+                axis.scatter(
+                    cycle[interpolated],
+                    capacity[interpolated],
+                    facecolors="none",
+                    edgecolors=[color],
+                    s=5,
+                    linewidths=0.35,
+                    alpha=0.45,
+                    zorder=3,
+                )
+            if cell.anchors:
+                anchor_cycle = np.asarray([item.cycle for item in cell.anchors], dtype=int)
+                anchor_capacity = np.asarray(
+                    [item.capacity_ah for item in cell.anchors], dtype=float
+                )
+                capacity_values.extend(anchor_capacity.tolist())
+                axis.scatter(
+                    anchor_cycle,
+                    anchor_capacity,
+                    color=[color],
+                    marker="x",
+                    s=24,
+                    linewidths=0.9,
+                    alpha=0.95,
+                    zorder=5,
+                )
         axis.axhline(
             nominal_capacity,
             color="#444444",
@@ -241,15 +324,35 @@ def plot_domain(domain_id: str, trajectories: dict[str, list[CellTrajectory]], o
         axis.set_ylabel("Label capacity (Ah)")
         axis.set_title(f"{condition} | {len(cells)} cells", loc="left", fontsize=10.5, fontweight="bold")
         axis.grid(alpha=0.22, linewidth=0.5)
-        axis.legend(fontsize=7.1, frameon=False, loc="best", handlelength=2.6)
+        handles, labels = axis.get_legend_handles_labels()
+        handles.extend(
+            [
+                Line2D([], [], color="#333333", marker="o", linestyle="None", markersize=3.5),
+                Line2D(
+                    [],
+                    [],
+                    color="#333333",
+                    marker="o",
+                    markerfacecolor="none",
+                    linestyle="None",
+                    markersize=3.5,
+                    markeredgewidth=0.6,
+                ),
+                Line2D([], [], color="#333333", marker="x", linestyle="None", markersize=4),
+            ]
+        )
+        labels.extend(["Direct normal-cycle label", "Interpolated normal-cycle label", "Calibration anchor only"])
+        axis.legend(handles, labels, fontsize=7.1, frameon=False, loc="best", handlelength=2.6)
 
     for axis in axes.flat[len(conditions) :]:
         axis.set_visible(False)
 
     figure.suptitle(
         f"{domain_id}: canonical capacity trajectories\n"
-        "Solid = development; dashed = test; dots = direct calibration labels; "
-        "gray dotted line = fixed nominal capacity. "
+        "Solid = development; dashed = test; filled dots = direct normal-cycle labels; "
+        "hollow dots = interpolated labels; crosses = anchor-only calibrations; "
+        "line breaks = missing model-input cycles. "
+        "Gray dotted line = fixed nominal capacity. "
         "Cycle ordering is intentionally not reconstructed from absolute time.",
         fontsize=13,
         fontweight="bold",
@@ -263,7 +366,10 @@ def domain_summary(domain_id: str, trajectories: dict[str, list[CellTrajectory]]
     return {
         "domain_id": domain_id,
         "label": "label_capacity_Ah",
-        "description": "Selected/exported canonical capacity labels; no chronology reconstruction.",
+        "description": (
+            "Exported model-input labels plus non-exported calibration anchors; "
+            "no chronology reconstruction; lines break across missing canonical cycles."
+        ),
         "conditions": {
             condition: {
                 "cells": {
@@ -308,7 +414,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     summary: dict[str, object] = {
         "raw_root": str(raw_root),
-        "event_filter": "selected_candidate=true and output_status=exported",
+        "event_filter": "selected_candidate=true and (output_status=exported or calibration_anchor_only=true)",
         "label": "label_capacity_Ah",
         "domains": {},
     }

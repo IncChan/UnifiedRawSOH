@@ -123,11 +123,17 @@ to be invariant to worker completion order.
   raw rows.
 - **SmartHealth:** family-specific `smarthealth_lishen40`,
   `smarthealth_catl280`, and `smarthealth_eve280`; infer CC→CV first, then use
-  CC `3.45–3.58 V` and nominal-C-rate CV `0.25C–0.05C` with ±`0.002C`
-  tolerance. Source-local `循环号` is provenance only: v3 derives the canonical
+  CC `3.45–3.58 V` and nominal-C-rate CV `0.25C–0.05C`. Canonical v7 uses the
+  MIT-style 8/8-point, 5-point-persistence boundary rule and inserts
+  a traceable linear endpoint when adjacent source samples bracket a fixed
+  boundary; it does not widen 3.58 V to the 3.60 V CC/CV transition. The
+  original bracket row indices are exported with every inserted endpoint.
+  Source-local `循环号` is provenance only: v3 derives the canonical
   chronology from each logical sequence's `绝对时间` start/end interval before
-  calibration labels are assigned. Labels are direct calibration or bounded
-  calibration interpolation only.
+  calibration labels are assigned. Partial-DOD full-capacity cycles are
+  anchor-only and never enter model RAW/FEATURE; 100%DOD ordinary cycles keep
+  direct labels. The v6 detector is archived under
+  `legacy/smarthealth_v6_boundary_first/`.
 
 See `MIT_PHYSICAL_DATASET.md` and `SMARTHEALTH_DATASET.md` for the detailed
 identity, label, phase, and audit contracts.

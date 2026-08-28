@@ -1,0 +1,31 @@
+{
+  "base_config": "./terminal_sequence_base.json",
+  "experiment": {
+    "domain_id": "smarthealth_lishen40",
+    "dataset_id": "smarthealth_lishen40",
+    "split_file": "splits/smarthealth/smarthealth_lishen40_cell_split.json",
+    "batches": []
+  },
+  "data": {
+    "domain_id": "smarthealth_lishen40",
+    "dataset": "smarthealth_canonical_raw_v5",
+    "adapter_id": "smarthealth",
+    "terminal_data_root": "datasets/SmartHealth_raw",
+    "nominal_capacity": 40.0,
+    "label_scale_mode": "label_capacity_to_nominal"
+  },
+  "normalization": {
+    "raw_voltage_low": 3.45,
+    "raw_voltage_high": 3.60,
+    "raw_current_scale": 80.0,
+    "cc_voltage_low": 3.45,
+    "cc_voltage_high": 3.58,
+    "cv_current_low": 2.0,
+    "cv_current_high": 10.0,
+    "cc_current_ref": 80.0,
+    "cv_voltage_ref": 3.60,
+    "temp_room": 25.0,
+    "temp_abs_scale": 20.0,
+    "temp_delta_scale": 10.0
+  }
+}

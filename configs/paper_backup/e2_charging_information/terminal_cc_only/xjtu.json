@@ -1,0 +1,8 @@
+{
+  "base_config": "../../common/model_single_stream_mamba.json",
+  "status": "runnable",
+  "experiment": {"name": "E2_Terminal_CCOnly_Mamba_XJTU", "task": "paper_backup_e2_charging_information", "domain_id": "xjtu", "split_file": "splits/xjtu/paper_v1_mixed_split.json", "batches": ["2C", "3C", "R2.5", "R3", "RW", "satellite"]},
+  "output": {"experiment_id": "e2_charging_information", "model_id": "Terminal-CCOnly-Mamba", "data_id": "xjtu_terminal_cc"},
+  "data": {"domain_id": "xjtu", "dataset": "xjtu_raw", "adapter_id": "xjtu", "terminal_data_root": "datasets/XJTU_raw", "nominal_capacity": 2.0, "label_scale_mode": "auto_capacity_to_soh", "input_view": "terminal_cc"},
+  "normalization": {"raw_voltage_low": 4.0, "raw_voltage_high": 4.19975, "raw_current_scale": 4.0, "cc_voltage_low": 4.0, "cc_voltage_high": 4.195, "cv_current_low": 0.1, "cv_current_high": 0.5, "cc_current_ref": 4.0, "cv_voltage_ref": 4.19975, "temp_room": 25.0, "temp_abs_scale": 20.0, "temp_delta_scale": 10.0}
+}

@@ -62,11 +62,14 @@ canonical `audit/*_CYCLE_PROVENANCE.csv` labels, rather than original
 point-level CSVs.  It makes one mosaic per battery domain, with one condition
 per panel and all cells under that condition on the same axes.
 
-Only `selected_candidate=true` and `output_status=exported` rows are plotted.
-Thus every point is the exported `label_capacity_Ah`. Solid lines are
-development cells, dashed lines are test cells, dots denote direct calibration
-labels, and the gray dotted horizontal line is the domain's fixed nominal
-capacity. The horizontal axis is the **current canonical
+Exported model-input rows and `calibration_anchor_only=true` provenance rows
+are plotted. Solid lines are development cells, dashed lines are test cells,
+filled dots denote direct normal-cycle labels, hollow dots denote interpolated
+normal-cycle labels, crosses denote non-exported partial-DOD calibration
+anchors, and the gray dotted horizontal line is fixed nominal capacity. Lines
+are explicitly broken when consecutive exported model inputs skip a canonical
+cycle, so a calibration anchor or rejected input is not drawn as an observed
+model input. The horizontal axis is the **current canonical
 source-cycle order**, intentionally not a reconstructed absolute chronology;
 that makes session/chunk ordering problems visible instead of hiding them.
 
@@ -90,7 +93,10 @@ SMARTHEALTH_CAPACITY_OUTPUT_DIR=/path/to/figures \
 ```
 
 It writes `<domain>_capacity_vs_cycle.png` and a compact `summary.json` to
-`test/outputs/smarthealth_capacity_trajectories/` by default.
+`test/outputs/smarthealth_capacity_trajectories/` by default. The summary also
+reports each cell's longest missing exported-cycle run and largest interval
+between capacity-reference observations; these are different quantities and should not be
+interpreted interchangeably.
 
 ## XJTU capacity-versus-cycle trajectories
 

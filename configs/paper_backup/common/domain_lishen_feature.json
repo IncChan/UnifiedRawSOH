@@ -1,0 +1,16 @@
+{
+  "base_config": "./feature_base.json",
+  "experiment": {
+    "domain_id": "smarthealth_lishen40",
+    "dataset_id": "smarthealth_lishen40_features",
+    "split_file": "splits/smarthealth/smarthealth_lishen40_cell_split.json",
+    "batches": []
+  },
+  "data": {
+    "domain_id": "smarthealth_lishen40",
+    "dataset": "smarthealth_lishen40_features",
+    "data_root": "datasets/SmartHealth_features",
+    "split_file": "splits/smarthealth/smarthealth_lishen40_cell_split.json",
+    "nominal_capacity": 40.0
+  }
+}

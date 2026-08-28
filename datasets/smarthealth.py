@@ -1,7 +1,7 @@
-"""SmartHealth source audit and v5 time-ordered canonical raw-cycle adapter.
+"""SmartHealth source audit and v7 time-ordered canonical raw-cycle adapter.
 
 The GB18030 source has a combined ``恒流恒压充电`` step and is audit-only when
-supplied directly.  The three family-specific v5 RAW preprocessors write the
+supplied directly.  The three family-specific v7 RAW preprocessors write the
 validated boundary, selected CC/CV windows, calibration-derived capacity, and
 cell/cycle provenance that this adapter consumes.
 """
@@ -43,7 +43,7 @@ SMARTHEALTH_NOMINAL_CAPACITY_AH = {
     "smarthealth_catl280": 280.0,
     "smarthealth_eve280": 280.0,
 }
-SMARTHEALTH_CANONICAL_POLICY_VERSION = "smarthealth_cccv_calibration_v5"
+SMARTHEALTH_CANONICAL_POLICY_VERSION = "smarthealth_cccv_calibration_v7"
 SMARTHEALTH_CC_VOLTAGE_RANGE = (3.45, 3.58)
 SMARTHEALTH_CV_C_RATE_RANGE = (0.05, 0.25)
 SMARTHEALTH_CV_SELECTION_TOLERANCE_C = 0.002
@@ -64,6 +64,7 @@ SMARTHEALTH_PROCESSED_REQUIRED_COLUMNS = {
     "SOH",
     "label_capacity_Ah",
     "label_source",
+    "model_input_role",
     "split_role",
     "split_status",
     "split_issue",
@@ -71,6 +72,11 @@ SMARTHEALTH_PROCESSED_REQUIRED_COLUMNS = {
     "segment",
     "cycle_point_index",
     "segment_point_index",
+    "source_row_index",
+    "point_origin",
+    "window_endpoint",
+    "interpolation_left_source_row_index",
+    "interpolation_right_source_row_index",
     "relative_time",
     "voltage_V",
     "current_A",
@@ -309,6 +315,49 @@ def _validate_canonical_phase_row(
     ):
         raise ValueError(f"SmartHealth CV point outside 0.25C--0.05C window in {path}")
 
+    point_origin = str(row["point_origin"]).strip()
+    source_row_index = str(row["source_row_index"]).strip()
+    window_endpoint = str(row["window_endpoint"]).strip()
+    left_index = str(row["interpolation_left_source_row_index"]).strip()
+    right_index = str(row["interpolation_right_source_row_index"]).strip()
+    if point_origin == "source":
+        if not source_row_index or left_index or right_index or window_endpoint:
+            raise ValueError(f"Invalid source-point endpoint provenance in {path}")
+        try:
+            if int(source_row_index) < 0:
+                raise ValueError
+        except ValueError as exc:
+            raise ValueError(f"Invalid source_row_index in {path}: {source_row_index!r}") from exc
+        return
+    if point_origin != "interpolated_window_endpoint" or source_row_index:
+        raise ValueError(f"Invalid SmartHealth point_origin in {path}: {point_origin!r}")
+    try:
+        left = int(left_index)
+        right = int(right_index)
+    except ValueError as exc:
+        raise ValueError(f"Invalid endpoint interpolation bracket in {path}") from exc
+    if left < 0 or right <= left:
+        raise ValueError(f"Non-ordered endpoint interpolation bracket in {path}: {left}, {right}")
+    expected_endpoint = {
+        ("CC", "cc_voltage_low"): math.isclose(
+            voltage, SMARTHEALTH_CC_VOLTAGE_RANGE[0], rel_tol=0.0, abs_tol=1e-9
+        ),
+        ("CC", "cc_voltage_high"): math.isclose(
+            voltage, SMARTHEALTH_CC_VOLTAGE_RANGE[1], rel_tol=0.0, abs_tol=1e-9
+        ),
+        ("CV", "cv_c_rate_low"): math.isclose(
+            recorded_c_rate, SMARTHEALTH_CV_C_RATE_RANGE[0], rel_tol=0.0, abs_tol=1e-9
+        ),
+        ("CV", "cv_c_rate_high"): math.isclose(
+            recorded_c_rate, SMARTHEALTH_CV_C_RATE_RANGE[1], rel_tol=0.0, abs_tol=1e-9
+        ),
+    }.get((segment, window_endpoint), False)
+    if not expected_endpoint:
+        raise ValueError(
+            f"Interpolated endpoint does not match its segment/value in {path}: "
+            f"segment={segment!r}, endpoint={window_endpoint!r}"
+        )
+
 
 def read_smarthealth_raw_file(
     path: str | Path,
@@ -406,7 +455,17 @@ def read_smarthealth_raw_file(
                 "split_issue": str(row["split_issue"]).strip(),
                 "split_strategy_version": str(row["split_strategy_version"]).strip(),
                 "label_source": str(row["label_source"]).strip(),
+                "model_input_role": str(row["model_input_role"]).strip(),
             }
+            expected_role = {
+                "capacity_direct": "normal_direct_input",
+                "calibration_interpolated": "normal_interpolated_input",
+            }.get(provenance["label_source"])
+            if expected_role is None or provenance["model_input_role"] != expected_role:
+                raise ValueError(
+                    f"SmartHealth canonical model-input role mismatch in {path}: "
+                    f"{provenance['label_source']!r}/{provenance['model_input_role']!r}"
+                )
             if has_frozen_bol:
                 try:
                     bol_q_ref = float(row["bol_q_ref_Ah"])

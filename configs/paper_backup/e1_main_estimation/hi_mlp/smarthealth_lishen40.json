@@ -1,0 +1,7 @@
+{
+  "base_config": "../../common/domain_lishen_feature.json",
+  "status": "runnable",
+  "experiment": {"name": "E1_HI_MLP_LISHEN40", "task": "paper_backup_e1_main_estimation", "input_view": "statistical_features"},
+  "output": {"experiment_id": "e1_main_estimation", "model_id": "HI-MLP", "data_id": "smarthealth_lishen40"},
+  "model": {"type": "HI-MLP", "input_dim": 24, "encoder_hidden_dim": 60, "encoder_output_dim": 32, "encoder_layers_num": 3, "predictor_hidden_dim": 32, "dropout": 0.2}
+}

@@ -1,0 +1,16 @@
+{
+  "base_config": "./feature_base.json",
+  "experiment": {
+    "domain_id": "smarthealth_eve280",
+    "dataset_id": "smarthealth_eve280_features",
+    "split_file": "splits/smarthealth/smarthealth_eve280_cell_split.json",
+    "batches": []
+  },
+  "data": {
+    "domain_id": "smarthealth_eve280",
+    "dataset": "smarthealth_eve280_features",
+    "data_root": "datasets/SmartHealth_features",
+    "split_file": "splits/smarthealth/smarthealth_eve280_cell_split.json",
+    "nominal_capacity": 280.0
+  }
+}

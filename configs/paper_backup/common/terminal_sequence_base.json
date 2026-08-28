@@ -1,0 +1,32 @@
+{
+  "base_config": "./soh_only_contract.json",
+  "data": {
+    "input_view": "terminal_joint",
+    "raw_len_cc": 128,
+    "raw_len_cv": 256,
+    "min_cc_points": 4,
+    "min_cv_points": 4,
+    "resampling": "linear",
+    "time_scale_min": 10.0,
+    "num_workers": 0,
+    "drop_incomplete_cycle": true,
+    "terminal_source_kind": "canonical_terminal_raw",
+    "matched_full_data_root": null
+  },
+  "normalization": {
+    "mode": "physical_window",
+    "raw_voltage_low": 3.45,
+    "raw_voltage_high": 4.20,
+    "raw_current_scale": 10.0,
+    "cc_voltage_low": 3.45,
+    "cc_voltage_high": 3.58,
+    "cv_current_low": 0.1,
+    "cv_current_high": 0.5,
+    "cc_current_ref": 4.0,
+    "cv_voltage_ref": 4.20,
+    "temp_room": 25.0,
+    "temp_abs_scale": 20.0,
+    "temp_delta_scale": 10.0,
+    "current_use_abs": true
+  }
+}

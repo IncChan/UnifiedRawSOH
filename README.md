@@ -21,6 +21,7 @@ input.
             e4_industrial_external/
             diagnostics/              frozen E2 representation/residual/gradient analysis
         paper_v2/                     reserved V2 configuration namespace
+        paper_backup/                 isolated terminal/full E1-E3 route
     datasets/                          adapters, domain registry, manifests
     preprocess/                        source-to-canonical-product pipelines
     splits/                            data/split provenance
@@ -29,6 +30,7 @@ input.
     evaluation/                        metrics and matched-cycle evaluation
     scripts/paper_v1/                  V1 experiment launchers
     scripts/paper_v2/                  reserved V2 launcher namespace
+    scripts/paper_backup/              isolated Paper-Backup launchers
     scripts/setup/                     shared data readiness tools
     results/                           curated, Git-tracked paper summaries
 
@@ -36,6 +38,13 @@ Outputs are not moved when code paths are reorganized. Historical E1 runtime
 directories remain readable; newly launched runs use:
 
     outputs/Paper-v1/<experiment-group>/<model>/<domain-composition>/runtime_<time>/
+
+Paper-Backup is a separate SOH-only route. Its current E1 matrix contains only
+HI-MLP, Transformer, and Ours across the five families; E2 full-view jobs stay
+blocked until a real point-level full source is configured. See
+`docs/paper_backup/IMPLEMENTATION_STATUS.md` and
+`scripts/paper_backup/README.md` for its isolated commands and data contract.
+Paper-Backup runs use `outputs/Paper-Backup/<experiment>/<model>/<data>/runtime_<time>/seed_<seed>/`.
 
 ## Current public domains
 

@@ -1,0 +1,10 @@
+{
+  "base_config": "./soh_only_contract.json",
+  "data": {
+    "feature_source": "canonical statistical feature product",
+    "cycle_index_used_as_model_input": false,
+    "q_ref_is_model_input": false,
+    "q_ref_in_normalization": false,
+    "num_workers": 0
+  }
+}

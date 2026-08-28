@@ -1,0 +1,16 @@
+{
+  "base_config": "./feature_base.json",
+  "experiment": {
+    "domain_id": "xjtu",
+    "dataset_id": "xjtu_features",
+    "split_file": "splits/xjtu/paper_v1_mixed_split.json",
+    "batches": ["2C", "3C", "R2.5", "R3", "RW", "satellite"]
+  },
+  "data": {
+    "domain_id": "xjtu",
+    "dataset": "xjtu_features",
+    "data_root": "datasets/XJTU_features",
+    "split_file": "splits/xjtu/paper_v1_mixed_split.json",
+    "nominal_capacity": 2.0
+  }
+}

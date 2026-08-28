@@ -49,26 +49,17 @@ except ImportError:  # Family entry points also support direct script execution.
 
 
 SOURCE_ENCODING = "gb18030"
-# v5 retains v4's absolute-time chronology and overlap reconciliation. It also
-# separates model-window eligibility from calibration eligibility: partial-DOD
-# charge traces may start above the common CC lower bound, while a valid
-# full-capacity discharge can calibrate labels even when its charge trace is
-# not a model input.
-POLICY_VERSION = "smarthealth_cccv_calibration_v5"
+# v7 keeps v6's chronological reconciliation and exact physical endpoint
+# interpolation, but adopts the short persistent-taper phase detector used by
+# the MIT pipeline.  Partial-DOD full-capacity cycles are calibration anchors
+# only; they are never model inputs.  The frozen v6 detector is kept under
+# ``preprocess/legacy/smarthealth_v6_boundary_first``.
+POLICY_VERSION = "smarthealth_cccv_calibration_v7"
 SPLIT_STRATEGY_VERSION = "smarthealth_condition_cell_split_2development_1test_v3"
 DEFAULT_MAX_SOURCE_CYCLE_DURATION_HOURS = 24.0
-# CV boundary detection is dataset/DoD dependent because the source devices do
-# not all record the same length of the current-taper tail.  These are detection
-# thresholds only: they do not change the canonical RAW schema, label policy,
-# split strategy, or either version identifier above.  An omitted domain/DoD
-# keeps the historical parser default (60 points).
-CV_MIN_POINTS_BY_DOMAIN_DOD: dict[str, dict[int, int]] = {
-    "smarthealth_eve280": {
-        20: 30,
-        60: 30,
-        100: 30,
-    },
-}
+# v7 intentionally has no family/DoD point-count override.  Source cadence is
+# not a physical phase definition; a short, persistent taper is sufficient.
+CV_MIN_POINTS_BY_DOMAIN_DOD: dict[str, dict[int, int]] = {}
 CHARGE_STEP = "恒流恒压充电"
 DISCHARGE_STEP = "恒流放电"
 SOURCE_POINT_REQUIRED_COLUMNS = (
@@ -163,6 +154,7 @@ RAW_COLUMNS = [
     "cycle",
     "SOH",
     "label_source",
+    "model_input_role",
     "cycle_discharge_capacity_Ah",
     "label_capacity_Ah",
     "reference_calibration_capacity_Ah",
@@ -177,6 +169,10 @@ RAW_COLUMNS = [
     "cycle_point_index",
     "segment_point_index",
     "source_row_index",
+    "point_origin",
+    "window_endpoint",
+    "interpolation_left_source_row_index",
+    "interpolation_right_source_row_index",
     "relative_time",
     "relative_time_min",
     "relative_time_unit",
@@ -253,6 +249,7 @@ FEATURE_PREFIX_COLUMNS = [
     "cycle",
     "SOH",
     "label_source",
+    "model_input_role",
     "cycle_discharge_capacity_Ah",
     "label_capacity_Ah",
     "reference_calibration_capacity_Ah",
@@ -302,6 +299,10 @@ CYCLE_PROVENANCE_COLUMNS = [
     "inferred_cv_points",
     "selected_cc_points",
     "selected_cv_points",
+    "selected_cc_source_points",
+    "selected_cv_source_points",
+    "selected_cc_interpolated_endpoint_points",
+    "selected_cv_interpolated_endpoint_points",
     "cc_current_reference_A",
     "cv_start_source_row_index",
     "cv_start_voltage_V",
@@ -327,8 +328,10 @@ CYCLE_PROVENANCE_COLUMNS = [
     "selected_candidate",
     "selection_reason",
     "cycle_discharge_capacity_Ah",
-    "calibration_direct_candidate",
-    "calibration_reason",
+    "direct_capacity_observation",
+    "direct_capacity_reason",
+    "calibration_anchor_only",
+    "model_input_role",
     "reference_calibration_capacity_Ah",
     "bol_q_ref_Ah",
     "bol_q_ref_rule",
@@ -363,7 +366,9 @@ CELL_PROVENANCE_COLUMNS = [
     "duplicate_timestamp_candidates",
     "overlapping_source_cycle_candidates",
     "phase_eligible_cycles",
-    "direct_calibration_cycles",
+    "direct_capacity_observation_cycles",
+    "calibration_anchor_only_cycles",
+    "normal_direct_input_cycles",
     "interpolated_label_cycles",
     "selected_output_cycles",
     "excluded_selected_cycles",
@@ -453,7 +458,7 @@ class SourceIdentity:
 
 @dataclass(frozen=True)
 class Point:
-    source_row_index: int
+    source_row_index: int | None
     cycle: int
     step_id: str
     step_type: str
@@ -464,6 +469,10 @@ class Point:
     charge_capacity_ah: float
     discharge_capacity_ah: float
     temperature_c: float
+    point_origin: str = "source"
+    window_endpoint: str = ""
+    interpolation_left_source_row_index: int | None = None
+    interpolation_right_source_row_index: int | None = None
 
 
 @dataclass
@@ -479,6 +488,10 @@ class PhaseResult:
     inferred_cv_points: int = 0
     selected_cc_points: int = 0
     selected_cv_points: int = 0
+    selected_cc_source_points: int = 0
+    selected_cv_source_points: int = 0
+    selected_cc_interpolated_endpoint_points: int = 0
+    selected_cv_interpolated_endpoint_points: int = 0
     cc_current_reference_a: float = math.nan
     cv_start_source_row_index: int | None = None
     cv_start_voltage_v: float = math.nan
@@ -525,8 +538,13 @@ class CycleCandidate:
     candidate_count_for_event: int = 0
     selected_candidate: bool = False
     selection_reason: str = ""
-    calibration_direct_candidate: bool = False
-    calibration_reason: str = ""
+    direct_capacity_observation: bool = False
+    direct_capacity_reason: str = ""
+    # Partial-DOD full-capacity discharges are SOH anchors, not observations
+    # presented to the model.  100%DOD cycles are ordinary model inputs with a
+    # directly observed capacity label.
+    calibration_anchor_only: bool = False
+    model_input_role: str = ""
     reference_calibration_capacity_ah: float = math.nan
     bol_q_ref_ah: float = math.nan
     bol_q_ref_rule: str = ""
@@ -558,7 +576,9 @@ class CellSummary:
     duplicate_timestamp_candidates: int = 0
     overlapping_source_cycle_candidates: int = 0
     phase_eligible_cycles: int = 0
-    direct_calibration_cycles: int = 0
+    direct_capacity_observation_cycles: int = 0
+    calibration_anchor_only_cycles: int = 0
+    normal_direct_input_cycles: int = 0
     interpolated_label_cycles: int = 0
     selected_output_cycles: int = 0
     excluded_selected_cycles: int = 0
@@ -685,6 +705,131 @@ def duration_seconds(value: str) -> float:
     except ValueError:
         return math.nan
     return days * 86400.0 + hour * 3600.0 + minute * 60.0 + second
+
+
+def format_duration_seconds(value: float) -> str:
+    """Serialize an interpolated elapsed time at microsecond precision."""
+
+    if not math.isfinite(value) or value < 0:
+        raise ValueError(f"Cannot format invalid elapsed seconds: {value!r}")
+    hours = int(value // 3600.0)
+    minutes = int((value - hours * 3600.0) // 60.0)
+    seconds = value - hours * 3600.0 - minutes * 60.0
+    return f"{hours:02d}:{minutes:02d}:{seconds:09.6f}"
+
+
+def _linear_value(left: float, right: float, fraction: float) -> float:
+    if not math.isfinite(left) or not math.isfinite(right):
+        return math.nan
+    return float(left + fraction * (right - left))
+
+
+def _interpolate_window_endpoint(
+    left: Point,
+    right: Point,
+    fraction: float,
+    *,
+    window_endpoint: str,
+    exact_voltage_v: float | None = None,
+    exact_current_a: float | None = None,
+) -> Point:
+    """Create one traceable endpoint between adjacent source samples."""
+
+    if not 0.0 < fraction < 1.0:
+        raise ValueError(f"Endpoint interpolation fraction must be internal: {fraction}")
+    left_seconds = duration_seconds(left.time_text)
+    right_seconds = duration_seconds(right.time_text)
+    elapsed_seconds = _linear_value(left_seconds, right_seconds, fraction)
+    return Point(
+        source_row_index=None,
+        cycle=left.cycle,
+        step_id=left.step_id,
+        step_type=left.step_type,
+        time_text=format_duration_seconds(elapsed_seconds),
+        absolute_time=left.absolute_time + (right.absolute_time - left.absolute_time) * fraction,
+        current_a=(
+            float(exact_current_a)
+            if exact_current_a is not None
+            else _linear_value(left.current_a, right.current_a, fraction)
+        ),
+        voltage_v=(
+            float(exact_voltage_v)
+            if exact_voltage_v is not None
+            else _linear_value(left.voltage_v, right.voltage_v, fraction)
+        ),
+        charge_capacity_ah=_linear_value(
+            left.charge_capacity_ah, right.charge_capacity_ah, fraction
+        ),
+        discharge_capacity_ah=_linear_value(
+            left.discharge_capacity_ah, right.discharge_capacity_ah, fraction
+        ),
+        temperature_c=_linear_value(left.temperature_c, right.temperature_c, fraction),
+        point_origin="interpolated_window_endpoint",
+        window_endpoint=window_endpoint,
+        interpolation_left_source_row_index=left.source_row_index,
+        interpolation_right_source_row_index=right.source_row_index,
+    )
+
+
+def _directional_endpoint(
+    points: Sequence[Point],
+    coordinate: Callable[[Point], float],
+    target: float,
+    *,
+    increasing: bool,
+    window_endpoint: str,
+    exact_voltage_v: float | None = None,
+    exact_current_magnitude_a: float | None = None,
+) -> Point | None:
+    """Return a source point at, or interpolation across, one physical endpoint."""
+
+    for point in points:
+        value = coordinate(point)
+        if math.isfinite(value) and math.isclose(value, target, rel_tol=0.0, abs_tol=1e-12):
+            return point
+    for left, right in zip(points, points[1:]):
+        left_value = coordinate(left)
+        right_value = coordinate(right)
+        if not math.isfinite(left_value) or not math.isfinite(right_value):
+            continue
+        crossed = (
+            left_value < target < right_value
+            if increasing
+            else left_value > target > right_value
+        )
+        if not crossed:
+            continue
+        fraction = (target - left_value) / (right_value - left_value)
+        exact_current_a = None
+        if exact_current_magnitude_a is not None:
+            interpolated_current = _linear_value(left.current_a, right.current_a, fraction)
+            sign = -1.0 if interpolated_current < 0 else 1.0
+            exact_current_a = sign * exact_current_magnitude_a
+        return _interpolate_window_endpoint(
+            left,
+            right,
+            fraction,
+            window_endpoint=window_endpoint,
+            exact_voltage_v=exact_voltage_v,
+            exact_current_a=exact_current_a,
+        )
+    return None
+
+
+def _ordered_unique_points(points: Iterable[Point]) -> list[Point]:
+    """Order selected points in time and avoid re-adding an exact source endpoint."""
+
+    unique: dict[tuple[datetime, int | None, str], Point] = {}
+    for point in points:
+        key = (point.absolute_time, point.source_row_index, point.point_origin)
+        unique[key] = point
+    return sorted(
+        unique.values(),
+        key=lambda point: (
+            point.absolute_time,
+            math.inf if point.source_row_index is None else point.source_row_index,
+        ),
+    )
 
 
 def finite_delta(values: Iterable[float]) -> float:
@@ -828,8 +973,8 @@ def split_combined_charge(
 ) -> PhaseResult:
     """Infer CC/CV inside the source's combined ``恒流恒压充电`` step."""
 
-    # ``args.min_cv_points`` remains the historical fallback.  Callers that
-    # know the source domain/DoD pass the resolved condition-specific value.
+    # v7 uses one MIT-style short-tail threshold across families and DoDs.
+    # ``min_cv_points`` remains injectable for controlled diagnostics.
     min_cv_points = args.min_cv_points if min_cv_points is None else min_cv_points
 
     charge_events = events(points, CHARGE_STEP)
@@ -925,25 +1070,89 @@ def split_combined_charge(
 def select_model_windows(
     phase: PhaseResult, config: DomainConfig, args: argparse.Namespace
 ) -> None:
-    """Select only already-inferred CC and CV points for the model contract."""
+    """Clip inferred phases to fixed physical windows with exact endpoints.
+
+    Source sampling is discrete, so a real trace can cross (for example)
+    3.58 V between 3.5699 V and 3.5810 V without recording a point exactly at
+    3.58 V.  Such a crossing is physical coverage, not a missing window.  We
+    retain all source samples strictly inside the fixed window and insert at
+    most one linearly interpolated point for each bracketed endpoint.
+    """
 
     if phase.status != "ok":
         return
-    phase.selected_cc = [
+
+    cc_low_endpoint = _directional_endpoint(
+        phase.cc,
+        lambda point: point.voltage_v,
+        config.cc_voltage_low_v,
+        increasing=True,
+        window_endpoint="cc_voltage_low",
+        exact_voltage_v=config.cc_voltage_low_v,
+    )
+    cc_high_endpoint = _directional_endpoint(
+        phase.cc,
+        lambda point: point.voltage_v,
+        config.cc_voltage_high_v,
+        increasing=True,
+        window_endpoint="cc_voltage_high",
+        exact_voltage_v=config.cc_voltage_high_v,
+    )
+    selected_cc_source = [
         point
         for point in phase.cc
         if config.cc_voltage_low_v <= point.voltage_v <= config.cc_voltage_high_v
     ]
-    cv_lower = config.cv_c_rate_low - config.cv_selection_tolerance_c
-    cv_upper = config.cv_c_rate_high + config.cv_selection_tolerance_c
-    phase.selected_cv = [
+    phase.selected_cc = _ordered_unique_points(
+        [
+            *selected_cc_source,
+            *(point for point in (cc_low_endpoint, cc_high_endpoint) if point is not None),
+        ]
+    )
+
+    c_rate = lambda point: abs(point.current_a) / config.nominal_capacity_ah
+    cv_high_endpoint = _directional_endpoint(
+        phase.cv,
+        c_rate,
+        config.cv_c_rate_high,
+        increasing=False,
+        window_endpoint="cv_c_rate_high",
+        exact_current_magnitude_a=config.cv_c_rate_high * config.nominal_capacity_ah,
+    )
+    cv_low_endpoint = _directional_endpoint(
+        phase.cv,
+        c_rate,
+        config.cv_c_rate_low,
+        increasing=False,
+        window_endpoint="cv_c_rate_low",
+        exact_current_magnitude_a=config.cv_c_rate_low * config.nominal_capacity_ah,
+    )
+    selected_cv_source = [
         point
         for point in phase.cv
         if math.isfinite(point.current_a)
-        and cv_lower <= abs(point.current_a) / config.nominal_capacity_ah <= cv_upper
+        and config.cv_c_rate_low <= c_rate(point) <= config.cv_c_rate_high
     ]
+    phase.selected_cv = _ordered_unique_points(
+        [
+            *selected_cv_source,
+            *(point for point in (cv_high_endpoint, cv_low_endpoint) if point is not None),
+        ]
+    )
     phase.selected_cc_points = len(phase.selected_cc)
     phase.selected_cv_points = len(phase.selected_cv)
+    phase.selected_cc_source_points = sum(
+        point.point_origin == "source" for point in phase.selected_cc
+    )
+    phase.selected_cv_source_points = sum(
+        point.point_origin == "source" for point in phase.selected_cv
+    )
+    phase.selected_cc_interpolated_endpoint_points = sum(
+        point.point_origin == "interpolated_window_endpoint" for point in phase.selected_cc
+    )
+    phase.selected_cv_interpolated_endpoint_points = sum(
+        point.point_origin == "interpolated_window_endpoint" for point in phase.selected_cv
+    )
     if phase.selected_cc:
         cc_voltage = np.asarray([point.voltage_v for point in phase.selected_cc], dtype=float)
         phase.selected_cc_voltage_min_v = float(np.min(cc_voltage))
@@ -1548,13 +1757,13 @@ def canonical_cycle_id(candidate: CycleCandidate) -> int:
     return int(candidate.canonical_cycle)
 
 
-def _calibration_reason(
+def _direct_capacity_reason(
     candidate: CycleCandidate,
     max_source_cycle_duration_hours: float = DEFAULT_MAX_SOURCE_CYCLE_DURATION_HOURS,
 ) -> str:
-    """Recognize source-supported full-capacity discharge calibrations.
+    """Recognize source-supported direct full-discharge capacity observations.
 
-    Calibration eligibility is intentionally independent of model CC/CV
+    Direct-capacity eligibility is intentionally independent of model CC/CV
     eligibility. A source cycle may contain a valid full-capacity discharge
     after a partial-DOD/high-rate charge whose CC trace does not cover 3.45 V.
     """
@@ -1586,12 +1795,14 @@ def label_calibration_soh(
     cells: Mapping[str, CellSummary],
     max_source_cycle_duration_hours: float = DEFAULT_MAX_SOURCE_CYCLE_DURATION_HOURS,
 ) -> None:
-    """Attach calibration capacities and fixed-nominal SOH without extrapolation.
+    """Attach capacity labels without allowing calibration-only model inputs.
 
     ``reference_calibration_capacity_ah`` remains auditable provenance for the
     early reliable calibration sequence.  It is not the Paper target
     denominator: all SmartHealth families use their fixed nominal capacity,
-    matching the XJTU and MIT target convention.
+    matching the XJTU and MIT target convention. Partial-DOD full-capacity
+    cycles supply interpolation anchors only. At 100%DOD, full discharges are
+    ordinary cycles and remain eligible model inputs with direct labels.
     """
 
     by_cell: dict[str, list[CycleCandidate]] = defaultdict(list)
@@ -1602,12 +1813,20 @@ def label_calibration_soh(
         series = sorted(by_cell.get(logical_sequence_id, []), key=chronological_candidate_key)
         direct: list[CycleCandidate] = []
         for candidate in series:
-            reason = _calibration_reason(candidate, max_source_cycle_duration_hours)
-            candidate.calibration_reason = reason
-            candidate.calibration_direct_candidate = bool(reason)
+            reason = _direct_capacity_reason(candidate, max_source_cycle_duration_hours)
+            candidate.direct_capacity_reason = reason
+            candidate.direct_capacity_observation = bool(reason)
+            candidate.calibration_anchor_only = bool(
+                reason and candidate.identity.dod_percent < 100
+            )
+            if candidate.calibration_anchor_only:
+                candidate.model_input_role = "calibration_anchor_only"
             if reason:
                 direct.append(candidate)
-        cell.direct_calibration_cycles = len(direct)
+        cell.direct_capacity_observation_cycles = len(direct)
+        cell.calibration_anchor_only_cycles = sum(
+            candidate.calibration_anchor_only for candidate in direct
+        )
         if len(direct) < 3:
             for candidate in series:
                 if not candidate.candidate_eligible:
@@ -1630,15 +1849,35 @@ def label_calibration_soh(
 
         for candidate in series:
             candidate.reference_calibration_capacity_ah = reference
+            candidate_cycle = canonical_cycle_id(candidate)
+
+            # Label anchors remain usable even when their charge trace cannot
+            # form a model window.  Record their measured capacity/SOH for
+            # audit and plotting, then exclude them unconditionally from RAW.
+            if candidate.calibration_anchor_only:
+                label_capacity = candidate.cycle_discharge_capacity_ah
+                soh = label_capacity / candidate.identity.config.nominal_capacity_ah
+                candidate.label_capacity_ah = float(label_capacity)
+                candidate.soh = float(soh)
+                candidate.label_source = "calibration_anchor_only"
+                candidate.model_input_role = "calibration_anchor_only"
+                candidate.output_status = "excluded"
+                candidate.output_reason = "calibration_anchor_only_not_model_input"
+                cell.excluded_selected_cycles += 1
+                continue
+
             if not candidate.candidate_eligible:
+                candidate.model_input_role = "normal_cycle_ineligible"
                 candidate.output_status = "excluded"
                 candidate.output_reason = candidate.candidate_eligibility_reason
                 cell.excluded_selected_cycles += 1
                 continue
-            candidate_cycle = canonical_cycle_id(candidate)
             if candidate_cycle in direct_by_cycle:
                 label_capacity = candidate.cycle_discharge_capacity_ah
-                label_source = "calibration_direct"
+                # This branch is reachable for 100%DOD ordinary cycles only;
+                # partial-DOD direct observations were handled as anchor-only.
+                label_source = "capacity_direct"
+                model_input_role = "normal_direct_input"
             else:
                 left = [item for item in direct if canonical_cycle_id(item) < candidate_cycle]
                 right = [item for item in direct if canonical_cycle_id(item) > candidate_cycle]
@@ -1660,6 +1899,7 @@ def label_calibration_soh(
                     upper.cycle_discharge_capacity_ah - lower.cycle_discharge_capacity_ah
                 )
                 label_source = "calibration_interpolated"
+                model_input_role = "normal_interpolated_input"
             soh = label_capacity / candidate.identity.config.nominal_capacity_ah
             if not math.isfinite(soh) or soh <= 0:
                 candidate.output_status = "excluded"
@@ -1669,11 +1909,14 @@ def label_calibration_soh(
             candidate.label_capacity_ah = float(label_capacity)
             candidate.soh = float(soh)
             candidate.label_source = label_source
+            candidate.model_input_role = model_input_role
             candidate.output_status = "selected_pending_export"
             candidate.output_reason = "phase_window_and_calibration_label_valid"
             cell.selected_output_cycles += 1
             if label_source == "calibration_interpolated":
                 cell.interpolated_label_cycles += 1
+            else:
+                cell.normal_direct_input_cycles += 1
 
         # Freeze the Paper-v2 denominator here, while the complete selected
         # source chronology is still available.  A direct calibration remains
@@ -1684,15 +1927,18 @@ def label_calibration_soh(
             for candidate in series:
                 capacity = (
                     candidate.cycle_discharge_capacity_ah
-                    if candidate.calibration_direct_candidate
+                    if candidate.direct_capacity_observation
                     else candidate.label_capacity_ah
                 )
                 source_reference_rows.append(
                     {
                         "cycle_id": canonical_cycle_id(candidate),
                         "capacity_Ah": capacity,
-                        "calibration_direct": candidate.calibration_direct_candidate,
-                        "model_eligible": candidate.candidate_eligible,
+                        "calibration_direct": candidate.direct_capacity_observation,
+                        "model_eligible": (
+                            candidate.candidate_eligible
+                            and not candidate.calibration_anchor_only
+                        ),
                         "label_source": candidate.label_source,
                     }
                 )
@@ -1953,6 +2199,12 @@ def _same_phase_summary(left: PhaseResult, right: PhaseResult) -> bool:
         and left.inferred_cv_points == right.inferred_cv_points
         and left.selected_cc_points == right.selected_cc_points
         and left.selected_cv_points == right.selected_cv_points
+        and left.selected_cc_source_points == right.selected_cc_source_points
+        and left.selected_cv_source_points == right.selected_cv_source_points
+        and left.selected_cc_interpolated_endpoint_points
+        == right.selected_cc_interpolated_endpoint_points
+        and left.selected_cv_interpolated_endpoint_points
+        == right.selected_cv_interpolated_endpoint_points
         and left.cv_start_source_row_index == right.cv_start_source_row_index
         and left.cc_window_complete == right.cc_window_complete
         and left.cc_window_accepted == right.cc_window_accepted
@@ -1986,6 +2238,7 @@ def make_raw_row(
         "cycle": canonical_cycle_id(candidate),
         "SOH": candidate.soh,
         "label_source": candidate.label_source,
+        "model_input_role": candidate.model_input_role,
         "cycle_discharge_capacity_Ah": candidate.cycle_discharge_capacity_ah,
         "label_capacity_Ah": candidate.label_capacity_ah,
         "reference_calibration_capacity_Ah": candidate.reference_calibration_capacity_ah,
@@ -1999,7 +2252,19 @@ def make_raw_row(
         "segment": segment,
         "cycle_point_index": cycle_point_index,
         "segment_point_index": segment_point_index,
-        "source_row_index": point.source_row_index,
+        "source_row_index": "" if point.source_row_index is None else point.source_row_index,
+        "point_origin": point.point_origin,
+        "window_endpoint": point.window_endpoint,
+        "interpolation_left_source_row_index": (
+            ""
+            if point.interpolation_left_source_row_index is None
+            else point.interpolation_left_source_row_index
+        ),
+        "interpolation_right_source_row_index": (
+            ""
+            if point.interpolation_right_source_row_index is None
+            else point.interpolation_right_source_row_index
+        ),
         "relative_time": relative_minutes,
         "relative_time_min": relative_minutes,
         "relative_time_unit": "min",
@@ -2276,6 +2541,14 @@ def candidate_provenance(candidate: CycleCandidate) -> dict[str, object]:
         "inferred_cv_points": phase.inferred_cv_points,
         "selected_cc_points": phase.selected_cc_points,
         "selected_cv_points": phase.selected_cv_points,
+        "selected_cc_source_points": phase.selected_cc_source_points,
+        "selected_cv_source_points": phase.selected_cv_source_points,
+        "selected_cc_interpolated_endpoint_points": (
+            phase.selected_cc_interpolated_endpoint_points
+        ),
+        "selected_cv_interpolated_endpoint_points": (
+            phase.selected_cv_interpolated_endpoint_points
+        ),
         "cc_current_reference_A": phase.cc_current_reference_a,
         "cv_start_source_row_index": phase.cv_start_source_row_index,
         "cv_start_voltage_V": phase.cv_start_voltage_v,
@@ -2301,8 +2574,10 @@ def candidate_provenance(candidate: CycleCandidate) -> dict[str, object]:
         "selected_candidate": candidate.selected_candidate,
         "selection_reason": candidate.selection_reason,
         "cycle_discharge_capacity_Ah": candidate.cycle_discharge_capacity_ah,
-        "calibration_direct_candidate": candidate.calibration_direct_candidate,
-        "calibration_reason": candidate.calibration_reason,
+        "direct_capacity_observation": candidate.direct_capacity_observation,
+        "direct_capacity_reason": candidate.direct_capacity_reason,
+        "calibration_anchor_only": candidate.calibration_anchor_only,
+        "model_input_role": candidate.model_input_role,
         "reference_calibration_capacity_Ah": candidate.reference_calibration_capacity_ah,
         "bol_q_ref_Ah": candidate.bol_q_ref_ah,
         "bol_q_ref_rule": candidate.bol_q_ref_rule,
@@ -2341,7 +2616,9 @@ def cell_provenance(cell: CellSummary) -> dict[str, object]:
         "duplicate_timestamp_candidates": cell.duplicate_timestamp_candidates,
         "overlapping_source_cycle_candidates": cell.overlapping_source_cycle_candidates,
         "phase_eligible_cycles": cell.phase_eligible_cycles,
-        "direct_calibration_cycles": cell.direct_calibration_cycles,
+        "direct_capacity_observation_cycles": cell.direct_capacity_observation_cycles,
+        "calibration_anchor_only_cycles": cell.calibration_anchor_only_cycles,
+        "normal_direct_input_cycles": cell.normal_direct_input_cycles,
         "interpolated_label_cycles": cell.interpolated_label_cycles,
         "selected_output_cycles": cell.selected_output_cycles,
         "excluded_selected_cycles": cell.excluded_selected_cycles,
@@ -2402,7 +2679,7 @@ def build_raw_report(
     cells: Mapping[str, CellSummary],
     split_path: Path,
     split_payload: Mapping[str, object],
-    workers: int,
+    args: argparse.Namespace,
 ) -> dict[str, object]:
     all_candidates = [
         candidate
@@ -2431,14 +2708,30 @@ def build_raw_report(
             "cc_window_coverage": sum(candidate.phase.cc_window_complete for candidate in condition_selected),
             "cc_window_accepted_coverage": sum(candidate.phase.cc_window_accepted for candidate in condition_selected),
             "cv_window_coverage": sum(candidate.phase.cv_window_complete for candidate in condition_selected),
+            "cc_endpoint_interpolated_cycles": sum(
+                candidate.phase.selected_cc_interpolated_endpoint_points > 0
+                for candidate in condition_selected
+            ),
+            "cv_endpoint_interpolated_cycles": sum(
+                candidate.phase.selected_cv_interpolated_endpoint_points > 0
+                for candidate in condition_selected
+            ),
+            "interpolated_window_endpoint_points": sum(
+                candidate.phase.selected_cc_interpolated_endpoint_points
+                + candidate.phase.selected_cv_interpolated_endpoint_points
+                for candidate in condition_selected
+            ),
             "temperature_exclusions": sum(
                 candidate.selected_candidate
                 and "temperature" in candidate.candidate_eligibility_reason
                 for candidate in all_candidates
                 if candidate.identity.condition == condition
             ),
-            "calibration_direct": sum(
-                candidate.label_source == "calibration_direct" for candidate in condition_selected
+            "capacity_direct": sum(
+                candidate.label_source == "capacity_direct" for candidate in condition_selected
+            ),
+            "calibration_anchor_only": sum(
+                candidate.calibration_anchor_only for candidate in condition_selected
             ),
             "calibration_interpolated": sum(
                 candidate.label_source == "calibration_interpolated" for candidate in condition_selected
@@ -2461,7 +2754,7 @@ def build_raw_report(
             ),
         }
     return {
-        "schema_version": 6,
+        "schema_version": 8,
         "strategy_version": POLICY_VERSION,
         "preprocessing_strategy_version": POLICY_VERSION,
         "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -2473,7 +2766,7 @@ def build_raw_report(
         "domain_id": config.domain_id,
         "input_root": str(input_root.resolve()),
         "execution": {
-            "workers": int(workers),
+            "workers": int(args.workers),
             "scan_parallelization": "independent source CSV process workers",
             "export_parallelization": "one worker-owned CSV per logical sequence",
             "merge_order": "source inventory/logical sequence order; canonical data and split are worker-count invariant",
@@ -2498,8 +2791,11 @@ def build_raw_report(
             candidate.selected_candidate and "temperature" in candidate.candidate_eligibility_reason
             for candidate in all_candidates
         ),
-        "calibration_direct_labels": sum(
-            candidate.label_source == "calibration_direct" for candidate in selected
+        "capacity_direct_labels": sum(
+            candidate.label_source == "capacity_direct" for candidate in selected
+        ),
+        "calibration_anchor_only_cycles": sum(
+            candidate.calibration_anchor_only for candidate in selected
         ),
         "calibration_interpolated_labels": sum(
             candidate.label_source == "calibration_interpolated" for candidate in selected
@@ -2519,7 +2815,12 @@ def build_raw_report(
         "cc_upper_bound_audit": CC_UPPER_BOUND_AUDIT,
         "phase_policy": {
             "source_charge_step": CHARGE_STEP,
-            "boundary": "first persistent current taper near source charge-voltage maximum",
+            "boundary": "MIT-style first persistent current taper near source charge-voltage maximum",
+            "minimum_cc_points": int(args.min_cc_points),
+            "minimum_cv_points": int(args.min_cv_points),
+            "minimum_selected_cc_points": int(args.min_selected_cc_points),
+            "minimum_selected_cv_points": int(args.min_selected_cv_points),
+            "persistence_points": int(args.cv_persistence_points),
             "cc_window_v": [config.cc_voltage_low_v, config.cc_voltage_high_v],
             "cc_window_acceptance": (
                 "100%DOD requires lower and upper CC coverage; partial-DOD accepts "
@@ -2533,10 +2834,11 @@ def build_raw_report(
         "soh_policy": {
             "target": "calibration-derived label capacity / fixed nominal family capacity",
             "reference": "median of first three reliable calibration discharge capacities; provenance only, not the target denominator",
-            "direct": "calibration_direct",
+            "direct": "capacity_direct for ordinary 100%DOD model inputs",
             "interpolation": "linear only between direct calibration cycles; no leading/trailing extrapolation",
-            "excluded": "partial-DOD discharge capacity / nominal capacity is never an SOH label",
-            "rul_eol": "not generated in v5",
+            "anchor_only": "partial-DOD full-capacity cycles provide interpolation anchors but never enter model RAW",
+            "excluded": "partial-DOD ordinary discharge capacity / nominal capacity is never an SOH label",
+            "rul_eol": "not generated in v7",
         },
         "bol_reference_contract": {
             "contract_version": BOL_REFERENCE_CONTRACT_VERSION,
@@ -2594,15 +2896,15 @@ def build_raw_parser(config: DomainConfig) -> argparse.ArgumentParser:
             "exports (default: min(8, available CPUs); use 1 for serial debugging)"
         ),
     )
-    parser.add_argument("--min-cc-points", type=int, default=60)
-    parser.add_argument("--min-cv-points", type=int, default=60)
+    parser.add_argument("--min-cc-points", type=int, default=8)
+    parser.add_argument("--min-cv-points", type=int, default=8)
     parser.add_argument("--min-selected-cc-points", type=int, default=10)
     parser.add_argument("--min-selected-cv-points", type=int, default=10)
     parser.add_argument("--cc-reference-fraction", type=float, default=0.20)
-    parser.add_argument("--cc-reference-min-points", type=int, default=120)
+    parser.add_argument("--cc-reference-min-points", type=int, default=8)
     parser.add_argument("--cc-reference-quantile", type=float, default=0.90)
     parser.add_argument("--cv-taper-fraction", type=float, default=0.01)
-    parser.add_argument("--cv-persistence-points", type=int, default=30)
+    parser.add_argument("--cv-persistence-points", type=int, default=5)
     parser.add_argument("--cv-voltage-tolerance-v", type=float, default=0.02)
     parser.add_argument(
         "--max-source-cycle-duration-hours",
@@ -2731,13 +3033,13 @@ def run_raw_preprocessing(config: DomainConfig, argv: Sequence[str] | None = Non
         cells,
         split_path,
         split_payload,
-        args.workers,
+        args,
     )
     write_json(audit_paths["report"], report)
     write_json(
         raw_domain_directory / raw_manifest_name,
         {
-            "schema_version": 6,
+            "schema_version": 8,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -2865,6 +3167,7 @@ def _raw_required_fields() -> set[str]:
         "temperature_C",
         "SOH",
         "label_source",
+        "model_input_role",
         "cycle_discharge_capacity_Ah",
         "label_capacity_Ah",
         "reference_calibration_capacity_Ah",
@@ -2908,6 +3211,7 @@ def _feature_row_from_raw_cycle(
             row["cycle"],
             row["SOH"],
             row["label_source"],
+            row["model_input_role"],
             row["bol_q_ref_Ah"],
             row["bol_q_ref_rule"],
             row["bol_q_ref_source"],
@@ -2973,6 +3277,7 @@ def _feature_row_from_raw_cycle(
         "cycle": int(float(first["cycle"])),
         "SOH": soh,
         "label_source": str(first["label_source"]),
+        "model_input_role": str(first["model_input_role"]),
         "cycle_discharge_capacity_Ah": _as_finite(first, "cycle_discharge_capacity_Ah", path),
         "label_capacity_Ah": label_capacity,
         "reference_calibration_capacity_Ah": _as_finite(
@@ -3040,9 +3345,9 @@ def _load_exported_cycle_provenance(
         manifest = json.load(handle)
     if manifest.get("domain_id") != config.domain_id or manifest.get("strategy_version") != POLICY_VERSION:
         raise ValueError(f"{manifest_path}: incompatible canonical RAW manifest")
-    if int(manifest.get("schema_version", 0)) < 6:
+    if int(manifest.get("schema_version", 0)) < 8:
         raise ValueError(
-            f"{manifest_path}: canonical RAW schema predates frozen BOL references"
+            f"{manifest_path}: canonical RAW schema predates v7 anchor/input roles"
         )
     if manifest.get("split_strategy_version") != SPLIT_STRATEGY_VERSION:
         raise ValueError(f"{manifest_path}: incompatible canonical split strategy")
@@ -3068,6 +3373,7 @@ def _load_exported_cycle_provenance(
         "raw_rows_written",
         "SOH",
         "label_source",
+        "model_input_role",
         "bol_q_ref_Ah",
         "bol_q_ref_rule",
         "bol_q_ref_source",
@@ -3207,7 +3513,7 @@ def run_feature_extraction(config: DomainConfig, argv: Sequence[str] | None = No
     write_json(
         feature_domain_directory / pointer_name,
         {
-            "schema_version": 6,
+            "schema_version": 8,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,
@@ -3229,7 +3535,7 @@ def run_feature_extraction(config: DomainConfig, argv: Sequence[str] | None = No
     write_json(
         feature_domain_directory / report_name,
         {
-            "schema_version": 6,
+            "schema_version": 8,
             "strategy_version": POLICY_VERSION,
             "preprocessing_strategy_version": POLICY_VERSION,
             "split_strategy_version": SPLIT_STRATEGY_VERSION,

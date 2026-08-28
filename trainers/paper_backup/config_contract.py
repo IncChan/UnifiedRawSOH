@@ -1,0 +1,184 @@
+"""Validation rules shared by all Paper-Backup launch paths."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Mapping
+
+from ...models.paper_backup.model_factory import SUPPORTED_MODEL_TYPES
+from ...datasets.paper_backup.sequence_views import ALL_VIEW_IDS
+from ...datasets.splits import load_split_spec
+
+
+PAPER_VERSION = "Paper-Backup"
+EXPERIMENT_IDS = {"e1_main_estimation", "e2_charging_information", "e3_strategy_pooling"}
+E1_MODEL_TYPES = {"HI-MLP", "Transformer", "Ours"}
+E2_MODEL_TYPES = {"VanillaMamba", "SingleStreamMamba", "Ours"}
+E3_MODEL_TYPES = {"Ours"}
+
+
+def _walk(value: Any, path: str = ""):
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            child_path = f"{path}.{key}" if path else str(key)
+            yield child_path, str(key), child
+            yield from _walk(child, child_path)
+    elif isinstance(value, (list, tuple)):
+        for index, child in enumerate(value):
+            yield from _walk(child, f"{path}[{index}]")
+
+
+def _is_disabled(value: Any) -> bool:
+    """Return whether a contract value is an explicit disabled sentinel."""
+
+    if isinstance(value, (list, tuple, dict, set)):
+        return False
+    return value in {False, 0, 0.0, "", "disabled", "none", "not_used"}
+
+
+def _safe_root(value: Any) -> str:
+    root = str(value or "").strip()
+    if not root:
+        raise ValueError("Paper-Backup requires output.root")
+    parts = Path(root).parts
+    if "Paper-Backup" not in parts and "Paper-Backup" not in root.replace("\\", "/").split("/"):
+        raise ValueError("Paper-Backup output.root must be inside an explicit Paper-Backup namespace")
+    return root
+
+
+def _validate_static_split(path: Path) -> dict[str, Any]:
+    split = load_split_spec(path)
+    if "roles" in split:
+        roles = split["roles"]
+        values = [str(item) for role in ("train", "val", "test") for item in roles.get(role, [])]
+        if len(values) != len(set(values)):
+            raise ValueError(f"Split file has overlapping fixed battery roles: {path}")
+    test_by_condition = split.get("test_batteries_by_condition")
+    if test_by_condition:
+        all_values = [str(item) for values in test_by_condition.values() for item in values]
+        if len(all_values) != len(set(all_values)):
+            raise ValueError(f"Split file assigns a test battery to multiple strategies: {path}")
+    test_values = split.get("test_batteries", [])
+    if not test_values and test_by_condition:
+        test_values = [item for values in test_by_condition.values() for item in values]
+    return {
+        "path": str(path),
+        "test_battery_count": len(set(str(item) for item in test_values)),
+        "has_condition_assignments": bool(test_by_condition),
+        "development_protocol": split.get("development_split", split.get("protocol", {})),
+    }
+
+
+def validate_config(
+    config: Mapping[str, Any],
+    repo_root: str | Path | None = None,
+    *,
+    check_files: bool = False,
+) -> dict[str, Any]:
+    """Validate a resolved config and return a compact contract audit."""
+
+    output = config.get("output", {})
+    if str(output.get("paper_version", "")) != PAPER_VERSION:
+        raise ValueError("Paper-Backup config must set output.paper_version='Paper-Backup'")
+    experiment_id = str(output.get("experiment_id", ""))
+    if experiment_id not in EXPERIMENT_IDS:
+        raise ValueError(f"Unsupported Paper-Backup output.experiment_id: {experiment_id!r}")
+    model = config.get("model", {})
+    model_type = str(model.get("type", ""))
+    if model_type not in SUPPORTED_MODEL_TYPES:
+        raise ValueError(f"Unknown Paper-Backup model.type: {model_type!r}")
+    allowed = {
+        "e1_main_estimation": E1_MODEL_TYPES,
+        "e2_charging_information": E2_MODEL_TYPES,
+        "e3_strategy_pooling": E3_MODEL_TYPES,
+    }[experiment_id]
+    if model_type not in allowed:
+        raise ValueError(f"Model {model_type!r} is not in {experiment_id} matrix: {sorted(allowed)}")
+    _safe_root(output.get("root", ""))
+    view_id = str(config.get("data", {}).get("input_view", config.get("experiment", {}).get("input_view", "")))
+    if experiment_id == "e1_main_estimation" and model_type != "HI-MLP" and view_id not in TERMINAL_VIEWS:
+        raise ValueError(f"E1 raw model requires a terminal input view, got {view_id!r}")
+    if experiment_id == "e2_charging_information" and view_id not in {"full_cccv", "terminal_joint", "terminal_cc", "terminal_cv", "terminal_phase"}:
+        raise ValueError(f"E2 config has invalid input view: {view_id!r}")
+    if experiment_id == "e3_strategy_pooling" and (view_id != "terminal_phase" or model_type != "Ours"):
+        raise ValueError("E3 requires Ours with input_view='terminal_phase'")
+    if model_type != "HI-MLP" and view_id not in ALL_VIEW_IDS:
+        raise ValueError(f"Raw Paper-Backup model has invalid input view: {view_id!r}")
+
+    train = config.get("train", {})
+    if float(train.get("lambda_cycle", 0.0)) != 0.0:
+        raise ValueError("Paper-Backup is SOH-only: train.lambda_cycle must be 0")
+    if str(train.get("cycle_loss_mode", "disabled")) not in {"disabled", "none"}:
+        raise ValueError("Paper-Backup is SOH-only: cycle_loss_mode must be disabled")
+    if model_type == "Ours":
+        if model.get("use_cycle_prediction") is not False:
+            raise ValueError("Paper-Backup Ours requires model.use_cycle_prediction=false")
+        if model.get("use_predicted_cycle_for_soh") is not False:
+            raise ValueError("Paper-Backup Ours requires model.use_predicted_cycle_for_soh=false")
+    for path, key, value in _walk(model):
+        key_lower = key.lower()
+        if any(token in key_lower for token in ("cycle", "lifetime", "eol", "rul")):
+            if key_lower not in {"cycle_loss_mode"} and not _is_disabled(value):
+                raise ValueError(f"Forbidden lifetime/cycle model option at {path}: {value!r}")
+        if any(token in key_lower for token in ("strategy_id", "domain_id", "battery_id", "cell_id")) and not _is_disabled(value) and value is not None:
+            raise ValueError(f"Metadata ID cannot be a model input at {path}")
+    input_names = [str(item).lower() for item in model.get("input_features", [])]
+    if any("strategy" in item or "domain" in item or "battery" in item or "cell" in item for item in input_names):
+        raise ValueError("Strategy/domain/battery metadata cannot be listed in model.input_features")
+    if experiment_id == "e3_strategy_pooling" and "strategy_id" in json.dumps(model, sort_keys=True).lower():
+        raise ValueError("E3 pooled/specific model config cannot inject strategy_id")
+
+    data = config.get("data", {})
+    full_audit = None
+    if view_id == "full_cccv":
+        if not str(data.get("full_source_kind", "")).strip():
+            raise ValueError("full_cccv config must declare full_source_kind")
+        if not str(data.get("full_source_format", "")).strip():
+            raise ValueError("full_cccv config must declare full_source_format")
+        if str(data.get("full_source_kind", "")) in {"canonical_terminal", "terminal_raw", "terminal_only"}:
+            raise ValueError("full_cccv cannot use a terminal-only source")
+        if "full_data_root" not in data:
+            raise ValueError("full_cccv config must declare full_data_root, even when blocked_by_data")
+        if data.get("full_data_root") and data.get("terminal_data_root") and str(data["full_data_root"]) == str(data["terminal_data_root"]):
+            raise ValueError("full_data_root and terminal_data_root cannot be the same terminal product")
+    if data.get("matched_full_data_root") and data.get("terminal_data_root") and str(data["matched_full_data_root"]) == str(data["terminal_data_root"]):
+        raise ValueError("matched_full_data_root cannot be the terminal product")
+
+    split_audit = None
+    if repo_root is not None:
+        root = Path(repo_root).resolve()
+        split_value = data.get("split_file") or config.get("experiment", {}).get("split_file")
+        if split_value:
+            split_path = Path(split_value)
+            if not split_path.is_absolute():
+                split_path = root / split_path
+            if check_files:
+                if not split_path.is_file():
+                    raise ValueError(f"Configured split file does not exist: {split_path}")
+                split_audit = _validate_static_split(split_path)
+    return {
+        "paper_version": PAPER_VERSION,
+        "experiment_id": experiment_id,
+        "model_type": model_type,
+        "input_view": view_id,
+        "output_root": str(output["root"]),
+        "split": split_audit,
+        "soh_only": True,
+        "metadata_in_forward": False,
+        "full_source_declared": view_id == "full_cccv",
+    }
+
+
+TERMINAL_VIEWS = {"terminal_joint", "terminal_cc", "terminal_cv", "terminal_phase"}
+
+
+__all__ = [
+    "E1_MODEL_TYPES",
+    "E2_MODEL_TYPES",
+    "E3_MODEL_TYPES",
+    "EXPERIMENT_IDS",
+    "PAPER_VERSION",
+    "TERMINAL_VIEWS",
+    "validate_config",
+]
