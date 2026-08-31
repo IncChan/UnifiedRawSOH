@@ -15,6 +15,9 @@ namespaces. See
 The three-model shared stable-training rerun has a separate 45-job matrix and
 result namespace. See
 [`E1_STABLE_128X128_RUNBOOK.md`](../../docs/paper_backup/E1_STABLE_128X128_RUNBOOK.md).
+The final five-seed interaction-fusion E1/E2 suites can be reproduced from
+vendor sources on a new server with one active-Conda launcher. See
+[`FINAL_INTERACTION_PORTABLE_RUNBOOK.md`](../../docs/paper_backup/FINAL_INTERACTION_PORTABLE_RUNBOOK.md).
 
 ```bash
 DRY_RUN=1 PYTHON_BIN=/path/to/python bash scripts/paper_backup/run_e1.sh

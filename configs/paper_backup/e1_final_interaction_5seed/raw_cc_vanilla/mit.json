@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_mit_sequence.json","../../common/e1_final_interaction_5seed.json","../../common/final_model_raw_cc_vanilla_mamba.json"],"experiment":{"name":"E1Final5_MIT_raw_cc_vanilla"},"data":{"input_view":"terminal_cc","active_phase":"cc"},"output":{"model_id":"Final-Raw-CC-Vanilla-Mamba","data_id":"mit_raw_cc_vanilla_128x128"}}

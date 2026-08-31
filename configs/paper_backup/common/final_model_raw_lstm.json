@@ -1,0 +1,1 @@
+{"model":{"type":"FinalRawLSTM","input_dim":5,"d_model":60,"num_layers":2,"dropout":0.1,"head_hidden_dim":128}}

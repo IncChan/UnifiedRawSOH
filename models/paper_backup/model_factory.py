@@ -18,6 +18,7 @@ from .sequence_baselines import (
     TransformerSOHModel,
     VanillaMambaSOHModel,
 )
+from .final_models.model_factory import FINAL_MODEL_TYPES, build_final_model
 
 
 SUPPORTED_MODEL_TYPES = (
@@ -28,6 +29,7 @@ SUPPORTED_MODEL_TYPES = (
     "VanillaMamba",
     "SingleStreamMamba",
     "Ours",
+    *FINAL_MODEL_TYPES.keys(),
 )
 
 
@@ -65,8 +67,17 @@ def build_model(model_config: dict[str, Any], *, backend_override: str | None = 
     values = _without_type(model_config)
     if model_type in {"Transformer", "VanillaMamba", "SingleStreamMamba", "RawCNN", "LSTM"}:
         values = _without_cycle_contract(values)
-    if backend_override is not None and model_type in {"Ours", "VanillaMamba", "SingleStreamMamba"}:
+    if backend_override is not None and model_type in {
+        "Ours", "VanillaMamba", "SingleStreamMamba",
+        "FinalRawVanillaMamba", "FinalRawCCVanillaMamba",
+        "FinalRawCVVanillaMamba", "FinalRawDualVanillaMamba",
+        "FinalInteractionMamba",
+    }:
         values["backend"] = backend_override
+
+    if model_type in FINAL_MODEL_TYPES:
+        values = _without_cycle_contract(values)
+        return build_final_model(model_type, values)
 
     if model_type == "HI-MLP":
         return PINNFOnlyMLP(
@@ -100,6 +111,16 @@ def model_input_kind(model_type: str) -> str:
         return "phase"
     if model_type in {"Transformer", "VanillaMamba", "SingleStreamMamba", "RawCNN", "LSTM"}:
         return "sequence"
+    if model_type == "FinalHI-MLP":
+        return "features"
+    if model_type in {
+        "FinalRawCNN", "FinalRawLSTM", "FinalRawTransformer",
+        "FinalRawVanillaMamba", "FinalRawCCVanillaMamba",
+        "FinalRawCVVanillaMamba",
+    }:
+        return "sequence"
+    if model_type in {"FinalRawDualVanillaMamba", "FinalInteractionMamba"}:
+        return "phase"
     raise ValueError(f"Unknown Paper-Backup model type: {model_type!r}")
 
 

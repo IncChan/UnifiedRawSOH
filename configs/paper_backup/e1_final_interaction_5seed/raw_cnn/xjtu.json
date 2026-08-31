@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_xjtu_sequence.json","../../common/e1_final_interaction_5seed.json","../../common/final_model_raw_cnn.json"],"experiment":{"name":"E1Final5_XJTU_raw_cnn"},"data":{"input_view":"terminal_joint"},"output":{"model_id":"Final-Raw-CNN","data_id":"xjtu_raw_cnn_128x128"}}

@@ -1,0 +1,21 @@
+{
+  "base_config": "./final_training_5seed.json",
+  "status": "runnable",
+  "experiment": {"task": "paper_backup_e2_final_interaction_5seed"},
+  "data": {
+    "source_mode": "preprocessed_v2",
+    "preprocessed_data_root": "datasets/PaperBackup_preprocessed_v2_e2_5domain_256",
+    "preprocessed_schema_version": 2,
+    "dataset": "paper_backup_preprocessed_final_e2_5domain_256",
+    "raw_len_cc": 128,
+    "raw_len_cv": 128,
+    "full_joint_len": 256,
+    "cohort": "full_matched",
+    "active_phase": "both"
+  },
+  "normalization": {"current_mode": "nominal_c_rate"},
+  "output": {
+    "experiment_id": "e2_final_interaction_5seed",
+    "root": "outputs/Paper-Backup/E2-Final-Interaction-5Seed"
+  }
+}

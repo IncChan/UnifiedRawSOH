@@ -1,0 +1,1 @@
+{"model":{"type":"FinalRawTransformer","input_dim":5,"d_model":48,"num_layers":3,"num_heads":4,"dim_feedforward":112,"dropout":0.1,"head_hidden_dim":128,"max_length":512}}

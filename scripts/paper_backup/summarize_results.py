@@ -55,6 +55,14 @@ EXPERIMENTS = {
         "experiment_id": "e2_final_256budget",
         "config_dir": "configs/paper_backup/e2_final_256budget",
     },
+    "e1_final_interaction_5seed": {
+        "experiment_id": "e1_final_interaction_5seed",
+        "config_dir": "configs/paper_backup/e1_final_interaction_5seed",
+    },
+    "e2_final_interaction_5seed": {
+        "experiment_id": "e2_final_interaction_5seed",
+        "config_dir": "configs/paper_backup/e2_final_interaction_5seed",
+    },
     "e3": {
         "experiment_id": "e3_strategy_pooling",
         "config_dir": "configs/paper_backup/e3_strategy_pooling",
@@ -596,6 +604,23 @@ E2_FINAL_COMPARISONS = (
         "Full-VanillaMamba-Matched-256",
     ),
 )
+E2_FINAL_INTERACTION_COMPARISONS = (
+    (
+        "ours_minus_full_vanilla",
+        "Final-Ours-Interaction-Mamba",
+        "Final-FULL-Vanilla-Mamba",
+    ),
+    (
+        "ours_minus_raw_dual_vanilla",
+        "Final-Ours-Interaction-Mamba",
+        "Final-Raw-Dual-Vanilla-Mamba",
+    ),
+    (
+        "raw_dual_minus_full_vanilla",
+        "Final-Raw-Dual-Vanilla-Mamba",
+        "Final-FULL-Vanilla-Mamba",
+    ),
+)
 
 
 def _prediction_keyed(run: Mapping[str, Any]) -> dict[tuple[str, int], dict[str, Any]]:
@@ -611,6 +636,9 @@ def _prediction_keyed(run: Mapping[str, Any]) -> dict[tuple[str, int], dict[str,
 def e2_final_paired_rows(
     expected: Mapping[tuple[str, str, str, int], Mapping[str, Any]],
     selected: Mapping[tuple[str, str, str, int], Mapping[str, Any]],
+    *,
+    experiment_label: str = "E2_FINAL_256BUDGET",
+    comparisons=E2_FINAL_COMPARISONS,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     grouped: dict[tuple[str, int], dict[str, Mapping[str, Any]]] = defaultdict(dict)
     for key, spec in expected.items():
@@ -640,14 +668,14 @@ def e2_final_paired_rows(
             model: _prediction_metrics(predictions.values())
             for model, predictions in keyed.items()
         }
-        for comparison, left, right in E2_FINAL_COMPARISONS:
+        for comparison, left, right in comparisons:
             if left not in metrics or right not in metrics:
                 raise ValueError(f"E2 final comparison is missing {left!r} or {right!r}")
             left_values = _metric_values(metrics[left])
             right_values = _metric_values(metrics[right])
             rows.append(
                 {
-                    "experiment": "E2_FINAL_256BUDGET",
+                    "experiment": experiment_label,
                     "dataset": family,
                     "seed": seed,
                     "comparison": comparison,
@@ -667,7 +695,7 @@ def e2_final_paired_rows(
     for (seed, comparison, left, right), values in sorted(macro_groups.items()):
         rows.append(
             {
-                "experiment": "E2_FINAL_256BUDGET",
+                "experiment": experiment_label,
                 "dataset": "ALL_DATASETS_MACRO",
                 "seed": seed,
                 "comparison": comparison,
@@ -688,7 +716,7 @@ def e2_final_paired_rows(
         rmse = [float(item["battery_macro_rmse_delta_percent"]) for item in values]
         summaries.append(
             {
-                "experiment": "E2_FINAL_256BUDGET",
+                "experiment": experiment_label,
                 "dataset": dataset,
                 "comparison": comparison,
                 "left_model": left,
@@ -757,11 +785,18 @@ def summarize_experiment(
     mean_std_rows = aggregate_seed_rows(seed_rows)
     paired_rows: list[dict[str, Any]] = []
     paired_summary: list[dict[str, Any]] = []
-    if experiment == "e2_final_256budget":
+    if experiment in {"e2_final_256budget", "e2_final_interaction_5seed"}:
         # Validate matched physical-cycle coverage and labels before publishing
         # any formal table for the final E2 matrix.
         paired_rows, paired_summary = e2_final_paired_rows(
-            expected, relevant_selected
+            expected,
+            relevant_selected,
+            experiment_label=experiment.upper(),
+            comparisons=(
+                E2_FINAL_INTERACTION_COMPARISONS
+                if experiment == "e2_final_interaction_5seed"
+                else E2_FINAL_COMPARISONS
+            ),
         )
     seed_csv = output_dir / f"{experiment}_metrics_per_seed.csv"
     seed_json = output_dir / f"{experiment}_metrics_per_seed.json"
@@ -826,7 +861,7 @@ def summarize_experiment(
                 "strategy_comparison_per_seed_json": str(comparison_json),
             }
         )
-    if experiment == "e2_final_256budget":
+    if experiment in {"e2_final_256budget", "e2_final_interaction_5seed"}:
         paired_columns = (
             "experiment",
             "dataset",
@@ -851,8 +886,8 @@ def summarize_experiment(
             "battery_macro_rmse_delta_percent_mean",
             "battery_macro_rmse_delta_percent_std",
         )
-        paired_csv = output_dir / "e2_final_256budget_paired_gaps_per_seed.csv"
-        paired_mean_csv = output_dir / "e2_final_256budget_paired_gaps_mean_std.csv"
+        paired_csv = output_dir / f"{experiment}_paired_gaps_per_seed.csv"
+        paired_mean_csv = output_dir / f"{experiment}_paired_gaps_mean_std.csv"
         _write_csv(paired_csv, paired_rows, paired_columns)
         _write_csv(paired_mean_csv, paired_summary, paired_summary_columns)
         outputs.update(

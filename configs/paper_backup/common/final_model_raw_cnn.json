@@ -1,0 +1,1 @@
+{"model":{"type":"FinalRawCNN","input_dim":5,"d_model":122,"dropout":0.1,"head_hidden_dim":128}}

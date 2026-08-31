@@ -18,11 +18,29 @@ EXPERIMENT_IDS = {
     "e1_shared_crate_128x128",
     "e2_charging_information",
     "e2_final_256budget",
+    "e1_final_interaction_5seed",
+    "e2_final_interaction_5seed",
     "e3_strategy_pooling",
 }
 E1_MODEL_TYPES = {"HI-MLP", "Transformer", "Ours"}
 E2_MODEL_TYPES = {"VanillaMamba", "SingleStreamMamba", "Ours"}
 E3_MODEL_TYPES = {"Ours"}
+FINAL_E1_MODEL_TYPES = {
+    "FinalHI-MLP",
+    "FinalRawCNN",
+    "FinalRawLSTM",
+    "FinalRawTransformer",
+    "FinalRawVanillaMamba",
+    "FinalRawCCVanillaMamba",
+    "FinalRawCVVanillaMamba",
+    "FinalRawDualVanillaMamba",
+    "FinalInteractionMamba",
+}
+FINAL_E2_MODEL_TYPES = {
+    "FinalRawVanillaMamba",
+    "FinalRawDualVanillaMamba",
+    "FinalInteractionMamba",
+}
 
 
 def _walk(value: Any, path: str = ""):
@@ -101,6 +119,8 @@ def validate_config(
         "e1_shared_crate_128x128": E1_MODEL_TYPES,
         "e2_charging_information": E2_MODEL_TYPES,
         "e2_final_256budget": {"VanillaMamba", "Ours"},
+        "e1_final_interaction_5seed": FINAL_E1_MODEL_TYPES,
+        "e2_final_interaction_5seed": FINAL_E2_MODEL_TYPES,
         "e3_strategy_pooling": E3_MODEL_TYPES,
     }[experiment_id]
     if model_type not in allowed:
@@ -111,13 +131,14 @@ def validate_config(
         "e1_main_estimation",
         "e1_shared_crate_fullvi",
         "e1_shared_crate_128x128",
-    } and model_type != "HI-MLP" and view_id not in TERMINAL_VIEWS:
+        "e1_final_interaction_5seed",
+    } and model_type not in {"HI-MLP", "FinalHI-MLP"} and view_id not in TERMINAL_VIEWS:
         raise ValueError(f"E1 raw model requires a terminal input view, got {view_id!r}")
-    if experiment_id in {"e2_charging_information", "e2_final_256budget"} and view_id not in {"full_cccv", "full_joint", "terminal_joint", "terminal_cc", "terminal_cv", "terminal_phase"}:
+    if experiment_id in {"e2_charging_information", "e2_final_256budget", "e2_final_interaction_5seed"} and view_id not in {"full_cccv", "full_joint", "terminal_joint", "terminal_cc", "terminal_cv", "terminal_phase"}:
         raise ValueError(f"E2 config has invalid input view: {view_id!r}")
     if experiment_id == "e3_strategy_pooling" and (view_id != "terminal_phase" or model_type != "Ours"):
         raise ValueError("E3 requires Ours with input_view='terminal_phase'")
-    if model_type != "HI-MLP" and view_id not in ALL_VIEW_IDS:
+    if model_type not in {"HI-MLP", "FinalHI-MLP"} and view_id not in ALL_VIEW_IDS:
         raise ValueError(f"Raw Paper-Backup model has invalid input view: {view_id!r}")
 
     train = config.get("train", {})
@@ -191,9 +212,26 @@ def validate_config(
     if experiment_id == "e1_shared_crate_128x128":
         if int(data.get("raw_len_cc", 0)) != 128 or int(data.get("raw_len_cv", 0)) != 128:
             raise ValueError("The isolated 128x128 E1 suite requires raw_len_cc=raw_len_cv=128")
+    if experiment_id == "e1_final_interaction_5seed":
+        if source_mode != "preprocessed_v2":
+            raise ValueError("Final interaction E1 requires schema-v2 offline preprocessing")
+        if int(data.get("raw_len_cc", 0)) != 128 or int(data.get("raw_len_cv", 0)) != 128:
+            raise ValueError("Final interaction E1 requires 128+128 terminal samples")
+        if int(config.get("train", {}).get("epochs", 0)) != 600:
+            raise ValueError("Final interaction E1 requires train.epochs=600")
+        if int(config.get("train", {}).get("patience", 0)) != 30:
+            raise ValueError("Final interaction E1 requires train.patience=30")
+        if model_type in {"FinalRawDualVanillaMamba", "FinalInteractionMamba"}:
+            if view_id != "terminal_phase" or str(data.get("phase_signal_mode", "")) != "shared_full_vi":
+                raise ValueError("Final dual/interaction E1 models require shared_full_vi terminal_phase input")
+        if model_type == "FinalRawCCVanillaMamba" and view_id != "terminal_cc":
+            raise ValueError("Final raw CC Vanilla Mamba requires terminal_cc")
+        if model_type == "FinalRawCVVanillaMamba" and view_id != "terminal_cv":
+            raise ValueError("Final raw CV Vanilla Mamba requires terminal_cv")
     if is_preprocessed and experiment_id in {
         "e2_charging_information",
         "e2_final_256budget",
+        "e2_final_interaction_5seed",
     }:
         if str(data.get("cohort", "full_matched")) != "full_matched":
             raise ValueError("Preprocessed E2 views must use the full_matched cohort")
@@ -227,6 +265,21 @@ def validate_config(
                 raise ValueError(
                     "Final E2 Ours input ablations keep the complete PointBridge architecture"
                 )
+    if experiment_id == "e2_final_interaction_5seed":
+        if source_mode != "preprocessed_v2":
+            raise ValueError("Final interaction E2 requires schema-v2 offline preprocessing")
+        if int(data.get("raw_len_cc", 0)) != 128 or int(data.get("raw_len_cv", 0)) != 128:
+            raise ValueError("Final interaction E2 requires 128+128 terminal samples")
+        if int(config.get("train", {}).get("epochs", 0)) != 600 or int(config.get("train", {}).get("patience", 0)) != 30:
+            raise ValueError("Final interaction E2 requires epochs=600 and patience=30")
+        if model_type == "FinalRawVanillaMamba":
+            if view_id != "full_joint" or int(data.get("full_joint_len", 0)) != 256:
+                raise ValueError("Final interaction E2 FULL Vanilla requires full_joint length 256")
+            if not bool(model.get("use_boundary_token", False)):
+                raise ValueError("Final interaction E2 FULL Vanilla requires a boundary token")
+        else:
+            if view_id != "terminal_phase" or str(data.get("phase_signal_mode", "")) != "shared_full_vi":
+                raise ValueError("Final interaction E2 terminal models require shared_full_vi terminal_phase")
     full_audit = None
     if view_id in {"full_cccv", "full_joint"}:
         if not str(data.get("full_source_kind", "")).strip():

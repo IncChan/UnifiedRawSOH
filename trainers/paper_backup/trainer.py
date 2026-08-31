@@ -216,7 +216,7 @@ def _resolve_root(config: Mapping[str, Any], repo_root: Path, output_root: str |
 
 def _build_loaders(config: Mapping[str, Any], repo_root: Path, seed: int):
     model_type = str(config["model"]["type"])
-    if model_type == "HI-MLP":
+    if model_type in {"HI-MLP", "FinalHI-MLP"}:
         if str(config.get("data", {}).get("source_mode", "legacy_runtime")) in {
             "preprocessed_v1", "preprocessed_v2"
         }:

@@ -1,0 +1,13 @@
+{
+  "base_config": "./soh_only_contract.json",
+  "train": {
+    "epochs": 600,
+    "patience": 30,
+    "batch_size": 128
+  },
+  "formal_protocol": {
+    "seeds": [42, 52, 62, 72, 82],
+    "max_epochs": 600,
+    "early_stopping_patience": 30
+  }
+}

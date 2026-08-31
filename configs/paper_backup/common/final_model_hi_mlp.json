@@ -1,0 +1,1 @@
+{"model":{"type":"FinalHI-MLP","input_dim":24,"encoder_hidden_dim":60,"encoder_output_dim":32,"encoder_layers_num":3,"predictor_hidden_dim":32,"dropout":0.2}}

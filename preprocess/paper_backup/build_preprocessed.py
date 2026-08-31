@@ -57,8 +57,10 @@ DEFAULT_CONFIGS = {
 }
 FULL_SUPPORTED_DOMAINS = {
     "xjtu": "xjtu_mat",
+    "mit": "normalized_full_csv",
     "smarthealth_lishen40": "smarthealth_gb18030",
     "smarthealth_catl280": "smarthealth_gb18030",
+    "smarthealth_eve280": "smarthealth_gb18030",
 }
 INDEX_COLUMNS = (
     "row",
@@ -240,6 +242,8 @@ def _full_root(domain_id: str, args: argparse.Namespace) -> Path | None:
         return args.xjtu_full_source_root.resolve()
     if domain_id.startswith("smarthealth_") and args.smarthealth_full_source_root:
         return args.smarthealth_full_source_root.resolve()
+    if domain_id == "mit" and args.mit_full_source_root:
+        return args.mit_full_source_root.resolve()
     return None
 
 
@@ -526,6 +530,11 @@ def parse_args() -> argparse.Namespace:
         default=[],
     )
     parser.add_argument("--xjtu-full-source-root", type=Path)
+    parser.add_argument(
+        "--mit-full-source-root",
+        type=Path,
+        help="Normalized MIT full-charge CSV root (physical IDs/global cycle IDs).",
+    )
     parser.add_argument("--smarthealth-full-source-root", type=Path)
     parser.add_argument("--cc-len", type=int, default=128)
     parser.add_argument("--cv-len", type=int, default=256)

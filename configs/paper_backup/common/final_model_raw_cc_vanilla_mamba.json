@@ -1,0 +1,1 @@
+{"model":{"type":"FinalRawCCVanillaMamba","input_dim":5,"d_model":52,"num_layers":3,"d_state":8,"d_conv":4,"expand":2,"dt_rank":"auto","dropout":0.1,"head_hidden_dim":128,"use_boundary_token":false,"backend":"mamba_ssm.Mamba"}}

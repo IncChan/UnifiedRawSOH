@@ -14,18 +14,27 @@ PYTHON_BIN="${PYTHON_BIN:-$(${REPO_ROOT}/scripts/resolve_python_bin.sh)}"
 DRY_RUN="${DRY_RUN:-0}"
 CHECK_DATA="${CHECK_DATA:-0}"
 EXPERIMENT_SUITE="${EXPERIMENT_SUITE:-e2_charging_information}"
-if [[ "${EXPERIMENT_SUITE}" == "e2_final_256budget" ]]; then
+if [[ "${EXPERIMENT_SUITE}" == "e2_final_interaction_5seed" ]]; then
+  AVAILABLE_MODELS=(full_vanilla raw_dual_vanilla ours_interaction)
+  DEFAULT_SEEDS="42 52 62 72 82"
+  DEFAULT_EPOCHS=600
+  DEFAULT_PATIENCE=30
+  DEFAULT_NUM_WORKERS=4
+  DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup/E2-Final-Interaction-5Seed"
+elif [[ "${EXPERIMENT_SUITE}" == "e2_final_256budget" ]]; then
   AVAILABLE_MODELS=(full_vanilla_256 terminal_vanilla_sep_128x128 ours_cc_only_128 ours_cv_only_128 ours_pointbridge_128x128)
   DEFAULT_SEEDS="42 52 62 72 82 92 102 112 122 123"
   DEFAULT_PATIENCE=30
   DEFAULT_NUM_WORKERS=4
   DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup/E2-Final-256Budget"
+  DEFAULT_EPOCHS=400
 else
   AVAILABLE_MODELS=(full_vanilla terminal_cc_only terminal_cv_only terminal_ours terminal_vanilla)
   DEFAULT_SEEDS="42 52 62"
   DEFAULT_PATIENCE=20
   DEFAULT_NUM_WORKERS=1
   DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup"
+  DEFAULT_EPOCHS=400
 fi
 SEED_SPEC="${SEEDS:-${DEFAULT_SEEDS}}"
 GPU_SPEC="${GPU_IDS:-${CUDA_VISIBLE_DEVICES:-4 5 6 7}}"
@@ -33,7 +42,7 @@ MODEL_SPEC="${MODELS:-all}"
 JOBS_PER_GPU="${JOBS_PER_GPU:-${MAX_PARALLEL:-3}}"
 DEVICE_OVERRIDE="${DEVICE_OVERRIDE:-cuda:0}"
 BACKEND_OVERRIDE="${BACKEND_OVERRIDE:-}"
-EPOCHS="${EPOCHS:-400}"
+EPOCHS="${EPOCHS:-${DEFAULT_EPOCHS}}"
 PATIENCE="${PATIENCE:-${DEFAULT_PATIENCE}}"
 BATCH_SIZE="${BATCH_SIZE:-128}"
 NUM_WORKERS="${NUM_WORKERS:-${DEFAULT_NUM_WORKERS}}"

@@ -226,6 +226,7 @@ def load_preprocessed_records(
     if str(config.get("output", {}).get("experiment_id", "")) in {
         "e2_charging_information",
         "e2_final_256budget",
+        "e2_final_interaction_5seed",
     }:
         cohort = "full_matched"
     if source_view == "terminal" and cohort == "full_matched":
@@ -313,32 +314,22 @@ def sample_from_preprocessed_record(
         active_phase = str((config or {}).get("data", {}).get("active_phase", "both"))
         if active_phase not in {"both", "cc", "cv"}:
             raise ValueError(f"Unknown active_phase={active_phase!r}")
+        cc_time = cc[:, 2] * time_scale_min
+        cv_time = cv[:, 2] * time_scale_min
+        cc_temperature = cc[:, [3, 4]]
+        cv_temperature = cv[:, [3, 4]]
+        cc_mask = np.ones(cc.shape[0], dtype=np.bool_)
+        cv_mask = np.ones(cv.shape[0], dtype=np.bool_)
+        t0_temperature = cc[0, 3]
         if active_phase == "cc":
             cv_signal = np.zeros_like(cv_signal)
-            cv_time = np.zeros_like(cv[:, 2])
-            cv_temperature = np.zeros_like(cv[:, [3, 4]])
-            cv_mask = np.ones(cv.shape[0], dtype=np.bool_)
-            t0_temperature = cc[0, 3]
+            cv_time = np.zeros_like(cv_time)
+            cv_temperature = np.zeros_like(cv_temperature)
         elif active_phase == "cv":
             cc_signal = np.zeros_like(cc_signal)
-            cc_time = np.zeros_like(cc[:, 2])
-            cc_temperature = np.zeros_like(cc[:, [3, 4]])
-            cc_mask = np.ones(cc.shape[0], dtype=np.bool_)
+            cc_time = np.zeros_like(cc_time)
+            cc_temperature = np.zeros_like(cc_temperature)
             t0_temperature = cv[0, 3]
-        else:
-            cc_time = cc[:, 2] * time_scale_min
-            cv_time = cv[:, 2] * time_scale_min
-            cc_temperature = cc[:, [3, 4]]
-            cv_temperature = cv[:, [3, 4]]
-            cc_mask = np.ones(cc.shape[0], dtype=np.bool_)
-            cv_mask = np.ones(cv.shape[0], dtype=np.bool_)
-            t0_temperature = cc[0, 3]
-        if active_phase == "cc":
-            cc_time = cc[:, 2] * time_scale_min
-            cc_temperature = cc[:, [3, 4]]
-        elif active_phase == "cv":
-            cv_time = cv[:, 2] * time_scale_min
-            cv_temperature = cv[:, [3, 4]]
         view = {
             "cc_signal": cc_signal,
             "cv_signal": cv_signal,

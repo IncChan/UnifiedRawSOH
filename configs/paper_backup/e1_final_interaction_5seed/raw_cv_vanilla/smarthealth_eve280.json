@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_eve_sequence.json","../../common/e1_final_interaction_5seed.json","../../common/final_model_raw_cv_vanilla_mamba.json"],"experiment":{"name":"E1Final5_EVE_raw_cv_vanilla"},"data":{"input_view":"terminal_cv","active_phase":"cv"},"output":{"model_id":"Final-Raw-CV-Vanilla-Mamba","data_id":"smarthealth_eve280_raw_cv_vanilla_128x128"}}
