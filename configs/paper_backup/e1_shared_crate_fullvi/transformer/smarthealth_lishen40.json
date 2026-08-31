@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_lishen_sequence.json","../../common/e1_shared_crate_v2.json","../../common/model_transformer_crate_v2.json"],"experiment":{"name":"E1V2_Transformer_LISHEN"},"output":{"model_id":"Transformer-SharedCRate","data_id":"smarthealth_lishen40_crate_v2"},"data":{"input_view":"terminal_joint"}}

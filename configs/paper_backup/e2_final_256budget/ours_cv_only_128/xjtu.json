@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_xjtu_sequence.json","../../common/e2_final_256budget.json","../../common/model_ours_cv_only_pointbridge.json"],"experiment":{"name":"E2Final_OursCVOnly_XJTU"},"output":{"model_id":"Ours-CV-Only-FullVI-128","data_id":"xjtu_terminal_cv_only_128"},"data":{"input_view":"terminal_phase","phase_signal_mode":"shared_full_vi","active_phase":"cv"}}

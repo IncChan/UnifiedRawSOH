@@ -61,7 +61,7 @@
       "logical_sequences": [
         {
           "condition": "0.5C-20%DOD",
-          "eligible_cycles": 1243,
+          "eligible_cycles": 1668,
           "logical_sequence_id": "smarthealth_eve280__04qcb76717200jb5h0002297__0_5c_20_dod",
           "selection": "test",
           "source_chunks": 24,
@@ -70,7 +70,7 @@
         },
         {
           "condition": "0.5C-20%DOD",
-          "eligible_cycles": 1264,
+          "eligible_cycles": 1673,
           "logical_sequence_id": "smarthealth_eve280__04qcb76718400jb640004290__0_5c_20_dod",
           "selection": "development",
           "source_chunks": 23,
@@ -79,7 +79,7 @@
         },
         {
           "condition": "0.5C-20%DOD",
-          "eligible_cycles": 1736,
+          "eligible_cycles": 1669,
           "logical_sequence_id": "smarthealth_eve280__04qcb76718400jb640005123__0_5c_20_dod",
           "selection": "development",
           "source_chunks": 25,
@@ -112,7 +112,7 @@
       "logical_sequences": [
         {
           "condition": "0.5C-60%DOD",
-          "eligible_cycles": 1842,
+          "eligible_cycles": 1661,
           "logical_sequence_id": "smarthealth_eve280__04qcb76717100jb5g0000730__0_5c_60_dod",
           "selection": "development",
           "source_chunks": 36,
@@ -121,7 +121,7 @@
         },
         {
           "condition": "0.5C-60%DOD",
-          "eligible_cycles": 1789,
+          "eligible_cycles": 1612,
           "logical_sequence_id": "smarthealth_eve280__04qcb76718400jb640003611__0_5c_60_dod",
           "selection": "test",
           "source_chunks": 36,
@@ -130,7 +130,7 @@
         },
         {
           "condition": "0.5C-60%DOD",
-          "eligible_cycles": 1843,
+          "eligible_cycles": 1664,
           "logical_sequence_id": "smarthealth_eve280__04qcb76718400jb640003859__0_5c_60_dod",
           "selection": "development",
           "source_chunks": 37,
@@ -182,13 +182,13 @@
   "logical_sequence_rule": "domain + source serial + C-rate + DOD; no cross-condition merge",
   "manual_confirmation_conditions": {},
   "name": "smarthealth_eve280_condition_stratified_2development_1test_v3",
-  "preprocessing_strategy_version": "smarthealth_cccv_calibration_v5",
+  "preprocessing_strategy_version": "smarthealth_cccv_calibration_v7",
   "schema_version": 3,
   "selection_rule": "For each condition with exactly three exportable logical sequences, ascending deterministic SHA256 ranking selects ranks 0 and 1 as development and rank 2 as the held-out test. Other inventories are recorded for manual confirmation without a fallback split.",
   "source_manifest_signature_sha256": "607e802eea6147cc33db688b73cca387ab2f1ccd8a02918bddb398a966f5ff2b",
   "split_status": "complete",
   "split_strategy_version": "smarthealth_condition_cell_split_2development_1test_v3",
-  "strategy_version": "smarthealth_cccv_calibration_v5",
+  "strategy_version": "smarthealth_cccv_calibration_v7",
   "test_batteries_by_condition": {
     "0.5C-100%DOD": [
       "smarthealth_eve280__04qcb76716600jb630005726__0_5c_100_dod"

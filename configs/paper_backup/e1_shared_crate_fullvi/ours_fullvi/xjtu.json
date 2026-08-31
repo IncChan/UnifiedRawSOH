@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_xjtu_sequence.json","../../common/e1_shared_crate_v2.json","../../common/model_ours_fullvi_crate_v2.json"],"experiment":{"name":"E1V2_OursFullVI_XJTU"},"output":{"model_id":"Ours-FullVI-SharedCRate","data_id":"xjtu_crate_v2"},"data":{"input_view":"terminal_phase","phase_signal_mode":"shared_full_vi"}}

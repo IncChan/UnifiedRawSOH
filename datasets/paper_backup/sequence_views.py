@@ -23,10 +23,12 @@ from ..registry import build_default_registry
 from ..splits import load_invalid_cycles, load_split_spec, split_records_from_spec
 from ..xjtu import build_full_life_cycle_metadata
 from .full_cccv import FullSourceUnavailable, match_full_terminal_records, materialize_full_records
+from .preprocessed import paper_backup_dataloader_kwargs
 
 
 TERMINAL_VIEW_IDS = ("terminal_joint", "terminal_cc", "terminal_cv", "terminal_phase")
-ALL_VIEW_IDS = (*TERMINAL_VIEW_IDS, "full_cccv")
+FULL_VIEW_IDS = ("full_cccv", "full_joint")
+ALL_VIEW_IDS = (*TERMINAL_VIEW_IDS, *FULL_VIEW_IDS)
 SEQUENCE_CHANNEL_NAMES = (
     "voltage_norm",
     "current_norm",
@@ -34,6 +36,10 @@ SEQUENCE_CHANNEL_NAMES = (
     "temperature_abs_norm",
     "temperature_delta_norm",
 )
+
+
+def _is_preprocessed_mode(value: Any) -> bool:
+    return str(value) in {"preprocessed_v1", "preprocessed_v2"}
 
 
 def _resolve_path(repo_root: Path, value: str | Path) -> Path:
@@ -64,6 +70,11 @@ def _split_path(config: Mapping[str, Any], repo_root: Path) -> Path:
 
 def load_terminal_records(config: Mapping[str, Any], repo_root: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Load canonical terminal records without deriving a lifetime target."""
+
+    if _is_preprocessed_mode(config.get("data", {}).get("source_mode", "legacy_runtime")):
+        from .preprocessed import load_preprocessed_records
+
+        return load_preprocessed_records(config, repo_root, source_view="terminal")
 
     domain_id = _domain_id(config)
     data = dict(config.get("data", {}))
@@ -310,10 +321,29 @@ class SequenceViewDataset(Dataset):
         self.view_id = str(view_id)
         self.samples: list[dict[str, Any]] = []
         self.skipped = Counter()
+        self.preprocessed = bool(self.records) and all(
+            "_preprocessed_directory" in record for record in self.records
+        )
+        if self.preprocessed:
+            # Keep only the compact cycle index here. Fixed arrays stay mmap'd
+            # and one selected row is copied in __getitem__.
+            return
         for record in self.records:
             try:
+                if "_preprocessed_directory" in record:
+                    from .preprocessed import sample_from_preprocessed_record
+
+                    sample = sample_from_preprocessed_record(
+                        record, self.view_id, self.split_name, self.config
+                    )
+                    self.samples.append(sample)
+                    continue
                 if self.view_id == "terminal_phase":
                     view = _phase_sample(record, self.config, self.split_name, self.view_id)
+                elif self.view_id == "full_joint":
+                    raise ValueError(
+                        "full_joint requires the audited offline preprocessing product"
+                    )
                 else:
                     cc = _resample_phase(record, "CC", int(self.config.get("data", {}).get("raw_len_cc", 128)))
                     cv = _resample_phase(record, "CV", int(self.config.get("data", {}).get("raw_len_cv", 256)))
@@ -339,14 +369,22 @@ class SequenceViewDataset(Dataset):
 
     def limit(self, count: int) -> None:
         if int(count) > 0:
-            self.samples = self.samples[: int(count)]
             self.records = self.records[: int(count)]
+            if not self.preprocessed:
+                self.samples = self.samples[: int(count)]
 
     def __len__(self) -> int:
-        return len(self.samples)
+        return len(self.records) if self.preprocessed else len(self.samples)
 
     def __getitem__(self, index: int) -> dict[str, Any]:
-        sample = self.samples[index]
+        if self.preprocessed:
+            from .preprocessed import sample_from_preprocessed_record
+
+            sample = sample_from_preprocessed_record(
+                self.records[index], self.view_id, self.split_name, self.config
+            )
+        else:
+            sample = self.samples[index]
         output: dict[str, Any] = {}
         for key, value in sample.items():
             if key == "view_stats":
@@ -359,16 +397,32 @@ class SequenceViewDataset(Dataset):
 
 
 def _strategy_counts(dataset: Dataset) -> dict[str, int]:
+    if getattr(dataset, "preprocessed", False):
+        return dict(
+            Counter(
+                str(item.get("strategy_id", item.get("condition", "unknown")))
+                for item in dataset.records
+            )
+        )
     return dict(Counter(str(dataset[index]["strategy_id"]) for index in range(len(dataset))))
 
 
 def build_strategy_sampler(dataset: Dataset, seed: int = 0) -> tuple[WeightedRandomSampler, dict[str, Any]]:
     """Equal strategy mass, then equal battery mass, then equal cycle mass."""
 
-    metadata = []
-    for index in range(len(dataset)):
-        item = dataset[index]
-        metadata.append((str(item["strategy_id"]), str(item["battery_id"])))
+    if getattr(dataset, "preprocessed", False):
+        metadata = [
+            (
+                str(item.get("strategy_id", item.get("condition", "unknown"))),
+                str(item["battery_id"]),
+            )
+            for item in dataset.records
+        ]
+    else:
+        metadata = []
+        for index in range(len(dataset)):
+            item = dataset[index]
+            metadata.append((str(item["strategy_id"]), str(item["battery_id"])))
     if not metadata:
         raise ValueError("Cannot build strategy sampler for an empty dataset")
     strategies = sorted({strategy for strategy, _ in metadata})
@@ -401,13 +455,13 @@ def _make_loaders(datasets: dict[str, Dataset], config: Mapping[str, Any], seed:
     if strategy_balanced:
         train_sampler, sampler_audit = build_strategy_sampler(datasets["train"], seed=seed)
     batch_size = int(config.get("train", {}).get("batch_size", 64))
-    workers = int(config.get("data", {}).get("num_workers", 0))
-    common = {"batch_size": batch_size, "num_workers": workers}
-    return {
+    common = paper_backup_dataloader_kwargs(config, batch_size=batch_size)
+    loaders = {
         "train": DataLoader(datasets["train"], sampler=train_sampler, shuffle=train_sampler is None, **common),
         "val": DataLoader(datasets["val"], shuffle=False, **common),
         "test": DataLoader(datasets["test"], shuffle=False, **common),
-    }, sampler_audit
+    }
+    return loaders, sampler_audit, dict(common)
 
 
 def _full_data_config(config: Mapping[str, Any], repo_root: Path, root_value: Any) -> dict[str, Any]:
@@ -436,32 +490,46 @@ def build_sequence_loaders(
     view_id = str(view_id or config.get("data", {}).get("input_view", config.get("experiment", {}).get("input_view", "terminal_joint")))
     if view_id not in ALL_VIEW_IDS:
         raise ValueError(f"Unknown Paper-Backup input view {view_id!r}")
+    source_mode = str(config.get("data", {}).get("source_mode", "legacy_runtime"))
     terminal_records, source_info = load_terminal_records(config, repo_root)
     matching_audit = None
     matched_keys: set[tuple[str, int]] | None = None
-    if view_id == "full_cccv":
-        full_records = materialize_full_records(
-            terminal_records,
-            domain_id=_domain_id(config),
-            data_config=_full_data_config(config, repo_root, config.get("data", {}).get("full_data_root")),
-        )
-        matched, matching_audit = match_full_terminal_records(terminal_records, full_records)
-        terminal_by_key = {(str(item["battery_id"]), int(item["cycle_id"])): item for item in terminal_records}
-        # Use the full record for input, but retain canonical terminal label and
-        # metadata. match_full_terminal_records already checked the linkage.
-        terminal_records = []
-        matched_keys = set()
-        for item in matched:
-            key = (str(item["battery_id"]), int(item["cycle_id"]))
-            matched_keys.add(key)
-            merged = dict(item)
-            merged["domain_id"] = terminal_by_key[key].get("domain_id", _domain_id(config))
-            merged["condition"] = terminal_by_key[key]["condition"]
-            merged["soh"] = terminal_by_key[key]["soh"]
-            terminal_records.append(merged)
+    if view_id in FULL_VIEW_IDS:
+        if _is_preprocessed_mode(source_mode):
+            from .preprocessed import load_preprocessed_records
+
+            terminal_records, full_source_info = load_preprocessed_records(
+                config, repo_root, source_view="full_cccv"
+            )
+            matching_audit = {
+                "policy": "offline full_matched cohort",
+                "matched_records": len(terminal_records),
+                "source": full_source_info,
+            }
+            source_info = full_source_info
+        else:
+            full_records = materialize_full_records(
+                terminal_records,
+                domain_id=_domain_id(config),
+                data_config=_full_data_config(config, repo_root, config.get("data", {}).get("full_data_root")),
+            )
+            matched, matching_audit = match_full_terminal_records(terminal_records, full_records)
+            terminal_by_key = {(str(item["battery_id"]), int(item["cycle_id"])): item for item in terminal_records}
+            # Use the full record for input, but retain canonical terminal label and
+            # metadata. match_full_terminal_records already checked the linkage.
+            terminal_records = []
+            matched_keys = set()
+            for item in matched:
+                key = (str(item["battery_id"]), int(item["cycle_id"]))
+                matched_keys.add(key)
+                merged = dict(item)
+                merged["domain_id"] = terminal_by_key[key].get("domain_id", _domain_id(config))
+                merged["condition"] = terminal_by_key[key]["condition"]
+                merged["soh"] = terminal_by_key[key]["soh"]
+                terminal_records.append(merged)
     else:
         matched_root = config.get("data", {}).get("matched_full_data_root")
-        if matched_root:
+        if matched_root and not _is_preprocessed_mode(source_mode):
             full_records = materialize_full_records(
                 terminal_records,
                 domain_id=_domain_id(config),
@@ -498,12 +566,26 @@ def build_sequence_loaders(
     if debug_n > 0:
         for dataset in datasets.values():
             dataset.limit(debug_n)
-    loaders, sampler_audit = _make_loaders(datasets, config, int(seed), strategy_balanced=strategy_balanced)
+    loaders, sampler_audit, loader_options = _make_loaders(
+        datasets, config, int(seed), strategy_balanced=strategy_balanced
+    )
+    sequence_channel_names = list(SEQUENCE_CHANNEL_NAMES)
+    if int(config.get("data", {}).get("preprocessed_schema_version", 1)) == 2:
+        sequence_channel_names[1] = "current_c_rate"
     info = {
         "loader_type": "paper_backup_sequence",
         "domain_id": _domain_id(config),
         "view_id": view_id,
-        "input_channel_names": list(SEQUENCE_CHANNEL_NAMES) if view_id != "terminal_phase" else ["phase_signal", "phase_tau", "relative_time", "temperature_abs", "temperature_delta"],
+        "input_channel_names": (
+            sequence_channel_names
+            if view_id not in {"terminal_phase"}
+            else [
+                str(config.get("data", {}).get("phase_signal_mode", "legacy_local")),
+                "relative_time",
+                "temperature_abs",
+                "temperature_delta",
+            ]
+        ),
         "source": source_info,
         "split": split_info,
         "record_counts": {name: len(split_records[name]) for name in split_records},
@@ -511,6 +593,7 @@ def build_sequence_loaders(
         "battery_counts": {name: len({str(item["battery_id"]) for item in split_records[name]}) for name in split_records},
         "strategy_counts": {name: _strategy_counts(datasets[name]) for name in datasets},
         "sampler": sampler_audit,
+        "dataloader": loader_options,
         "metadata_in_forward": False,
         "cycle_lifetime_auxiliary": False,
         "matching": matching_audit,
@@ -520,6 +603,7 @@ def build_sequence_loaders(
 
 __all__ = [
     "ALL_VIEW_IDS",
+    "FULL_VIEW_IDS",
     "SEQUENCE_CHANNEL_NAMES",
     "SequenceViewDataset",
     "TERMINAL_VIEW_IDS",

@@ -4,5 +4,5 @@
   "experiment": {"name": "E1_Transformer_CATL280", "task": "paper_backup_e1_main_estimation"},
   "output": {"experiment_id": "e1_main_estimation", "model_id": "Transformer", "data_id": "smarthealth_catl280"},
   "data": {"input_view": "terminal_joint"},
-  "model": {"type": "Transformer", "input_dim": 5, "d_model": 64, "num_layers": 3, "num_heads": 4, "dim_feedforward": 128, "dropout": 0.1, "head_hidden_dim": 128, "max_length": 512}
+  "model": {"type": "Transformer", "input_dim": 5, "d_model": 48, "num_layers": 3, "num_heads": 4, "dim_feedforward": 96, "dropout": 0.1, "head_hidden_dim": 128, "max_length": 512}
 }

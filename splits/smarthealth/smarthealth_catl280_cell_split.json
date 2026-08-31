@@ -61,7 +61,7 @@
       "logical_sequences": [
         {
           "condition": "0.5C-20%DOD",
-          "eligible_cycles": 408,
+          "eligible_cycles": 1493,
           "logical_sequence_id": "smarthealth_catl280__001cb310000009b960502899__0_5c_20_dod",
           "selection": "development",
           "source_chunks": 23,
@@ -70,7 +70,7 @@
         },
         {
           "condition": "0.5C-20%DOD",
-          "eligible_cycles": 555,
+          "eligible_cycles": 1492,
           "logical_sequence_id": "smarthealth_catl280__001cb310000009b960504693__0_5c_20_dod",
           "selection": "test",
           "source_chunks": 23,
@@ -79,7 +79,7 @@
         },
         {
           "condition": "0.5C-20%DOD",
-          "eligible_cycles": 529,
+          "eligible_cycles": 1493,
           "logical_sequence_id": "smarthealth_catl280__001cb310000009b960505535__0_5c_20_dod",
           "selection": "development",
           "source_chunks": 23,
@@ -112,7 +112,7 @@
       "logical_sequences": [
         {
           "condition": "0.5C-60%DOD",
-          "eligible_cycles": 990,
+          "eligible_cycles": 890,
           "logical_sequence_id": "smarthealth_catl280__001cb310000009b960503821__0_5c_60_dod",
           "selection": "development",
           "source_chunks": 22,
@@ -121,7 +121,7 @@
         },
         {
           "condition": "0.5C-60%DOD",
-          "eligible_cycles": 986,
+          "eligible_cycles": 890,
           "logical_sequence_id": "smarthealth_catl280__001cb310000009b960504699__0_5c_60_dod",
           "selection": "test",
           "source_chunks": 22,
@@ -130,7 +130,7 @@
         },
         {
           "condition": "0.5C-60%DOD",
-          "eligible_cycles": 981,
+          "eligible_cycles": 883,
           "logical_sequence_id": "smarthealth_catl280__001cb310000009b960504966__0_5c_60_dod",
           "selection": "development",
           "source_chunks": 21,
@@ -182,13 +182,13 @@
   "logical_sequence_rule": "domain + source serial + C-rate + DOD; no cross-condition merge",
   "manual_confirmation_conditions": {},
   "name": "smarthealth_catl280_condition_stratified_2development_1test_v3",
-  "preprocessing_strategy_version": "smarthealth_cccv_calibration_v5",
+  "preprocessing_strategy_version": "smarthealth_cccv_calibration_v7",
   "schema_version": 3,
   "selection_rule": "For each condition with exactly three exportable logical sequences, ascending deterministic SHA256 ranking selects ranks 0 and 1 as development and rank 2 as the held-out test. Other inventories are recorded for manual confirmation without a fallback split.",
   "source_manifest_signature_sha256": "51d563a422f9245a0ef2327d5334fb5f1787f8469aa4997530e5998e078c122e",
   "split_status": "complete",
   "split_strategy_version": "smarthealth_condition_cell_split_2development_1test_v3",
-  "strategy_version": "smarthealth_cccv_calibration_v5",
+  "strategy_version": "smarthealth_cccv_calibration_v7",
   "test_batteries_by_condition": {
     "0.5C-100%DOD": [
       "smarthealth_catl280__001cb310000009b970504296__0_5c_100_dod"

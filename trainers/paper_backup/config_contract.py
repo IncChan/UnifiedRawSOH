@@ -12,7 +12,14 @@ from ...datasets.splits import load_split_spec
 
 
 PAPER_VERSION = "Paper-Backup"
-EXPERIMENT_IDS = {"e1_main_estimation", "e2_charging_information", "e3_strategy_pooling"}
+EXPERIMENT_IDS = {
+    "e1_main_estimation",
+    "e1_shared_crate_fullvi",
+    "e1_shared_crate_128x128",
+    "e2_charging_information",
+    "e2_final_256budget",
+    "e3_strategy_pooling",
+}
 E1_MODEL_TYPES = {"HI-MLP", "Transformer", "Ours"}
 E2_MODEL_TYPES = {"VanillaMamba", "SingleStreamMamba", "Ours"}
 E3_MODEL_TYPES = {"Ours"}
@@ -90,16 +97,23 @@ def validate_config(
         raise ValueError(f"Unknown Paper-Backup model.type: {model_type!r}")
     allowed = {
         "e1_main_estimation": E1_MODEL_TYPES,
+        "e1_shared_crate_fullvi": {"Transformer", "Ours"},
+        "e1_shared_crate_128x128": E1_MODEL_TYPES,
         "e2_charging_information": E2_MODEL_TYPES,
+        "e2_final_256budget": {"VanillaMamba", "Ours"},
         "e3_strategy_pooling": E3_MODEL_TYPES,
     }[experiment_id]
     if model_type not in allowed:
         raise ValueError(f"Model {model_type!r} is not in {experiment_id} matrix: {sorted(allowed)}")
     _safe_root(output.get("root", ""))
     view_id = str(config.get("data", {}).get("input_view", config.get("experiment", {}).get("input_view", "")))
-    if experiment_id == "e1_main_estimation" and model_type != "HI-MLP" and view_id not in TERMINAL_VIEWS:
+    if experiment_id in {
+        "e1_main_estimation",
+        "e1_shared_crate_fullvi",
+        "e1_shared_crate_128x128",
+    } and model_type != "HI-MLP" and view_id not in TERMINAL_VIEWS:
         raise ValueError(f"E1 raw model requires a terminal input view, got {view_id!r}")
-    if experiment_id == "e2_charging_information" and view_id not in {"full_cccv", "terminal_joint", "terminal_cc", "terminal_cv", "terminal_phase"}:
+    if experiment_id in {"e2_charging_information", "e2_final_256budget"} and view_id not in {"full_cccv", "full_joint", "terminal_joint", "terminal_cc", "terminal_cv", "terminal_phase"}:
         raise ValueError(f"E2 config has invalid input view: {view_id!r}")
     if experiment_id == "e3_strategy_pooling" and (view_id != "terminal_phase" or model_type != "Ours"):
         raise ValueError("E3 requires Ours with input_view='terminal_phase'")
@@ -130,18 +144,114 @@ def validate_config(
         raise ValueError("E3 pooled/specific model config cannot inject strategy_id")
 
     data = config.get("data", {})
+    source_mode = str(data.get("source_mode", "legacy_runtime"))
+    if source_mode not in {"preprocessed_v1", "preprocessed_v2", "legacy_runtime"}:
+        raise ValueError("Paper-Backup data.source_mode must be preprocessed_v1, preprocessed_v2 or legacy_runtime")
+    is_preprocessed = source_mode in {"preprocessed_v1", "preprocessed_v2"}
+    if is_preprocessed and not str(data.get("preprocessed_data_root", "")).strip():
+        raise ValueError(f"{source_mode} requires data.preprocessed_data_root")
+    if source_mode == "preprocessed_v2":
+        if int(data.get("preprocessed_schema_version", 0)) != 2:
+            raise ValueError("preprocessed_v2 requires preprocessed_schema_version=2")
+        if str(config.get("normalization", {}).get("current_mode", "nominal_c_rate")) != "nominal_c_rate":
+            raise ValueError("preprocessed_v2 requires nominal C-rate current normalization")
+    if experiment_id in {
+        "e1_shared_crate_fullvi",
+        "e1_shared_crate_128x128",
+    }:
+        if source_mode != "preprocessed_v2":
+            raise ValueError("The isolated C-rate E1 suite requires preprocessed_v2")
+        phase_mode = str(data.get("phase_signal_mode", ""))
+        if model_type == "Ours" and phase_mode not in {
+            "shared_dominant",
+            "shared_full_vi",
+            "shared_gated_full_vi",
+        }:
+            raise ValueError("C-rate Ours requires an explicit shared phase_signal_mode")
+        gated = str(model.get("phase_input_fusion", "standard")) == "gated_residual_full_vi"
+        if (phase_mode == "shared_gated_full_vi") != gated:
+            raise ValueError(
+                "shared_gated_full_vi data and gated_residual_full_vi model fusion "
+                "must be enabled together"
+            )
+        if gated:
+            if int(model.get("signal_input_dim", 0)) != 3 or int(model.get("input_dim", 0)) != 5:
+                raise ValueError("Gated FullVI requires signal_input_dim=3 and input_dim=5")
+            if int(model.get("gate_hidden_dim", 0)) < 1:
+                raise ValueError("Gated FullVI requires a positive gate_hidden_dim")
+            if str(model.get("gate_context", "")) != "masked_mean":
+                raise ValueError("Gated FullVI requires gate_context='masked_mean'")
+            if str(model.get("secondary_residual_init", "")) != "zero":
+                raise ValueError("Gated FullVI requires secondary_residual_init='zero'")
+        bridge_type = str(model.get("cc_to_cv_bridge_type", "zero_init_linear"))
+        if bridge_type not in {"zero_init_linear", "adaptive_pointwise_zero_init"}:
+            raise ValueError(f"Unsupported C-rate CC-to-CV bridge type: {bridge_type!r}")
+        if bridge_type == "adaptive_pointwise_zero_init" and phase_mode != "shared_full_vi":
+            raise ValueError("Adaptive pointwise CC-to-CV bridge requires shared_full_vi input")
+    if experiment_id == "e1_shared_crate_128x128":
+        if int(data.get("raw_len_cc", 0)) != 128 or int(data.get("raw_len_cv", 0)) != 128:
+            raise ValueError("The isolated 128x128 E1 suite requires raw_len_cc=raw_len_cv=128")
+    if is_preprocessed and experiment_id in {
+        "e2_charging_information",
+        "e2_final_256budget",
+    }:
+        if str(data.get("cohort", "full_matched")) != "full_matched":
+            raise ValueError("Preprocessed E2 views must use the full_matched cohort")
+    if experiment_id == "e2_final_256budget":
+        if source_mode != "preprocessed_v2":
+            raise ValueError("Final E2 requires schema-v2 offline preprocessing")
+        if int(data.get("raw_len_cc", 0)) != 128 or int(data.get("raw_len_cv", 0)) != 128:
+            raise ValueError("Final E2 terminal phases require 128+128 physical points")
+        if str(config.get("normalization", {}).get("current_mode", "")) != "nominal_c_rate":
+            raise ValueError("Final E2 requires nominal C-rate current normalization")
+        active_phase = str(data.get("active_phase", "both"))
+        if active_phase not in {"both", "cc", "cv"}:
+            raise ValueError("Final E2 active_phase must be both, cc or cv")
+        if model_type == "VanillaMamba":
+            if view_id not in {"full_joint", "terminal_joint"}:
+                raise ValueError("Final E2 Vanilla Mamba requires a joint input view")
+            if not bool(model.get("use_boundary_token", False)):
+                raise ValueError("Final E2 Vanilla Mamba requires the shared CC-CV boundary token")
+            if active_phase != "both":
+                raise ValueError("Final E2 Vanilla Mamba must observe both phases")
+            if view_id == "full_joint" and int(data.get("full_joint_len", 0)) != 256:
+                raise ValueError("Final E2 FULL reference requires 256 physical samples")
+        if model_type == "Ours":
+            if view_id != "terminal_phase":
+                raise ValueError("Final E2 Ours variants require terminal_phase input")
+            if str(data.get("phase_signal_mode", "")) != "shared_full_vi":
+                raise ValueError("Final E2 Ours variants require shared_full_vi")
+            if str(model.get("active_phase", "both")) != active_phase:
+                raise ValueError("Final E2 model/data active_phase must match")
+            if not bool(model.get("use_cc_to_cv_bridge", False)):
+                raise ValueError(
+                    "Final E2 Ours input ablations keep the complete PointBridge architecture"
+                )
     full_audit = None
-    if view_id == "full_cccv":
+    if view_id in {"full_cccv", "full_joint"}:
         if not str(data.get("full_source_kind", "")).strip():
             raise ValueError("full_cccv config must declare full_source_kind")
         if not str(data.get("full_source_format", "")).strip():
             raise ValueError("full_cccv config must declare full_source_format")
         if str(data.get("full_source_kind", "")) in {"canonical_terminal", "terminal_raw", "terminal_only"}:
             raise ValueError("full_cccv cannot use a terminal-only source")
-        if "full_data_root" not in data:
-            raise ValueError("full_cccv config must declare full_data_root, even when blocked_by_data")
-        if data.get("full_data_root") and data.get("terminal_data_root") and str(data["full_data_root"]) == str(data["terminal_data_root"]):
-            raise ValueError("full_data_root and terminal_data_root cannot be the same terminal product")
+        if is_preprocessed:
+            if str(data.get("full_source_kind")) != "preprocessed_full_cccv":
+                raise ValueError("preprocessed full_cccv requires full_source_kind=preprocessed_full_cccv")
+            expected_format = (
+                "paper_backup_npy_v2_joint"
+                if view_id == "full_joint"
+                else "paper_backup_npy_v1"
+            )
+            if str(data.get("full_source_format")) != expected_format:
+                raise ValueError(
+                    f"preprocessed {view_id} requires full_source_format={expected_format}"
+                )
+        else:
+            if "full_data_root" not in data:
+                raise ValueError("legacy full_cccv must declare full_data_root")
+            if data.get("full_data_root") and data.get("terminal_data_root") and str(data["full_data_root"]) == str(data["terminal_data_root"]):
+                raise ValueError("full_data_root and terminal_data_root cannot be the same terminal product")
     if data.get("matched_full_data_root") and data.get("terminal_data_root") and str(data["matched_full_data_root"]) == str(data["terminal_data_root"]):
         raise ValueError("matched_full_data_root cannot be the terminal product")
 
@@ -157,6 +267,16 @@ def validate_config(
                 if not split_path.is_file():
                     raise ValueError(f"Configured split file does not exist: {split_path}")
                 split_audit = _validate_static_split(split_path)
+        if check_files and is_preprocessed:
+            product_root = Path(str(data["preprocessed_data_root"]))
+            if not product_root.is_absolute():
+                product_root = root / product_root
+            domain_directory = product_root / str(data.get("domain_id", config.get("experiment", {}).get("domain_id", "")))
+            manifest = domain_directory / "manifest.json"
+            # Config-only validation remains usable before preprocessing; an
+            # existing product, however, must have the expected manifest.
+            if domain_directory.exists() and not manifest.is_file():
+                raise ValueError(f"Paper-Backup preprocessed manifest is missing: {manifest}")
     return {
         "paper_version": PAPER_VERSION,
         "experiment_id": experiment_id,
@@ -167,6 +287,7 @@ def validate_config(
         "soh_only": True,
         "metadata_in_forward": False,
         "full_source_declared": view_id == "full_cccv",
+        "source_mode": source_mode,
     }
 
 

@@ -1,0 +1,22 @@
+{
+  "base_config": "./soh_only_contract.json",
+  "status": "runnable",
+  "experiment": {"task": "paper_backup_e2_final_256budget"},
+  "data": {
+    "source_mode": "preprocessed_v2",
+    "preprocessed_data_root": "datasets/PaperBackup_preprocessed_v2_e2_final",
+    "preprocessed_schema_version": 2,
+    "dataset": "paper_backup_preprocessed_e2_final_256budget",
+    "raw_len_cc": 128,
+    "raw_len_cv": 128,
+    "full_joint_len": 256,
+    "cohort": "full_matched",
+    "active_phase": "both"
+  },
+  "normalization": {"current_mode": "nominal_c_rate"},
+  "train": {"epochs": 400, "patience": 30, "batch_size": 128},
+  "output": {
+    "experiment_id": "e2_final_256budget",
+    "root": "outputs/Paper-Backup/E2-Final-256Budget"
+  }
+}

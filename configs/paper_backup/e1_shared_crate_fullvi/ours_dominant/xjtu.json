@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_xjtu_sequence.json","../../common/e1_shared_crate_v2.json","../../common/model_ours_dominant_crate_v2.json"],"experiment":{"name":"E1V2_OursDominant_XJTU"},"output":{"model_id":"Ours-Dominant-SharedCRate","data_id":"xjtu_crate_v2"},"data":{"input_view":"terminal_phase","phase_signal_mode":"shared_dominant"}}

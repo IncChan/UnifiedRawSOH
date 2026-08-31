@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_eve_sequence.json","../../common/e1_shared_crate_128x128.json","../../common/model_transformer_crate_v2.json"],"experiment":{"name":"E1V2_128x128_Transformer_EVE"},"output":{"model_id":"Transformer-SharedCRate-128x128","data_id":"smarthealth_eve280_crate_v2_128x128"},"data":{"input_view":"terminal_joint"}}

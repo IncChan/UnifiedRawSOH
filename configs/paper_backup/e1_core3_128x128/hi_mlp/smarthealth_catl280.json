@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_catl_sequence.json","../../common/model_hi_mlp.json","../../common/e1_shared_crate_128x128.json"],"experiment":{"name":"E1Core3_128x128_PINN4SOHLikeMLP_CATL"},"output":{"model_id":"PINN4SOH-like-MLP-SharedCRate-128x128","data_id":"smarthealth_catl280_crate_v2_128x128"},"data":{"input_view":"statistical_features"}}

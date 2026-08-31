@@ -29,6 +29,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output_root", default=None)
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--patience", type=int, default=None)
+    parser.add_argument("--batch_size", type=int, default=None)
+    parser.add_argument("--num_workers", type=int, default=None)
     parser.add_argument("--debug_num_samples", type=int, default=None)
     parser.add_argument("--run_time", default=None)
     return parser.parse_args()
@@ -43,6 +45,11 @@ def _resolve(repo_root: Path, value: str | None) -> Path | None:
 
 def _data_readiness(config: dict, repo_root: Path) -> dict:
     data = config.get("data", {})
+    source_mode = str(data.get("source_mode", "legacy_runtime"))
+    is_preprocessed = source_mode in {"preprocessed_v1", "preprocessed_v2"}
+    preprocessed = _resolve(repo_root, data.get("preprocessed_data_root"))
+    domain_id = str(data.get("domain_id", config.get("experiment", {}).get("domain_id", "")))
+    manifest = preprocessed / domain_id / "manifest.json" if preprocessed else None
     terminal = _resolve(repo_root, data.get("terminal_data_root", data.get("data_root")))
     full = _resolve(repo_root, data.get("full_data_root"))
     result = {
@@ -50,14 +57,20 @@ def _data_readiness(config: dict, repo_root: Path) -> dict:
         "terminal_exists": bool(terminal and terminal.is_dir()),
         "full_data_root": str(full) if full else None,
         "full_exists": bool(full and full.is_dir()),
+        "source_mode": source_mode,
+        "preprocessed_data_root": str(preprocessed) if preprocessed else None,
+        "preprocessed_manifest": str(manifest) if manifest else None,
+        "preprocessed_exists": bool(manifest and manifest.is_file()),
     }
     split_value = data.get("split_file") or config.get("experiment", {}).get("split_file")
     split = _resolve(repo_root, split_value)
     result["split_file"] = str(split) if split else None
     result["split_exists"] = bool(split and split.is_file())
-    if not result["terminal_exists"] and str(config.get("status", "runnable")) == "runnable":
+    if is_preprocessed and not result["preprocessed_exists"] and str(config.get("status", "runnable")) == "runnable":
+        raise ValueError(f"Configured Paper-Backup preprocessed product is missing: {manifest}")
+    if not is_preprocessed and not result["terminal_exists"] and str(config.get("status", "runnable")) == "runnable":
         raise ValueError(f"Configured terminal data root is missing: {terminal}")
-    if str(data.get("input_view", "")) == "full_cccv" and not result["full_exists"] and str(config.get("status", "runnable")) == "runnable":
+    if not is_preprocessed and str(data.get("input_view", "")) == "full_cccv" and not result["full_exists"] and str(config.get("status", "runnable")) == "runnable":
         raise ValueError(f"Configured full data root is missing: {full}")
     if not result["split_exists"] and str(config.get("status", "runnable")) == "runnable":
         raise ValueError(f"Configured split file is missing: {split}")
@@ -71,6 +84,14 @@ def main() -> int:
         config.setdefault("train", {})["epochs"] = int(args.epochs)
     if args.patience is not None:
         config.setdefault("train", {})["patience"] = int(args.patience)
+    if args.batch_size is not None:
+        if int(args.batch_size) < 1:
+            raise ValueError("--batch_size must be positive")
+        config.setdefault("train", {})["batch_size"] = int(args.batch_size)
+    if args.num_workers is not None:
+        if int(args.num_workers) < 0:
+            raise ValueError("--num_workers must be non-negative")
+        config.setdefault("data", {})["num_workers"] = int(args.num_workers)
     if args.debug_num_samples is not None:
         config.setdefault("debug", {})["debug_num_samples"] = int(args.debug_num_samples)
     if args.seed is not None:

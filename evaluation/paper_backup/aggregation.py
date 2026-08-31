@@ -47,8 +47,16 @@ def metrics_from_rows(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
             "n_cycles": 0,
             "per_battery": {},
             "per_strategy": {},
-            "battery_macro": {"mae": float("nan"), "rmse": float("nan")},
-            "strategy_macro": {"mae": float("nan"), "rmse": float("nan")},
+            "battery_macro": {
+                "mae": float("nan"),
+                "mape": float("nan"),
+                "rmse": float("nan"),
+            },
+            "strategy_macro": {
+                "mae": float("nan"),
+                "mape": float("nan"),
+                "rmse": float("nan"),
+            },
             "worst_strategy": {"strategy_id": None, "rmse": float("nan")},
         }
     pooled = compute_metrics(
@@ -66,11 +74,13 @@ def metrics_from_rows(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
             "per_strategy": per_strategy,
             "battery_macro": {
                 "mae": _macro(per_battery, "mae"),
+                "mape": _macro(per_battery, "mape"),
                 "rmse": _macro(per_battery, "rmse"),
                 "n_batteries": len(per_battery),
             },
             "strategy_macro": {
                 "mae": _macro(per_strategy, "mae"),
+                "mape": _macro(per_strategy, "mape"),
                 "rmse": _macro(per_strategy, "rmse"),
                 "n_strategies": len(per_strategy),
             },

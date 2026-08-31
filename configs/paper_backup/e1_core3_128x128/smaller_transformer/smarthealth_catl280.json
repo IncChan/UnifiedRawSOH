@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_catl_sequence.json","../../common/e1_shared_crate_128x128.json","../../common/model_smaller_transformer_crate_v2.json"],"experiment":{"name":"E1Core3_128x128_SmallerTransformer_CATL"},"output":{"model_id":"Smaller-Transformer-SharedCRate-128x128","data_id":"smarthealth_catl280_crate_v2_128x128"},"data":{"input_view":"terminal_joint"}}

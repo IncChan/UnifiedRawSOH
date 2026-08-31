@@ -89,10 +89,17 @@ class VanillaMambaSOHModel(_MaskedSequenceRegressor):
         dt_rank="auto",
         dropout: float = 0.1,
         head_hidden_dim: int = 128,
+        use_boundary_token: bool = False,
         backend: str = "mamba_ssm.Mamba",
     ):
         super().__init__(input_dim, d_model, head_hidden_dim, dropout)
         self.backend = str(backend)
+        self.use_boundary_token = bool(use_boundary_token)
+        self.boundary_token = (
+            nn.Parameter(torch.zeros(self.d_model))
+            if self.use_boundary_token
+            else None
+        )
         self.input_proj = nn.Linear(self.input_dim, self.d_model)
         self.input_norm = nn.LayerNorm(self.d_model)
         self.layers = nn.ModuleList(
@@ -117,13 +124,69 @@ class VanillaMambaSOHModel(_MaskedSequenceRegressor):
         )
         self.final_norm = nn.LayerNorm(self.d_model)
 
-    def encode(self, sequence: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def _insert_boundary(
+        self,
+        hidden: torch.Tensor,
+        mask: torch.Tensor,
+        boundary_index: Optional[torch.Tensor],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if not self.use_boundary_token:
+            if boundary_index is not None:
+                raise ValueError("boundary_index was provided but boundary tokens are disabled")
+            return hidden, mask
+        if boundary_index is None:
+            raise ValueError("Boundary-aware Vanilla Mamba requires boundary_index")
+        boundary_index = boundary_index.to(device=hidden.device, dtype=torch.long).reshape(-1)
+        if boundary_index.numel() != hidden.size(0):
+            raise ValueError("One boundary_index is required for each sequence")
+        if torch.any(boundary_index <= 0) or torch.any(boundary_index >= hidden.size(1)):
+            raise ValueError("boundary_index must lie strictly inside the physical sequence")
+        rows, masks = [], []
+        token = self.boundary_token.view(1, -1)
+        for batch_index, split_index in enumerate(boundary_index.tolist()):
+            rows.append(
+                torch.cat(
+                    (
+                        hidden[batch_index, :split_index],
+                        token,
+                        hidden[batch_index, split_index:],
+                    ),
+                    dim=0,
+                )
+            )
+            masks.append(
+                torch.cat(
+                    (
+                        mask[batch_index, :split_index],
+                        torch.ones(1, dtype=torch.bool, device=mask.device),
+                        mask[batch_index, split_index:],
+                    ),
+                    dim=0,
+                )
+            )
+        return torch.stack(rows, dim=0), torch.stack(masks, dim=0)
+
+    def encode(
+        self,
+        sequence: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        boundary_index: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         mask = _coerce_mask(sequence, mask)
         hidden = self.input_norm(self.input_proj(sequence))
+        hidden, mask = self._insert_boundary(hidden, mask, boundary_index)
         for layer in self.layers:
             hidden = hidden + layer["dropout"](layer["mixer"](layer["norm"](hidden)))
         hidden = self.final_norm(hidden)
         return pool_hidden_states(hidden, mask, pooling="last_mean")
+
+    def forward(
+        self,
+        sequence: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        boundary_index: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        return self.head(self.encode(sequence, mask, boundary_index))
 
 
 class SingleStreamMambaSOHModel(VanillaMambaSOHModel):
@@ -258,6 +321,9 @@ class PhaseMambaSOHOnly(PaperRawSOHModel):
 
     def __init__(self, **kwargs):
         kwargs = dict(kwargs)
+        self.active_phase = str(kwargs.pop("active_phase", "both"))
+        if self.active_phase not in {"both", "cc", "cv"}:
+            raise ValueError("Ours active_phase must be 'both', 'cc' or 'cv'")
         if kwargs.get("use_cycle_prediction", False):
             raise ValueError("Paper-Backup Ours is SOH-only: use_cycle_prediction must be false")
         if kwargs.get("use_predicted_cycle_for_soh", False):
@@ -268,6 +334,48 @@ class PhaseMambaSOHOnly(PaperRawSOHModel):
         super().__init__(**kwargs)
         if self.cycle_head is not None or self.cycle_adapter is not None:
             raise RuntimeError("Paper-Backup Ours unexpectedly constructed a cycle auxiliary path")
+
+    def encode_signal_feature(
+        self,
+        cc_signal,
+        cv_signal,
+        cc_mask=None,
+        cv_mask=None,
+        cc_time=None,
+        cv_time=None,
+        cc_temperature=None,
+        cv_temperature=None,
+    ):
+        # For CC-only/CV-only input ablations the dataset replaces every
+        # channel of the removed phase with a fixed zero tensor.  Running the
+        # unchanged two-branch network keeps all trainable parameters and
+        # isolates missing cycle-specific phase information from capacity.
+        if self.active_phase == "cc":
+            cv_signal = torch.zeros_like(cv_signal)
+            cv_time = None if cv_time is None else torch.zeros_like(cv_time)
+            cv_temperature = (
+                None
+                if cv_temperature is None
+                else torch.zeros_like(cv_temperature)
+            )
+        elif self.active_phase == "cv":
+            cc_signal = torch.zeros_like(cc_signal)
+            cc_time = None if cc_time is None else torch.zeros_like(cc_time)
+            cc_temperature = (
+                None
+                if cc_temperature is None
+                else torch.zeros_like(cc_temperature)
+            )
+        return super().encode_signal_feature(
+            cc_signal=cc_signal,
+            cv_signal=cv_signal,
+            cc_mask=cc_mask,
+            cv_mask=cv_mask,
+            cc_time=cc_time,
+            cv_time=cv_time,
+            cc_temperature=cc_temperature,
+            cv_temperature=cv_temperature,
+        )
 
     def forward(
         self,

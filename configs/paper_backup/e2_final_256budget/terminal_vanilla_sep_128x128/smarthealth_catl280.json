@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_catl_sequence.json","../../common/e2_final_256budget.json","../../common/model_vanilla_mamba_matched_boundary.json"],"experiment":{"name":"E2Final_TerminalVanillaSEP_CATL"},"output":{"model_id":"Terminal-VanillaMamba-Matched-SEP-128x128","data_id":"smarthealth_catl280_terminal_joint_128x128"},"data":{"input_view":"terminal_joint"}}

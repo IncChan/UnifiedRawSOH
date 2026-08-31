@@ -3,10 +3,10 @@
   "model": {
     "type": "Transformer",
     "input_dim": 5,
-    "d_model": 64,
+    "d_model": 48,
     "num_layers": 3,
     "num_heads": 4,
-    "dim_feedforward": 128,
+    "dim_feedforward": 96,
     "dropout": 0.1,
     "head_hidden_dim": 128,
     "max_length": 512

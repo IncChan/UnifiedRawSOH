@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import copy
 import inspect
+import csv
+import json
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -27,6 +30,22 @@ from UnifiedRawSOH.datasets.paper_backup.sequence_views import (  # noqa: E402
     SequenceViewDataset,
     build_strategy_sampler,
 )
+from UnifiedRawSOH.datasets.paper_backup.preprocessed import (  # noqa: E402
+    load_preprocessed_records,
+)
+from UnifiedRawSOH.preprocess.paper_backup.build_preprocessed import (  # noqa: E402
+    _materialize_collection,
+    _write_arrays,
+    _write_csv,
+)
+from UnifiedRawSOH.preprocess.paper_backup.common import (  # noqa: E402
+    FEATURE_NAMES,
+    PAPER_BACKUP_PREPROCESS_POLICY,
+    PAPER_BACKUP_PREPROCESS_SCHEMA,
+    RICH_CHANNEL_NAMES,
+    normalization_contract,
+)
+from UnifiedRawSOH.preprocess.paper_backup.validate_preprocessed import validate_domain  # noqa: E402
 from UnifiedRawSOH.datasets.paper_backup.strategy_pooling import pooled_strategy_splits  # noqa: E402
 from UnifiedRawSOH.evaluation.paper_backup.aggregation import metrics_from_rows  # noqa: E402
 from UnifiedRawSOH.evaluation.paper_backup.comparisons import paired_comparison  # noqa: E402
@@ -63,6 +82,80 @@ def sequence_config(view_id: str = "terminal_phase") -> dict:
 
 
 class PaperBackupContractTest(unittest.TestCase):
+    def test_offline_product_validates_and_loader_only_slices_materialized_arrays(self):
+        config = sequence_config("terminal_phase")
+        records = [synthetic_record("battery-a", 1), synthetic_record("battery-a", 2, soh=0.98)]
+        normalization = normalization_contract(config)
+        terminal, terminal_index, exclusions = _materialize_collection(
+            records,
+            cc_len=8,
+            cv_len=8,
+            normalization=normalization,
+            include_features=True,
+            source_view="terminal",
+        )
+        full, full_index, full_exclusions = _materialize_collection(
+            [dict(record, source_view="full_cccv", is_full=True) for record in records],
+            cc_len=8,
+            cv_len=8,
+            normalization=normalization,
+            include_features=False,
+            source_view="full_cccv",
+        )
+        self.assertFalse(exclusions)
+        self.assertFalse(full_exclusions)
+        with tempfile.TemporaryDirectory(prefix="paper_backup_preprocessed_") as temporary:
+            root = Path(temporary)
+            domain = root / "xjtu"
+            (domain / "cohorts").mkdir(parents=True)
+            terminal_files = _write_arrays(domain, "terminal", terminal)
+            full_files = _write_arrays(domain, "full", full)
+            _write_csv(domain / "terminal_index.csv", terminal_index)
+            _write_csv(domain / "full_index.csv", full_index)
+            with (domain / "cohorts/full_matched_keys.csv").open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=("battery_id", "cycle_id"))
+                writer.writeheader()
+                writer.writerows(
+                    {"battery_id": row["battery_id"], "cycle_id": row["cycle_id"]}
+                    for row in full_index
+                )
+            manifest = {
+                "policy_version": PAPER_BACKUP_PREPROCESS_POLICY,
+                "schema_version": PAPER_BACKUP_PREPROCESS_SCHEMA,
+                "domain_id": "xjtu",
+                "resampling": {"method": "linear_on_physical_phase_time", "cc_length": 8, "cv_length": 8},
+                "normalization": normalization,
+                "rich_channel_names": list(RICH_CHANNEL_NAMES),
+                "feature_names": list(FEATURE_NAMES),
+                "terminal": {"index": "terminal_index.csv", "records": 2, "arrays": terminal_files},
+                "full": {"index": "full_index.csv", "records": 2, "arrays": full_files, "cohort": "cohorts/full_matched_keys.csv"},
+            }
+            (domain / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            validated = validate_domain(domain)
+            self.assertEqual(validated["terminal_records"], 2)
+            offline_config = copy.deepcopy(config)
+            offline_config["data"].update(
+                {
+                    "source_mode": "preprocessed_v1",
+                    "preprocessed_data_root": str(root),
+                    "domain_id": "xjtu",
+                }
+            )
+            loaded, _ = load_preprocessed_records(offline_config, REPO_ROOT, source_view="terminal")
+            runtime_item = SequenceViewDataset(
+                records, config, "train", "terminal_phase"
+            )[0]
+            with mock.patch("numpy.interp", side_effect=AssertionError("runtime interpolation")):
+                dataset = SequenceViewDataset(loaded, offline_config, "train", "terminal_phase")
+                item = dataset[0]
+            self.assertEqual(tuple(item["cc_signal"].shape), (8, 2))
+            self.assertEqual(tuple(item["cv_signal"].shape), (8, 2))
+            torch.testing.assert_close(item["cc_time"], runtime_item["cc_time"])
+            torch.testing.assert_close(item["cv_time"], runtime_item["cv_time"])
+            full_loaded, _ = load_preprocessed_records(offline_config, REPO_ROOT, source_view="full_cccv")
+            full_dataset = SequenceViewDataset(full_loaded, offline_config, "train", "full_cccv")
+            self.assertEqual(tuple(full_dataset[0]["sequence"].shape), (16, 5))
+
     def test_e1_matrix_is_restricted_to_requested_three_methods(self):
         paths = sorted((REPO_ROOT / "configs/paper_backup/e1_main_estimation").rglob("*.json"))
         self.assertEqual(len(paths), 15)
@@ -115,6 +208,82 @@ class PaperBackupContractTest(unittest.TestCase):
         self.assertTrue(records[0]["is_full"])
         matched, _ = match_full_terminal_records([terminal], records)
         self.assertEqual((matched[0]["battery_id"], matched[0]["cycle_id"]), ("battery-a", 1))
+
+    def test_smarthealth_full_source_skips_only_completely_blank_padding_rows(self):
+        columns = ("循环号", "工步类型", "绝对时间", "电压(V)", "电流(A)", "temp1_1")
+        start = datetime(2022, 1, 1)
+        with tempfile.TemporaryDirectory(prefix="paper_backup_smarthealth_full_") as temporary:
+            root = Path(temporary)
+            terminals = []
+            for file_index in range(2):
+                event_start = start + timedelta(days=file_index)
+                path = root / f"source-{file_index}.csv"
+                with path.open("w", encoding="gb18030", newline="") as handle:
+                    writer = csv.DictWriter(handle, fieldnames=columns)
+                    writer.writeheader()
+                    writer.writerow({column: "" for column in columns})
+                    for index in range(20):
+                        writer.writerow(
+                            {
+                                "循环号": 1,
+                                "工步类型": "恒流恒压充电",
+                                "绝对时间": (event_start + timedelta(seconds=index)).strftime("%Y-%m-%d %H:%M:%S"),
+                                "电压(V)": 3.5 + 0.01 * index if index < 10 else 3.6,
+                                "电流(A)": 100.0 if index < 10 else 90.0,
+                                "temp1_1": 25.0,
+                            }
+                        )
+                terminals.append(
+                    {
+                        **synthetic_record(f"battery-{file_index}", file_index + 1),
+                        "domain_id": "smarthealth_lishen40",
+                        "source_file": str(path),
+                        "source_cycle": 1,
+                        "source_absolute_start_time": event_start.strftime("%Y-%m-%d %H:%M:%S"),
+                        "source_absolute_end_time": (event_start + timedelta(seconds=19)).strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                )
+            records = materialize_full_records(
+                terminals,
+                domain_id="smarthealth_lishen40",
+                data_config={
+                    "full_data_root": str(root),
+                    "full_source_format": "smarthealth_gb18030",
+                    "full_workers": 2,
+                    "full_progress_label": "synthetic",
+                },
+            )
+        self.assertEqual(len(records), 2)
+        for record in records:
+            self.assertEqual(len(record["time"]), 20)
+            self.assertEqual(record["segment"].tolist(), ["CC"] * 10 + ["CV"] * 10)
+
+    def test_smarthealth_full_source_rejects_nonempty_row_without_cycle_identity(self):
+        columns = ("循环号", "工步类型", "绝对时间", "电压(V)", "电流(A)", "temp1_1")
+        with tempfile.TemporaryDirectory(prefix="paper_backup_smarthealth_bad_full_") as temporary:
+            root = Path(temporary)
+            path = root / "source.csv"
+            with path.open("w", encoding="gb18030", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=columns)
+                writer.writeheader()
+                writer.writerow({"循环号": "", "工步类型": "恒流恒压充电"})
+            terminal = {
+                **synthetic_record("battery-a", 1),
+                "domain_id": "smarthealth_lishen40",
+                "source_file": str(path),
+                "source_cycle": 1,
+                "source_absolute_start_time": "2022-01-01 00:00:00",
+                "source_absolute_end_time": "2022-01-01 00:00:19",
+            }
+            with self.assertRaises(FullSourceUnavailable):
+                materialize_full_records(
+                    [terminal],
+                    domain_id="smarthealth_lishen40",
+                    data_config={
+                        "full_data_root": str(root),
+                        "full_source_format": "smarthealth_gb18030",
+                    },
+                )
 
     def test_views_emit_only_tensor_inputs_and_metadata_stays_outside_forward(self):
         records = [synthetic_record(f"battery-{index}", index, condition="2C", soh=1.0 - index * 0.01) for index in range(3)]
@@ -238,6 +407,11 @@ class PaperBackupContractTest(unittest.TestCase):
             run_dir = Path(result["run_dir"])
             self.assertTrue((run_dir / "best.pt").is_file())
             self.assertTrue((run_dir / "predictions.json").is_file())
+            history = json.loads((run_dir / "history.json").read_text(encoding="utf-8"))
+            self.assertFalse(history[0]["train"]["prediction_metrics_collected"])
+            self.assertTrue(history[0]["val"]["prediction_metrics_collected"])
+            manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["runtime_optimizations"]["loss_device_sync"], "once_per_epoch")
             checkpoint = torch.load(run_dir / "best.pt", map_location="cpu")
             self.assertIn("model", checkpoint)
             reloaded = build_model(config["model"], backend_override="torch_reference")

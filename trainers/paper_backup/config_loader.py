@@ -27,15 +27,23 @@ def load_config(path: str | Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, Mapping):
         raise ValueError(f"Config root must be an object: {path}")
-    base_value = payload.get("base_config")
-    if base_value:
+    base_values = payload.get("base_configs")
+    if base_values is None:
+        base_value = payload.get("base_config")
+        base_values = [] if not base_value else [base_value]
+    if not isinstance(base_values, list):
+        raise ValueError(f"base_configs must be a list: {path}")
+    merged_base: dict[str, Any] = {}
+    for base_value in base_values:
         base_path = Path(str(base_value)).expanduser()
         if not base_path.is_absolute():
             base_path = (path.parent / base_path).resolve()
-        base = load_config(base_path)
-        payload = _deep_merge(base, payload)
+        merged_base = _deep_merge(merged_base, load_config(base_path))
+    if base_values:
+        payload = _deep_merge(merged_base, payload)
     payload.pop("base_config", None)
-    payload.setdefault("_config_path", str(path))
+    payload.pop("base_configs", None)
+    payload["_config_path"] = str(path)
     return dict(payload)
 
 

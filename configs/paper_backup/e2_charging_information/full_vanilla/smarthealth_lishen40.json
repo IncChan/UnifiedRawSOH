@@ -1,8 +1,8 @@
 {
   "base_config": "../../common/model_vanilla_mamba.json",
-  "status": "blocked_by_data",
+  "status": "runnable",
   "experiment": {"name": "E2_Full_VanillaMamba_LISHEN40", "task": "paper_backup_e2_charging_information", "domain_id": "smarthealth_lishen40", "split_file": "splits/smarthealth/smarthealth_lishen40_cell_split.json", "batches": []},
   "output": {"experiment_id": "e2_charging_information", "model_id": "Full-VanillaMamba", "data_id": "smarthealth_lishen40_full"},
-  "data": {"domain_id": "smarthealth_lishen40", "dataset": "smarthealth_canonical_raw_v5", "adapter_id": "smarthealth", "terminal_data_root": "datasets/SmartHealth_raw", "nominal_capacity": 40.0, "label_scale_mode": "label_capacity_to_nominal", "input_view": "full_cccv", "full_data_root": null, "full_source_format": "smarthealth_gb18030", "full_source_kind": "external_full_source_required", "full_label_scale_mode": "none"},
+  "data": {"domain_id": "smarthealth_lishen40", "dataset": "paper_backup_preprocessed_v1", "nominal_capacity": 40.0, "input_view": "full_cccv", "cohort": "full_matched", "full_source_format": "paper_backup_npy_v1", "full_source_kind": "preprocessed_full_cccv"},
   "normalization": {"raw_voltage_low": 3.45, "raw_voltage_high": 3.60, "raw_current_scale": 80.0, "cc_voltage_low": 3.45, "cc_voltage_high": 3.58, "cv_current_low": 2.0, "cv_current_high": 10.0, "cc_current_ref": 80.0, "cv_voltage_ref": 3.60, "temp_room": 25.0, "temp_abs_scale": 20.0, "temp_delta_scale": 10.0}
 }

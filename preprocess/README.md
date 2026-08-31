@@ -137,3 +137,17 @@ to be invariant to worker completion order.
 
 See `MIT_PHYSICAL_DATASET.md` and `SMARTHEALTH_DATASET.md` for the detailed
 identity, label, phase, and audit contracts.
+
+## Paper-Backup model-ready materialization
+
+After the canonical XJTU/MIT/SmartHealth products are ready, the isolated
+Paper-Backup pass precomputes fixed-length normalized Terminal tensors, 24
+unresampled-window features, and the current E2 FULL tensors. It does not
+change canonical products or Paper V1/V2:
+
+```bash
+OVERWRITE=1 bash preprocess/paper_backup/run_preprocess.sh all
+bash preprocess/paper_backup/run_preprocess.sh validate
+```
+
+See `paper_backup/README.md` for its mmap schema and bounded smoke options.

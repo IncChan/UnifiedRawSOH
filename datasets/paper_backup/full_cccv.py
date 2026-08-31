@@ -12,9 +12,10 @@ import csv
 import math
 import sys
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 import numpy as np
 
@@ -61,7 +62,15 @@ def validate_full_record(record: dict[str, Any]) -> None:
     lengths = {len(value) for value in arrays.values()}
     if len(lengths) != 1 or not lengths or next(iter(lengths)) < 4:
         raise FullSourceUnavailable("Full record has inconsistent or insufficient point arrays")
-    segments = np.asarray([str(value).upper() for value in arrays["segment"]], dtype=object)
+    raw_segments = arrays["segment"]
+    if raw_segments.dtype.kind in {"U", "S"}:
+        segments = np.char.upper(raw_segments.astype("U", copy=False))
+    else:
+        segments = np.fromiter(
+            (str(value).upper() for value in raw_segments),
+            dtype="U16",
+            count=len(raw_segments),
+        )
     if "CC" not in segments or "CV" not in segments:
         raise FullSourceUnavailable("Full record must contain both CC and CV points")
     if not all(np.all(np.isfinite(value.astype(float, copy=False))) for key, value in arrays.items() if key != "segment"):
@@ -148,7 +157,7 @@ def _read_csv_full_records(root: Path, domain_id: str, data_config: dict[str, An
             "condition": first["condition"],
             "battery_id": battery_id,
             "cycle_id": cycle_id,
-            "segment": np.asarray([row["segment"] for row in rows], dtype=object),
+            "segment": np.asarray([row["segment"] for row in rows], dtype="U2"),
             "time": np.asarray([row["time"] for row in rows], dtype=np.float32),
             "voltage": np.asarray([row["voltage"] for row in rows], dtype=np.float32),
             "current": np.asarray([row["current"] for row in rows], dtype=np.float32),
@@ -231,7 +240,7 @@ def _load_xjtu_full_records(
                 "condition": condition,
                 "battery_id": battery_id,
                 "cycle_id": cycle_id,
-                "segment": np.asarray(["CC"] * boundary + ["CV"] * (len(time) - boundary), dtype=object),
+                "segment": np.asarray(["CC"] * boundary + ["CV"] * (len(time) - boundary), dtype="U2"),
                 "time": time,
                 "voltage": voltage,
                 "current": current,
@@ -270,6 +279,12 @@ def _parse_datetime(value: str, path: Path) -> datetime:
     return parsed.replace(tzinfo=None) if parsed.tzinfo is not None else parsed
 
 
+def _is_blank_source_row(row: dict[str, Any]) -> bool:
+    """Return true only for vendor padding rows with no populated field."""
+
+    return all(value is None or not str(value).strip() for value in row.values())
+
+
 def _smarthealth_boundary(current: np.ndarray, voltage: np.ndarray) -> int | None:
     if len(current) < 16:
         return None
@@ -289,13 +304,110 @@ def _smarthealth_boundary(current: np.ndarray, voltage: np.ndarray) -> int | Non
     return None
 
 
+SmartHealthWanted = tuple[dict[str, Any], int, datetime, datetime]
+SmartHealthSourceTask = tuple[Path, list[SmartHealthWanted]]
+
+
+def _read_one_smarthealth_full_source(task: SmartHealthSourceTask) -> list[dict[str, Any]]:
+    """Worker-safe extraction of all linked events from one vendor CSV."""
+
+    source_path, wanted = task
+    rows_by_key: dict[tuple[str, int], list[tuple[datetime, int, float, float, float]]] = {
+        (str(terminal["battery_id"]), int(terminal["cycle_id"])): []
+        for terminal, _, _, _ in wanted
+    }
+    wanted_by_source_cycle: dict[int, list[tuple[dict[str, Any], datetime, datetime]]] = defaultdict(list)
+    for terminal, source_cycle, start, end in wanted:
+        wanted_by_source_cycle[source_cycle].append((terminal, start, end))
+    with source_path.open("r", encoding="gb18030", newline="") as handle:
+        reader = csv.DictReader(handle)
+        required = {"循环号", "工步类型", "绝对时间", "电压(V)", "电流(A)", "temp1_1"}
+        missing = sorted(required - set(reader.fieldnames or ()))
+        if missing:
+            raise FullSourceUnavailable(f"SmartHealth full source {source_path} is missing {missing}")
+        for row_index, row in enumerate(reader):
+            # Some vendor files contain comma-only padding tails.  Skip only
+            # rows with no populated source field; malformed non-empty rows
+            # remain fail-closed.
+            if _is_blank_source_row(row):
+                continue
+            try:
+                source_cycle = int(float(row["循环号"]))
+                candidates = wanted_by_source_cycle.get(source_cycle)
+                if not candidates or str(row["工步类型"]).strip() != "恒流恒压充电":
+                    continue
+                timestamp = _parse_datetime(row["绝对时间"], source_path)
+                values = (
+                    timestamp,
+                    int(row_index),
+                    float(row["电压(V)"]),
+                    float(row["电流(A)"]),
+                    float(row["temp1_1"]),
+                )
+                for terminal, start, end in candidates:
+                    if start <= timestamp <= end:
+                        key = (str(terminal["battery_id"]), int(terminal["cycle_id"]))
+                        rows_by_key[key].append(values)
+            except (TypeError, ValueError) as exc:
+                raise FullSourceUnavailable(f"Invalid SmartHealth full row in {source_path}: {row}") from exc
+
+    records: list[dict[str, Any]] = []
+    for terminal, source_cycle, _, _ in wanted:
+        key = (str(terminal["battery_id"]), int(terminal["cycle_id"]))
+        rows = rows_by_key[key]
+        if len(rows) < 16:
+            raise FullSourceUnavailable(
+                f"Linked SmartHealth event has too few full charge points: {key[0]}/{key[1]}"
+            )
+        rows.sort(key=lambda item: (item[0], item[1]))
+        times = np.asarray(
+            [(item[0] - rows[0][0]).total_seconds() / 60.0 for item in rows],
+            dtype=np.float32,
+        )
+        voltage = np.asarray([item[2] for item in rows], dtype=np.float32)
+        current = np.asarray([item[3] for item in rows], dtype=np.float32)
+        temperature = np.asarray([item[4] for item in rows], dtype=np.float32)
+        boundary = _smarthealth_boundary(current, voltage)
+        if boundary is None:
+            raise FullSourceUnavailable(
+                f"Could not infer a persistent CC/CV boundary for linked SmartHealth event: {key[0]}/{key[1]}"
+            )
+        record = {
+            "dataset_id": str(terminal.get("dataset_id", terminal.get("domain_id"))),
+            "domain_id": str(terminal.get("domain_id")),
+            "condition": str(terminal.get("condition")),
+            "battery_id": key[0],
+            "cycle_id": key[1],
+            "segment": np.asarray(["CC"] * boundary + ["CV"] * (len(times) - boundary), dtype="U2"),
+            "time": times,
+            "voltage": voltage,
+            "current": current,
+            "temperature": temperature,
+            "soh": float(terminal["soh"]),
+            "soh_raw": float(terminal.get("soh_raw", terminal["soh"])),
+            "source_file": str(source_path),
+            "source_cycle": int(source_cycle),
+            "source_view": "full_cccv",
+            "is_full": True,
+            "full_source_kind": "smarthealth_gb18030_charge_event",
+        }
+        validate_full_record(record)
+        records.append(record)
+    return records
+
+
 def _load_smarthealth_full_records(
     source_root: Path,
     terminal_records: Iterable[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """Read full SmartHealth charge events through canonical source linkage."""
+    *,
+    workers: int = 1,
+    progress_label: str = "SmartHealth",
+) -> Iterator[dict[str, Any]]:
+    """Stream linked events while scanning source files in bounded parallelism."""
 
-    records: list[dict[str, Any]] = []
+    if int(workers) < 1:
+        raise ValueError(f"SmartHealth FULL workers must be positive, got {workers}")
+    grouped: dict[Path, list[SmartHealthWanted]] = defaultdict(list)
     for terminal in terminal_records:
         source_name = str(terminal.get("source_file", "")).strip()
         source_cycle = terminal.get("source_cycle")
@@ -316,80 +428,60 @@ def _load_smarthealth_full_records(
             raise FullSourceUnavailable(f"Linked SmartHealth full source is missing: {source_path}")
         start = _parse_datetime(str(start_value), source_path)
         end = _parse_datetime(str(end_value), source_path)
-        rows = []
-        with source_path.open("r", encoding="gb18030", newline="") as handle:
-            reader = csv.DictReader(handle)
-            required = {"循环号", "工步类型", "绝对时间", "电压(V)", "电流(A)", "temp1_1"}
-            missing = sorted(required - set(reader.fieldnames or ()))
-            if missing:
-                raise FullSourceUnavailable(f"SmartHealth full source {source_path} is missing {missing}")
-            for row_index, row in enumerate(reader):
-                try:
-                    if int(float(row["循环号"])) != int(source_cycle):
-                        continue
-                    if str(row["工步类型"]).strip() != "恒流恒压充电":
-                        continue
-                    timestamp = _parse_datetime(row["绝对时间"], source_path)
-                    if timestamp < start or timestamp > end:
-                        continue
-                    rows.append(
-                        (
-                            timestamp,
-                            int(row_index),
-                            float(row["电压(V)"]),
-                            float(row["电流(A)"]),
-                            float(row["temp1_1"]),
-                        )
-                    )
-                except (TypeError, ValueError) as exc:
-                    raise FullSourceUnavailable(f"Invalid SmartHealth full row in {source_path}: {row}") from exc
-        if len(rows) < 16:
-            raise FullSourceUnavailable(
-                f"Linked SmartHealth event has too few full charge points: "
-                f"{terminal.get('battery_id')}/{terminal.get('cycle_id')}"
+        grouped[source_path].append((terminal, int(source_cycle), start, end))
+
+    tasks = sorted(grouped.items(), key=lambda item: str(item[0]))
+    total_files = len(tasks)
+    if not tasks:
+        return
+    progress_every = max(1, total_files // 20)
+    emitted_records = 0
+
+    def emit_progress(completed_files: int) -> None:
+        if completed_files == 1 or completed_files == total_files or completed_files % progress_every == 0:
+            print(
+                f"[Paper-Backup FULL] {progress_label}: files {completed_files}/{total_files}, "
+                f"cycles {emitted_records}",
+                flush=True,
             )
-        rows.sort(key=lambda item: item[0])
-        times = np.asarray([(item[0] - rows[0][0]).total_seconds() / 60.0 for item in rows], dtype=np.float32)
-        voltage = np.asarray([item[2] for item in rows], dtype=np.float32)
-        current = np.asarray([item[3] for item in rows], dtype=np.float32)
-        temperature = np.asarray([item[4] for item in rows], dtype=np.float32)
-        boundary = _smarthealth_boundary(current, voltage)
-        if boundary is None:
-            raise FullSourceUnavailable(
-                f"Could not infer a persistent CC/CV boundary for linked SmartHealth event: "
-                f"{terminal.get('battery_id')}/{terminal.get('cycle_id')}"
-            )
-        record = {
-            "dataset_id": str(terminal.get("dataset_id", terminal.get("domain_id"))),
-            "domain_id": str(terminal.get("domain_id")),
-            "condition": str(terminal.get("condition")),
-            "battery_id": str(terminal.get("battery_id")),
-            "cycle_id": int(terminal.get("cycle_id")),
-            "segment": np.asarray(["CC"] * boundary + ["CV"] * (len(times) - boundary), dtype=object),
-            "time": times,
-            "voltage": voltage,
-            "current": current,
-            "temperature": temperature,
-            "soh": float(terminal["soh"]),
-            "soh_raw": float(terminal.get("soh_raw", terminal["soh"])),
-            "source_file": str(source_path),
-            "source_cycle": int(source_cycle),
-            "source_view": "full_cccv",
-            "is_full": True,
-            "full_source_kind": "smarthealth_gb18030_charge_event",
-        }
-        validate_full_record(record)
-        records.append(record)
-    return records
+
+    if workers == 1 or total_files == 1:
+        for completed_files, task in enumerate(tasks, start=1):
+            source_records = _read_one_smarthealth_full_source(task)
+            emitted_records += len(source_records)
+            yield from source_records
+            emit_progress(completed_files)
+        return
+
+    # Keep at most 2*workers source-file results in flight.  Consuming futures
+    # in source-path order makes the resulting mmap product deterministic and
+    # prevents the executor from buffering the entire domain in memory.
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        next_task = 0
+        pending: list[tuple[int, Any]] = []
+        while next_task < min(total_files, workers * 2):
+            pending.append((next_task, executor.submit(_read_one_smarthealth_full_source, tasks[next_task])))
+            next_task += 1
+        completed_files = 0
+        while pending:
+            _, future = pending.pop(0)
+            source_records = future.result()
+            emitted_records += len(source_records)
+            yield from source_records
+            completed_files += 1
+            emit_progress(completed_files)
+            if next_task < total_files:
+                pending.append((next_task, executor.submit(_read_one_smarthealth_full_source, tasks[next_task])))
+                next_task += 1
 
 
-def materialize_full_records(
+def iter_materialize_full_records(
     terminal_records: Iterable[dict[str, Any]],
     *,
     domain_id: str,
     data_config: dict[str, Any],
-) -> list[dict[str, Any]]:
-    """Load full records only through an explicitly configured source."""
+) -> Iterable[dict[str, Any]]:
+    """Stream full records only through an explicitly configured source."""
 
     source_value = data_config.get("full_data_root")
     if not source_value:
@@ -409,8 +501,30 @@ def materialize_full_records(
     if domain_id == "xjtu":
         return _load_xjtu_full_records(root, terminal_records, data_config)
     if domain_id.startswith("smarthealth_"):
-        return _load_smarthealth_full_records(root, terminal_records)
+        return _load_smarthealth_full_records(
+            root,
+            terminal_records,
+            workers=int(data_config.get("full_workers", 1)),
+            progress_label=str(data_config.get("full_progress_label", domain_id)),
+        )
     return _read_csv_full_records(root, domain_id, data_config)
+
+
+def materialize_full_records(
+    terminal_records: Iterable[dict[str, Any]],
+    *,
+    domain_id: str,
+    data_config: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Compatibility wrapper returning a materialized list of full records."""
+
+    return list(
+        iter_materialize_full_records(
+            terminal_records,
+            domain_id=domain_id,
+            data_config=data_config,
+        )
+    )
 
 
 def match_full_terminal_records(
@@ -419,57 +533,83 @@ def match_full_terminal_records(
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Pair views by physical battery/cycle identity and report exclusions."""
 
+    matched_iter, audit = iter_match_full_terminal_records(terminal_records, full_records)
+    return list(matched_iter), audit
+
+
+def iter_match_full_terminal_records(
+    terminal_records: Iterable[dict[str, Any]],
+    full_records: Iterable[dict[str, Any]],
+) -> tuple[Iterator[dict[str, Any]], dict[str, Any]]:
+    """Stream exact physical-cycle matches and populate audit on exhaustion."""
+
     terminal = list(terminal_records)
-    full = list(full_records)
-    full_by_key: dict[tuple[str, int], dict[str, Any]] = {}
-    duplicate_full = []
-    for record in full:
-        validate_full_record(record)
-        key = (str(record["battery_id"]), int(record["cycle_id"]))
-        if key in full_by_key:
-            duplicate_full.append(key)
-        full_by_key[key] = record
-    if duplicate_full:
-        raise FullSourceUnavailable(f"Full source has duplicate physical cycle identities: {duplicate_full[:5]}")
-    matched = []
-    missing = []
-    label_mismatch = []
-    for record in terminal:
-        key = (str(record["battery_id"]), int(record["cycle_id"]))
-        candidate = full_by_key.get(key)
-        if candidate is None:
-            missing.append({"battery_id": key[0], "cycle_id": key[1], "reason": "full_cycle_missing"})
-            continue
-        if not math.isclose(float(record["soh"]), float(candidate["soh"]), rel_tol=1e-5, abs_tol=1e-6):
-            label_mismatch.append({"battery_id": key[0], "cycle_id": key[1], "reason": "label_mismatch"})
-            continue
-        if str(record.get("condition")) != str(candidate.get("condition")):
-            raise FullSourceUnavailable(f"Full/terminal strategy mismatch for {key}: {record.get('condition')} vs {candidate.get('condition')}")
-        candidate = dict(candidate)
-        candidate["split"] = record.get("split")
-        candidate["terminal_source_file"] = record.get("source_file")
-        matched.append(candidate)
-    audit = {
-        "terminal_records": len(terminal),
-        "full_records": len(full),
-        "matched_records": len(matched),
-        "missing_records": missing,
-        "label_mismatch_records": label_mismatch,
-        "matched_batteries": sorted({str(item["battery_id"]) for item in matched}),
-        "matched_cycles_by_battery": {
-            battery: sum(str(item["battery_id"]) == battery for item in matched)
-            for battery in sorted({str(item["battery_id"]) for item in matched})
-        },
-        "pair_key": "(physical battery_id, cycle_id)",
+    terminal_by_key = {
+        (str(record["battery_id"]), int(record["cycle_id"])): record for record in terminal
     }
-    if not matched:
-        raise FullSourceUnavailable(f"No full/terminal physical cycles matched; audit={audit}")
-    return matched, audit
+    if len(terminal_by_key) != len(terminal):
+        raise FullSourceUnavailable("Terminal source has duplicate physical cycle identities")
+    audit: dict[str, Any] = {}
+
+    def generate() -> Iterator[dict[str, Any]]:
+        seen: set[tuple[str, int]] = set()
+        label_mismatch: list[dict[str, Any]] = []
+        matched_battery_counts: dict[str, int] = defaultdict(int)
+        matched_count = 0
+        full_count = 0
+        for candidate in full_records:
+            full_count += 1
+            validate_full_record(candidate)
+            key = (str(candidate["battery_id"]), int(candidate["cycle_id"]))
+            if key in seen:
+                raise FullSourceUnavailable(f"Full source has duplicate physical cycle identity: {key}")
+            seen.add(key)
+            record = terminal_by_key.get(key)
+            if record is None:
+                continue
+            if not math.isclose(float(record["soh"]), float(candidate["soh"]), rel_tol=1e-5, abs_tol=1e-6):
+                label_mismatch.append({"battery_id": key[0], "cycle_id": key[1], "reason": "label_mismatch"})
+                continue
+            if str(record.get("condition")) != str(candidate.get("condition")):
+                raise FullSourceUnavailable(
+                    f"Full/terminal strategy mismatch for {key}: "
+                    f"{record.get('condition')} vs {candidate.get('condition')}"
+                )
+            output = dict(candidate)
+            output["split"] = record.get("split")
+            output["terminal_source_file"] = record.get("source_file")
+            matched_count += 1
+            matched_battery_counts[key[0]] += 1
+            yield output
+
+        missing = [
+            {"battery_id": key[0], "cycle_id": key[1], "reason": "full_cycle_missing"}
+            for key in terminal_by_key
+            if key not in seen
+        ]
+        audit.update(
+            {
+                "terminal_records": len(terminal),
+                "full_records": full_count,
+                "matched_records": matched_count,
+                "missing_records": missing,
+                "label_mismatch_records": label_mismatch,
+                "matched_batteries": sorted(matched_battery_counts),
+                "matched_cycles_by_battery": dict(sorted(matched_battery_counts.items())),
+                "pair_key": "(physical battery_id, cycle_id)",
+            }
+        )
+        if matched_count == 0:
+            raise FullSourceUnavailable(f"No full/terminal physical cycles matched; audit={audit}")
+
+    return generate(), audit
 
 
 __all__ = [
     "FullSourceUnavailable",
     "FULL_REQUIRED_RECORD_KEYS",
+    "iter_materialize_full_records",
+    "iter_match_full_terminal_records",
     "match_full_terminal_records",
     "materialize_full_records",
     "validate_full_record",

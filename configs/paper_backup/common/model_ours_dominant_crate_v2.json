@@ -1,0 +1,3 @@
+{
+  "model": {"type": "Ours", "input_dim": 4, "signal_input_dim": 2, "d_model": 32, "num_layers": 3, "d_state": 8, "d_conv": 4, "expand": 2, "dt_rank": "auto", "dropout": 0.1, "pooling": "last_mean", "fusion_type": "concat", "fusion_phase_dim": 64, "head_hidden_dim": 128, "use_time_as_input": true, "temperature_injection": "input_concat", "temperature_features": "delta", "use_t0_temperature_meta": true, "t0_temperature_meta_dim": 1, "use_cc_to_cv_bridge": true, "cc_to_cv_bridge_type": "zero_init_linear", "cc_to_cv_bridge_input_dim": 64, "cc_to_cv_bridge_output_dim": 32, "use_cycle_prediction": false, "use_predicted_cycle_for_soh": false, "backend": "mamba_ssm.Mamba"}
+}

@@ -1,10 +1,16 @@
 {
   "base_config": "./soh_only_contract.json",
   "data": {
-    "feature_source": "canonical statistical feature product",
+    "source_mode": "preprocessed_v1",
+    "preprocessed_data_root": "datasets/PaperBackup_preprocessed",
+    "preprocessed_schema_version": 1,
+    "feature_source": "Paper-Backup offline unresampled terminal feature product",
     "cycle_index_used_as_model_input": false,
     "q_ref_is_model_input": false,
     "q_ref_in_normalization": false,
-    "num_workers": 0
+    "num_workers": 1,
+    "pin_memory": true,
+    "persistent_workers": true,
+    "prefetch_factor": 2
   }
 }
