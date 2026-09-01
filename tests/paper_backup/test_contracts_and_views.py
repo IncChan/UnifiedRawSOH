@@ -233,6 +233,14 @@ class PaperBackupContractTest(unittest.TestCase):
                                 "temp1_1": 25.0,
                             }
                         )
+                if file_index == 0:
+                    # Mirror a real EVE vendor export: a non-model discharge
+                    # row is truncated and the remainder of the file is NUL
+                    # padding. FULL extraction must use the same audited NUL
+                    # sanitation policy as canonical SmartHealth scanning.
+                    with path.open("ab") as handle:
+                        handle.write("2,恒流放电".encode("gb18030"))
+                        handle.write(b"\x00" * 1024)
                 terminals.append(
                     {
                         **synthetic_record(f"battery-{file_index}", file_index + 1),

@@ -14,12 +14,14 @@ datasets/XJTU_raw/**
 datasets/XJTU_features/**
 datasets/MIT_raw/**
 datasets/MIT_features/**
+datasets/MIT_full_cccv_physical124/**
 datasets/SmartHealth_raw/**
 datasets/SmartHealth_features/**
 datasets/PaperBackup_preprocessed/**
 datasets/PaperBackup_preprocessed_v2/**
 datasets/PaperBackup_preprocessed_v2_128x128/**
 datasets/PaperBackup_preprocessed_v2_e2_final/**
+datasets/PaperBackup_preprocessed_v2_e2_5domain_256/**
 datasets/_legacy_aligned/
 
 # Generated experiment artifacts stay local: checkpoints, per-cycle

@@ -19,6 +19,8 @@ from typing import Any, Iterable, Iterator
 
 import numpy as np
 
+from ...preprocess.smarthealth_common import NulSanitizingLineIterator
+
 
 class FullSourceUnavailable(RuntimeError):
     """Raised when a real, provenance-linkable full source is unavailable."""
@@ -320,7 +322,11 @@ def _read_one_smarthealth_full_source(task: SmartHealthSourceTask) -> list[dict[
     for terminal, source_cycle, start, end in wanted:
         wanted_by_source_cycle[source_cycle].append((terminal, start, end))
     with source_path.open("r", encoding="gb18030", newline="") as handle:
-        reader = csv.DictReader(handle)
+        # Keep FULL extraction consistent with canonical SmartHealth scanning.
+        # Some vendor exports end in literal NUL padding; Python's csv reader
+        # rejects those lines before the existing row-level validation runs.
+        sanitized_lines = NulSanitizingLineIterator(handle)
+        reader = csv.DictReader(sanitized_lines)
         required = {"循环号", "工步类型", "绝对时间", "电压(V)", "电流(A)", "temp1_1"}
         missing = sorted(required - set(reader.fieldnames or ()))
         if missing:
