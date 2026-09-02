@@ -366,7 +366,7 @@ def sample_from_preprocessed_record(
     elif active_phase == "cv":
         raw_point_count = float(record.get("cv_raw_points", raw_point_count))
         duration_min = float(record.get("cv_duration_min", duration_min))
-    return {
+    sample = {
         **view,
         "soh": np.asarray([float(record["soh"])], dtype=np.float32),
         "battery_id": str(record["battery_id"]),
@@ -380,6 +380,12 @@ def sample_from_preprocessed_record(
         "raw_point_count": np.asarray([raw_point_count], dtype=np.float32),
         "duration_min": np.asarray([duration_min], dtype=np.float32),
     }
+    if "cycle_aux_target" in record:
+        sample["cycle_aux_target"] = np.asarray(
+            [float(record["cycle_aux_target"])], dtype=np.float32
+        )
+        sample["cycle_aux_rank"] = int(record["cycle_aux_rank"])
+    return sample
 
 
 class PreprocessedFeatureDataset(Dataset):
@@ -440,6 +446,16 @@ def build_preprocessed_feature_loaders(
 ) -> tuple[dict[str, DataLoader], dict[str, Any]]:
     del seed
     repo_root = Path(repo_root).resolve()
+    filter_mode = str(
+        config.get("data", {}).get("sample_filter_mode", "none")
+    ).strip().lower()
+    if filter_mode != "none":
+        raise ValueError(
+            "Paper-Backup preprocessed Feature MLP requires "
+            "data.sample_filter_mode='none'; statistical 3-sigma cleaning and "
+            "adjacent-x1 selection belong only to the archived independent "
+            "PINN4SOH F-only protocol"
+        )
     records, source_info = load_preprocessed_records(config, repo_root, source_view="terminal")
     split_records, split_info = _split_records(records, config, repo_root)
     store = PreprocessedStore(Path(records[0]["_preprocessed_directory"]))
@@ -469,6 +485,14 @@ def build_preprocessed_feature_loaders(
         "source": source_info,
         "split": split_info,
         "feature_names": list(FEATURE_NAMES),
+        "sample_filter": {
+            "mode": "none",
+            "filter_applied": False,
+            "records_before": len(records),
+            "records_after": len(records),
+            "removed_records": 0,
+            "shared_with_raw_terminal_cohort": True,
+        },
         "standardization": "train_split_mean_std_only",
         "standardization_mean": mean.tolist(),
         "standardization_scale": scale.tolist(),

@@ -14,7 +14,7 @@ FAMILY = {
     "smarthealth_catl280": "CATL", "smarthealth_eve280": "EVE",
 }
 E1_MODELS = (
-    ("PINN4SOH-like MLP", "Final-PINN4SOH-like-MLP"),
+    ("Feature MLP (PINN4SOH F-only structure)", "Final-Feature-MLP-PINN4SOH-Structure"),
     ("Raw CNN", "Final-Raw-CNN"),
     ("Raw LSTM", "Final-Raw-LSTM"),
     ("Raw Transformer", "Final-Raw-Transformer"),

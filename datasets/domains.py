@@ -280,6 +280,40 @@ def build_default_domain_registry() -> BatteryDomainRegistry:
                 ),
             )
         )
+    # SMVIC is kept as six physical battery families rather than one broad
+    # vendor bucket.  Its confidential point data and model-ready arrays stay
+    # outside this repository; only stable semantic metadata is registered.
+    for domain_id, alias, model, capacity, voltage_range, condition in (
+        ("smvic_e72_69ah", "SMVIC1", "E72 69.4 Ah", 69.4, (2.80, 4.20), "T25_S1N1"),
+        ("smvic_s5e891_51ah", "SMVIC2", "S5E891 51 Ah", 51.0, (2.80, 4.18), "T25_S1N1"),
+        ("smvic_type1_18ah", "SMVIC3", "type1 18 Ah", 18.0, (2.50, 4.40), "T25 cycling"),
+        ("smvic_type2_150ah_t40", "SMVIC4", "type2 150 Ah", 150.0, (3.50, 4.85), "T40 aging"),
+        ("smvic_type3_108ah", "SMVIC5", "type3 108 Ah", 108.0, (3.50, 4.78), "T25 cycling"),
+        ("smvic_type4_11ah", "SMVIC6", "type4 11.4 Ah", 11.4, (3.00, 4.20), "T25 cycling"),
+    ):
+        registry.register(
+            BatteryDomainSpec(
+                domain_id=domain_id,
+                paper_alias=alias,
+                source="SMVIC enterprise normalized cell CSV v2",
+                manufacturer="confidential enterprise source",
+                battery_model=model,
+                chemistry="ternary" if domain_id in {"smvic_e72_69ah", "smvic_s5e891_51ah"} else "not declared",
+                nominal_capacity_ah=capacity,
+                voltage_range_v=voltage_range,
+                operating_conditions=(condition,),
+                data_root=None,
+                feature_data_root=None,
+                adapter_id="smvic_preprocessed_only",
+                split_file=None,
+                normalization=None,
+                availability="external_preprocessed_only",
+                notes=(
+                    "Model input is the locally generated, Git-ignored datasets/SMVIC_preprocessed_v2_128x128 product.",
+                    "SOH is same-cycle discharge capacity divided by fixed nominal capacity.",
+                ),
+            )
+        )
     return registry
 
 

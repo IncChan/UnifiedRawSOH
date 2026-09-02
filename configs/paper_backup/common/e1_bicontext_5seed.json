@@ -1,0 +1,24 @@
+{
+  "base_config": "./final_training_5seed.json",
+  "status": "runnable",
+  "experiment": {
+    "task": "paper_backup_e1_bicontext_5seed"
+  },
+  "data": {
+    "source_mode": "preprocessed_v2",
+    "preprocessed_data_root": "datasets/PaperBackup_preprocessed_v2_128x128",
+    "preprocessed_schema_version": 2,
+    "dataset": "paper_backup_preprocessed_final_e1_128x128",
+    "raw_len_cc": 128,
+    "raw_len_cv": 128,
+    "cohort": "all",
+    "sample_filter_mode": "none"
+  },
+  "normalization": {
+    "current_mode": "nominal_c_rate"
+  },
+  "output": {
+    "experiment_id": "e1_bicontext_5seed",
+    "root": "outputs/Paper-Backup/E1-BiContext-5Seed"
+  }
+}

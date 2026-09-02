@@ -71,7 +71,9 @@ def build_model(model_config: dict[str, Any], *, backend_override: str | None = 
         "Ours", "VanillaMamba", "SingleStreamMamba",
         "FinalRawVanillaMamba", "FinalRawCCVanillaMamba",
         "FinalRawCVVanillaMamba", "FinalRawDualVanillaMamba",
-        "FinalInteractionMamba",
+        "FinalInteractionMamba", "FinalBiContextMamba",
+        "FinalBiContextAdaptiveFusion",
+        "FinalBiContextCycleMTL",
     }:
         values["backend"] = backend_override
 
@@ -119,7 +121,12 @@ def model_input_kind(model_type: str) -> str:
         "FinalRawCVVanillaMamba",
     }:
         return "sequence"
-    if model_type in {"FinalRawDualVanillaMamba", "FinalInteractionMamba"}:
+    if model_type in {
+        "FinalRawDualVanillaMamba", "FinalInteractionMamba",
+        "FinalBiContextMamba",
+        "FinalBiContextAdaptiveFusion",
+        "FinalBiContextCycleMTL",
+    }:
         return "phase"
     raise ValueError(f"Unknown Paper-Backup model type: {model_type!r}")
 

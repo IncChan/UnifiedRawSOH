@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 from . import (
+    BiContextAdaptiveFusionSOHModel,
+    BiContextCycleMTLSOHModel,
+    BiContextMambaSOHModel,
     FinalPINN4SOHLikeMLP,
     FinalRawCNNSOHModel,
     FinalRawLSTMSOHModel,
@@ -27,6 +30,9 @@ FINAL_MODEL_TYPES = {
     "FinalRawCVVanillaMamba": RawCVVanillaMambaSOHModel,
     "FinalRawDualVanillaMamba": RawDualVanillaMambaSOHModel,
     "FinalInteractionMamba": InteractionFusionMambaSOHModel,
+    "FinalBiContextMamba": BiContextMambaSOHModel,
+    "FinalBiContextAdaptiveFusion": BiContextAdaptiveFusionSOHModel,
+    "FinalBiContextCycleMTL": BiContextCycleMTLSOHModel,
 }
 
 

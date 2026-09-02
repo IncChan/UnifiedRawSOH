@@ -1,0 +1,39 @@
+{
+  "base_config": "./final_training_5seed.json",
+  "schema_version": "paper_backup_cycle_order_mtl_v1",
+  "status": "runnable",
+  "experiment": {
+    "task": "paper_backup_e1_bicontext_cycle_mtl_5seed"
+  },
+  "data": {
+    "source_mode": "preprocessed_v2",
+    "preprocessed_data_root": "datasets/PaperBackup_preprocessed_v2_128x128",
+    "preprocessed_schema_version": 2,
+    "dataset": "paper_backup_preprocessed_final_e1_128x128",
+    "raw_len_cc": 128,
+    "raw_len_cv": 128,
+    "cohort": "all",
+    "sample_filter_mode": "none",
+    "cycle_aux_target_mode": "log1p_rank_train_max"
+  },
+  "normalization": {
+    "current_mode": "nominal_c_rate"
+  },
+  "train": {
+    "lambda_cycle": 0.0,
+    "lambda_cycle_aux": 0.0035,
+    "cycle_loss_mode": "auxiliary_only_mse",
+    "cycle_aux_warmup_epochs": 10
+  },
+  "contract": {
+    "target": "SOH primary plus training-only cycle-order auxiliary",
+    "cycle_lifetime_auxiliary": false,
+    "cycle_order_auxiliary": true,
+    "cycle_auxiliary_is_soh_input": false,
+    "metadata_in_forward": false
+  },
+  "output": {
+    "experiment_id": "e1_bicontext_cycle_mtl_5seed",
+    "root": "outputs/Paper-Backup/E1-BiContext-CycleMTL-5Seed"
+  }
+}

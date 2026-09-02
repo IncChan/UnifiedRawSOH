@@ -5,7 +5,7 @@ export PYTHONUTF8="${PYTHONUTF8:-1}"
 export PYTHONIOENCODING="${PYTHONIOENCODING:-utf-8:backslashreplace}"
 
 # Dynamic multi-GPU launcher for the Paper-Backup E1 matrix.  Every
-# config/seed pair is one schedulable job; each GPU owns JOBS_PER_GPU lanes.
+# config/seed pair is one schedulable job; each GPU owns MAX_PARALLEL lanes.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-$(${REPO_ROOT}/scripts/resolve_python_bin.sh)}"
@@ -14,7 +14,31 @@ DRY_RUN="${DRY_RUN:-0}"
 CHECK_DATA="${CHECK_DATA:-1}"
 GPU_SPEC="${GPU_IDS:-${CUDA_VISIBLE_DEVICES:-0 1}}"
 EXPERIMENT_SUITE="${EXPERIMENT_SUITE:-e1_main_estimation}"
-if [[ "${EXPERIMENT_SUITE}" == "e1_final_interaction_5seed" ]]; then
+if [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_adaptive_fusion_5seed" ]]; then
+  AVAILABLE_MODELS=(ours_bicontext_adaptive_fusion)
+  DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup/E1-BiContext-AdaptiveFusion-5Seed"
+  DEFAULT_SEEDS="42 52 62 72 82"
+  DEFAULT_EPOCHS=600
+  DEFAULT_PATIENCE=30
+  DEFAULT_BATCH_SIZE=128
+  DEFAULT_NUM_WORKERS=4
+elif [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_cycle_mtl_5seed" ]]; then
+  AVAILABLE_MODELS=(ours_bicontext_cycle_mtl)
+  DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup/E1-BiContext-CycleMTL-5Seed"
+  DEFAULT_SEEDS="42 52 62 72 82"
+  DEFAULT_EPOCHS=600
+  DEFAULT_PATIENCE=30
+  DEFAULT_BATCH_SIZE=128
+  DEFAULT_NUM_WORKERS=4
+elif [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_5seed" ]]; then
+  AVAILABLE_MODELS=(ours_bicontext)
+  DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup/E1-BiContext-5Seed"
+  DEFAULT_SEEDS="42 52 62 72 82"
+  DEFAULT_EPOCHS=600
+  DEFAULT_PATIENCE=30
+  DEFAULT_BATCH_SIZE=128
+  DEFAULT_NUM_WORKERS=4
+elif [[ "${EXPERIMENT_SUITE}" == "e1_final_interaction_5seed" ]]; then
   AVAILABLE_MODELS=(hi_mlp raw_cnn raw_lstm raw_transformer raw_vanilla raw_cc_vanilla raw_cv_vanilla raw_dual_vanilla ours_interaction)
   DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup/E1-Final-Interaction-5Seed"
   DEFAULT_SEEDS="42 52 62 72 82"
@@ -57,7 +81,7 @@ else
 fi
 SEED_SPEC="${SEEDS:-${DEFAULT_SEEDS}}"
 MODEL_SPEC="${MODELS:-all}"
-JOBS_PER_GPU="${JOBS_PER_GPU:-${MAX_PARALLEL:-3}}"
+MAX_PARALLEL="${MAX_PARALLEL:-3}"
 DEVICE_OVERRIDE="${DEVICE_OVERRIDE:-cuda:0}"
 BACKEND_OVERRIDE="${BACKEND_OVERRIDE:-}"
 EPOCHS="${EPOCHS:-${DEFAULT_EPOCHS}}"
@@ -114,7 +138,7 @@ mapfile -t CONFIGS < <(
 
 [[ "${DRY_RUN}" =~ ^[01]$ ]] || { echo "DRY_RUN must be 0 or 1." >&2; exit 2; }
 [[ "${CHECK_DATA}" =~ ^[01]$ ]] || { echo "CHECK_DATA must be 0 or 1." >&2; exit 2; }
-[[ "${JOBS_PER_GPU}" =~ ^[1-9][0-9]*$ ]] || { echo "JOBS_PER_GPU must be a positive integer." >&2; exit 2; }
+[[ "${MAX_PARALLEL}" =~ ^[1-9][0-9]*$ ]] || { echo "MAX_PARALLEL must be a positive integer." >&2; exit 2; }
 (( ${#SEED_LIST[@]} > 0 )) || { echo "SEEDS must not be empty." >&2; exit 2; }
 (( ${#GPU_LIST[@]} > 0 )) || { echo "GPU_IDS must not be empty." >&2; exit 2; }
 (( ${#CONFIGS[@]} > 0 )) || { echo "No Paper-Backup E1 configs found." >&2; exit 2; }
@@ -150,10 +174,10 @@ done
 [[ "${OUTPUT_ROOT}" == /* ]] || OUTPUT_ROOT="${REPO_ROOT}/${OUTPUT_ROOT}"
 RUN_TIME="${RUN_TIME//\//_}"
 RUN_TIME="${RUN_TIME#runtime_}"
-TOTAL_LANES=$(( ${#GPU_LIST[@]} * JOBS_PER_GPU ))
+TOTAL_LANES=$(( ${#GPU_LIST[@]} * MAX_PARALLEL ))
 LANE_GPU=()
 for gpu in "${GPU_LIST[@]}"; do
-  for ((slot=0; slot<JOBS_PER_GPU; slot++)); do
+  for ((slot=0; slot<MAX_PARALLEL; slot++)); do
     LANE_GPU+=("${gpu}")
   done
 done
@@ -163,7 +187,7 @@ echo "models: ${SELECTED_MODELS[*]}"
 echo "configs: ${#CONFIGS[@]}"
 echo "seeds: ${SEED_LIST[*]}"
 echo "GPU IDs: ${GPU_LIST[*]}"
-echo "jobs per GPU: ${JOBS_PER_GPU}"
+echo "maximum processes per GPU: ${MAX_PARALLEL}"
 echo "maximum aggregate processes: ${TOTAL_LANES}"
 echo "device inside each child: ${DEVICE_OVERRIDE}"
 echo "epochs: ${EPOCHS}"
@@ -347,7 +371,15 @@ fi
 
 echo "Paper-Backup E1 matrix completed successfully."
 echo "launcher logs: ${LAUNCHER_ROOT}"
-if [[ "${EXPERIMENT_SUITE}" == "e1_core3_128x128" ]]; then
+if [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_adaptive_fusion_5seed" ]]; then
+  echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_bicontext_adaptive_fusion_5seed --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"
+elif [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_cycle_mtl_5seed" ]]; then
+  echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_bicontext_cycle_mtl_5seed --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"
+elif [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_5seed" ]]; then
+  echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_bicontext_5seed --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"
+elif [[ "${EXPERIMENT_SUITE}" == "e1_final_interaction_5seed" ]]; then
+  echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_final_interaction_5seed --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"
+elif [[ "${EXPERIMENT_SUITE}" == "e1_core3_128x128" ]]; then
   echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_core3_128x128 --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"
 elif [[ "${EXPERIMENT_SUITE}" == "e1_shared_crate_128x128" ]]; then
   echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_crate_128x128 --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"

@@ -1,0 +1,1 @@
+{"name":"smvic_s5e891_51ah_test_cell01","dataset_id":"smvic_s5e891_51ah","status":"recommended","test_batteries":["Battery02/Cell01"],"development_split":{"mode":"mixed_cycle","scope":"single_domain_pool","val_ratio":0.2,"random_state":420,"train_val_battery_overlap_expected":true},"notes":["Two-cell symmetric holdout fold 1/2."]}

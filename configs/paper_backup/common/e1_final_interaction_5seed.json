@@ -9,7 +9,8 @@
     "dataset": "paper_backup_preprocessed_final_e1_128x128",
     "raw_len_cc": 128,
     "raw_len_cv": 128,
-    "cohort": "all"
+    "cohort": "all",
+    "sample_filter_mode": "none"
   },
   "normalization": {"current_mode": "nominal_c_rate"},
   "output": {

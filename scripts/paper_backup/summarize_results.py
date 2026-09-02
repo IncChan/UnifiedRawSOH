@@ -30,6 +30,14 @@ from UnifiedRawSOH.trainers.paper_backup.config_loader import load_config  # noq
 
 
 SUMMARY_VERSION = "paper_backup_compact_metrics_v1"
+MODEL_DISPLAY_IDS = {
+    "e1_final_interaction_5seed": {
+        # Preserve archived run/task IDs while reporting the actual protocol:
+        # an unfiltered Feature MLP that only reuses the PINN4SOH F-only
+        # encoder/predictor structure.
+        "Final-PINN4SOH-like-MLP": "Final-Feature-MLP-PINN4SOH-Structure",
+    },
+}
 EXPERIMENTS = {
     "e1": {
         "experiment_id": "e1_main_estimation",
@@ -58,6 +66,18 @@ EXPERIMENTS = {
     "e1_final_interaction_5seed": {
         "experiment_id": "e1_final_interaction_5seed",
         "config_dir": "configs/paper_backup/e1_final_interaction_5seed",
+    },
+    "e1_bicontext_5seed": {
+        "experiment_id": "e1_bicontext_5seed",
+        "config_dir": "configs/paper_backup/e1_bicontext_5seed",
+    },
+    "e1_bicontext_adaptive_fusion_5seed": {
+        "experiment_id": "e1_bicontext_adaptive_fusion_5seed",
+        "config_dir": "configs/paper_backup/e1_bicontext_adaptive_fusion_5seed",
+    },
+    "e1_bicontext_cycle_mtl_5seed": {
+        "experiment_id": "e1_bicontext_cycle_mtl_5seed",
+        "config_dir": "configs/paper_backup/e1_bicontext_cycle_mtl_5seed",
     },
     "e2_final_interaction_5seed": {
         "experiment_id": "e2_final_interaction_5seed",
@@ -328,7 +348,13 @@ def _base_row(
         "experiment": experiment.upper(),
         "dataset": str(spec["family"]),
         "strategy": str(strategy if strategy is not None else spec.get("strategy", "all")),
-        "model": str(model if model is not None else spec["model_id"]),
+        "model": str(
+            model
+            if model is not None
+            else MODEL_DISPLAY_IDS.get(experiment, {}).get(
+                str(spec["model_id"]), str(spec["model_id"])
+            )
+        ),
         "data_id": str(data_id if data_id is not None else spec["data_id"]),
         "seed": int(spec["seed"]),
         "n_cycles": int(metrics.get("n_cycles", 0)),

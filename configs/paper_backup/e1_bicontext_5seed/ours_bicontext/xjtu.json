@@ -1,0 +1,1 @@
+{"base_configs":["../../common/domain_xjtu_sequence.json","../../common/e1_bicontext_5seed.json","../../common/final_model_bicontext_mamba.json"],"experiment":{"name":"E1BiContext5_XJTU_ours_bicontext"},"data":{"input_view":"terminal_phase","phase_signal_mode":"shared_full_vi"},"output":{"model_id":"Final-Ours-BiContext-Mamba","data_id":"xjtu_ours_bicontext_128x128"}}

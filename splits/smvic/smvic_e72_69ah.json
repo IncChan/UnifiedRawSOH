@@ -1,0 +1,1 @@
+{"name":"smvic_e72_69ah_physical_holdout_v1","dataset_id":"smvic_e72_69ah","status":"recommended","test_batteries":["Battery01/Cell02"],"development_split":{"mode":"mixed_cycle","scope":"single_domain_pool","val_ratio":0.2,"random_state":420,"train_val_battery_overlap_expected":true}}

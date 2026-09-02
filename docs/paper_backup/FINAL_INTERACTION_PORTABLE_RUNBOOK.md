@@ -17,7 +17,7 @@ nohup bash scripts/paper_backup/run_final_interaction_5seed_portable.sh \
   --mit-source "/path/to/A123 Dataset" \
   --smarthealth-source "/path/to/SmartHealth" \
   --gpus "0 1 2 3" \
-  --jobs-per-gpu 1 \
+  --max-parallel 1 \
   --workers 8 \
   > outputs/Paper-Backup/final_interaction_portable.log 2>&1 &
 ```
@@ -31,7 +31,7 @@ The script performs these stages sequentially:
 5. E2 training and summary.
 
 The formal seed set is `42 52 62 72 82`, maximum epoch count is 600, and
-early-stopping patience is 30. `JOBS_PER_GPU=1` is the safe default; increase
+early-stopping patience is 30. `MAX_PARALLEL=1` is the safe per-GPU default; increase
 it only after checking GPU memory.
 
 ## Resume and individual stages
@@ -49,7 +49,7 @@ bash scripts/paper_backup/run_final_interaction_5seed_portable.sh \
 
 # Train E1 and E2 from existing preprocessed data.
 bash scripts/paper_backup/run_final_interaction_5seed_portable.sh \
-  --stage train --gpus "0 1 2 3" --jobs-per-gpu 1
+  --stage train --gpus "0 1 2 3" --max-parallel 1
 
 # Re-run summaries only.
 bash scripts/paper_backup/run_final_interaction_5seed_portable.sh --stage summary

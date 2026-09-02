@@ -1,0 +1,1 @@
+{"name":"smvic_type4_11ah_test_cell02","dataset_id":"smvic_type4_11ah","status":"recommended","test_batteries":["Battery06/Cell02"],"development_split":{"mode":"mixed_cycle","scope":"single_domain_pool","val_ratio":0.2,"random_state":420,"train_val_battery_overlap_expected":true},"notes":["Two-cell symmetric holdout fold 2/2."]}

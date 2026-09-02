@@ -1,0 +1,7 @@
+{
+  "base_config": "./final_model_bicontext_mamba.json",
+  "model": {
+    "type": "FinalBiContextCycleMTL",
+    "cycle_head_hidden_dim": 0
+  }
+}

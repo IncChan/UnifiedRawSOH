@@ -14,7 +14,7 @@ XJTU_SOURCE_ROOT="${XJTU_SOURCE_ROOT:-}"
 MIT_SOURCE_ROOT="${MIT_SOURCE_ROOT:-}"
 SMARTHEALTH_SOURCE_ROOT="${SMARTHEALTH_SOURCE_ROOT:-}"
 GPU_IDS="${GPU_IDS:-0}"
-JOBS_PER_GPU="${JOBS_PER_GPU:-1}"
+MAX_PARALLEL="${MAX_PARALLEL:-1}"
 PREPROCESS_WORKERS="${PREPROCESS_WORKERS:-4}"
 CANONICAL_MODE="${CANONICAL_MODE:-auto}"
 PAPER_MODE="${PAPER_MODE:-auto}"
@@ -46,14 +46,14 @@ Required for stages that include preprocessing:
 Options:
   --stage all|preprocess|train|e1|e2|summary   default: all
   --gpus "0 1 2 3"                            default: 0
-  --jobs-per-gpu N                            default: 1
+  --max-parallel N                            per-GPU process limit; default: 1
   --workers N                                 default: 4
   --canonical-mode auto|rebuild|skip          default: auto
   --paper-mode auto|rebuild|skip              default: auto
   -h, --help
 
 Equivalent environment variables are also accepted: XJTU_SOURCE_ROOT,
-MIT_SOURCE_ROOT, SMARTHEALTH_SOURCE_ROOT, GPU_IDS, JOBS_PER_GPU,
+MIT_SOURCE_ROOT, SMARTHEALTH_SOURCE_ROOT, GPU_IDS, MAX_PARALLEL,
 PREPROCESS_WORKERS, CANONICAL_MODE and PAPER_MODE.
 
 Modes:
@@ -69,7 +69,7 @@ while [[ $# -gt 0 ]]; do
     --mit-source) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; MIT_SOURCE_ROOT="$2"; shift 2 ;;
     --smarthealth-source) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; SMARTHEALTH_SOURCE_ROOT="$2"; shift 2 ;;
     --gpus) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; GPU_IDS="$2"; shift 2 ;;
-    --jobs-per-gpu) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; JOBS_PER_GPU="$2"; shift 2 ;;
+    --max-parallel) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; MAX_PARALLEL="$2"; shift 2 ;;
     --workers) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; PREPROCESS_WORKERS="$2"; shift 2 ;;
     --stage) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; STAGE="$2"; shift 2 ;;
     --canonical-mode) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; CANONICAL_MODE="$2"; shift 2 ;;
@@ -82,7 +82,7 @@ done
 case "${STAGE}" in all|preprocess|train|e1|e2|summary) ;; *) echo "Invalid --stage: ${STAGE}" >&2; exit 2 ;; esac
 case "${CANONICAL_MODE}" in auto|rebuild|skip) ;; *) echo "Invalid --canonical-mode: ${CANONICAL_MODE}" >&2; exit 2 ;; esac
 case "${PAPER_MODE}" in auto|rebuild|skip) ;; *) echo "Invalid --paper-mode: ${PAPER_MODE}" >&2; exit 2 ;; esac
-[[ "${JOBS_PER_GPU}" =~ ^[1-9][0-9]*$ ]] || { echo "--jobs-per-gpu must be positive" >&2; exit 2; }
+[[ "${MAX_PARALLEL}" =~ ^[1-9][0-9]*$ ]] || { echo "--max-parallel must be positive" >&2; exit 2; }
 [[ "${PREPROCESS_WORKERS}" =~ ^[1-9][0-9]*$ ]] || { echo "--workers must be positive" >&2; exit 2; }
 
 if [[ -z "${CONDA_PREFIX:-}" || ! -x "${CONDA_PREFIX}/bin/python" ]]; then
@@ -251,7 +251,7 @@ preprocess_all() {
 }
 
 train_e1() {
-  GPU_IDS="${GPU_IDS}" JOBS_PER_GPU="${JOBS_PER_GPU}" MODELS=all \
+  GPU_IDS="${GPU_IDS}" MAX_PARALLEL="${MAX_PARALLEL}" MODELS=all \
     PYTHON_BIN="${PYTHON_BIN}" OUTPUT_ROOT="${E1_OUTPUT_ROOT}" \
     bash "${SCRIPT_DIR}/run_e1_final_interaction_5seed_pipeline.sh" train
   PYTHON_BIN="${PYTHON_BIN}" OUTPUT_ROOT="${E1_OUTPUT_ROOT}" \
@@ -259,7 +259,7 @@ train_e1() {
 }
 
 train_e2() {
-  GPU_IDS="${GPU_IDS}" JOBS_PER_GPU="${JOBS_PER_GPU}" MODELS=all \
+  GPU_IDS="${GPU_IDS}" MAX_PARALLEL="${MAX_PARALLEL}" MODELS=all \
     PYTHON_BIN="${PYTHON_BIN}" OUTPUT_ROOT="${E2_OUTPUT_ROOT}" \
     bash "${SCRIPT_DIR}/run_e2_final_interaction_5seed_pipeline.sh" train
   PYTHON_BIN="${PYTHON_BIN}" OUTPUT_ROOT="${E2_OUTPUT_ROOT}" \
@@ -274,7 +274,7 @@ summarize_all() {
 }
 
 mkdir -p "${E1_OUTPUT_ROOT}" "${E2_OUTPUT_ROOT}"
-echo "[portable] stage=${STAGE}; GPUs=${GPU_IDS}; jobs/GPU=${JOBS_PER_GPU}; workers=${PREPROCESS_WORKERS}"
+echo "[portable] stage=${STAGE}; GPUs=${GPU_IDS}; max processes/GPU=${MAX_PARALLEL}; workers=${PREPROCESS_WORKERS}"
 case "${STAGE}" in
   preprocess) preprocess_all ;;
   train) train_e1; train_e2 ;;

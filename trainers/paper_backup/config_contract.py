@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -19,6 +20,9 @@ EXPERIMENT_IDS = {
     "e2_charging_information",
     "e2_final_256budget",
     "e1_final_interaction_5seed",
+    "e1_bicontext_5seed",
+    "e1_bicontext_adaptive_fusion_5seed",
+    "e1_bicontext_cycle_mtl_5seed",
     "e2_final_interaction_5seed",
     "e3_strategy_pooling",
 }
@@ -35,6 +39,9 @@ FINAL_E1_MODEL_TYPES = {
     "FinalRawCVVanillaMamba",
     "FinalRawDualVanillaMamba",
     "FinalInteractionMamba",
+    "FinalBiContextMamba",
+    "FinalBiContextAdaptiveFusion",
+    "FinalBiContextCycleMTL",
 }
 FINAL_E2_MODEL_TYPES = {
     "FinalRawVanillaMamba",
@@ -120,6 +127,9 @@ def validate_config(
         "e2_charging_information": E2_MODEL_TYPES,
         "e2_final_256budget": {"VanillaMamba", "Ours"},
         "e1_final_interaction_5seed": FINAL_E1_MODEL_TYPES,
+        "e1_bicontext_5seed": {"FinalBiContextMamba"},
+        "e1_bicontext_adaptive_fusion_5seed": {"FinalBiContextAdaptiveFusion"},
+        "e1_bicontext_cycle_mtl_5seed": {"FinalBiContextCycleMTL"},
         "e2_final_interaction_5seed": FINAL_E2_MODEL_TYPES,
         "e3_strategy_pooling": E3_MODEL_TYPES,
     }[experiment_id]
@@ -132,6 +142,9 @@ def validate_config(
         "e1_shared_crate_fullvi",
         "e1_shared_crate_128x128",
         "e1_final_interaction_5seed",
+        "e1_bicontext_5seed",
+        "e1_bicontext_adaptive_fusion_5seed",
+        "e1_bicontext_cycle_mtl_5seed",
     } and model_type not in {"HI-MLP", "FinalHI-MLP"} and view_id not in TERMINAL_VIEWS:
         raise ValueError(f"E1 raw model requires a terminal input view, got {view_id!r}")
     if experiment_id in {"e2_charging_information", "e2_final_256budget", "e2_final_interaction_5seed"} and view_id not in {"full_cccv", "full_joint", "terminal_joint", "terminal_cc", "terminal_cv", "terminal_phase"}:
@@ -142,10 +155,32 @@ def validate_config(
         raise ValueError(f"Raw Paper-Backup model has invalid input view: {view_id!r}")
 
     train = config.get("train", {})
+    cycle_mtl = (
+        experiment_id == "e1_bicontext_cycle_mtl_5seed"
+        and model_type == "FinalBiContextCycleMTL"
+    )
     if float(train.get("lambda_cycle", 0.0)) != 0.0:
-        raise ValueError("Paper-Backup is SOH-only: train.lambda_cycle must be 0")
-    if str(train.get("cycle_loss_mode", "disabled")) not in {"disabled", "none"}:
-        raise ValueError("Paper-Backup is SOH-only: cycle_loss_mode must be disabled")
+        raise ValueError(
+            "The historical lifetime-coordinate loss remains disabled: "
+            "train.lambda_cycle must be 0"
+        )
+    if cycle_mtl:
+        lambda_cycle_aux = float(train.get("lambda_cycle_aux", 0.0))
+        if not math.isfinite(lambda_cycle_aux) or lambda_cycle_aux <= 0.0:
+            raise ValueError("Cycle MTL requires a positive finite lambda_cycle_aux")
+        if str(train.get("cycle_loss_mode", "")) != "auxiliary_only_mse":
+            raise ValueError("Cycle MTL requires cycle_loss_mode='auxiliary_only_mse'")
+        if int(train.get("cycle_aux_warmup_epochs", -1)) < 0:
+            raise ValueError("Cycle MTL warm-up epochs must be non-negative")
+        if int(model.get("cycle_head_hidden_dim", -1)) < 0:
+            raise ValueError("Cycle MTL requires cycle_head_hidden_dim >= 0")
+        if model.get("use_predicted_cycle_for_soh", False) not in {False, 0}:
+            raise ValueError("Cycle MTL must not inject predicted cycle into the SOH head")
+    else:
+        if float(train.get("lambda_cycle_aux", 0.0)) != 0.0:
+            raise ValueError("lambda_cycle_aux is reserved for the isolated Cycle MTL suite")
+        if str(train.get("cycle_loss_mode", "disabled")) not in {"disabled", "none"}:
+            raise ValueError("Paper-Backup SOH-only suites require cycle_loss_mode=disabled")
     if model_type == "Ours":
         if model.get("use_cycle_prediction") is not False:
             raise ValueError("Paper-Backup Ours requires model.use_cycle_prediction=false")
@@ -154,6 +189,8 @@ def validate_config(
     for path, key, value in _walk(model):
         key_lower = key.lower()
         if any(token in key_lower for token in ("cycle", "lifetime", "eol", "rul")):
+            if cycle_mtl and key_lower == "cycle_head_hidden_dim":
+                continue
             if key_lower not in {"cycle_loss_mode"} and not _is_disabled(value):
                 raise ValueError(f"Forbidden lifetime/cycle model option at {path}: {value!r}")
         if any(token in key_lower for token in ("strategy_id", "domain_id", "battery_id", "cell_id")) and not _is_disabled(value) and value is not None:
@@ -165,6 +202,13 @@ def validate_config(
         raise ValueError("E3 pooled/specific model config cannot inject strategy_id")
 
     data = config.get("data", {})
+    if cycle_mtl:
+        if str(data.get("cycle_aux_target_mode", "")) != "log1p_rank_train_max":
+            raise ValueError(
+                "Cycle MTL requires cycle_aux_target_mode='log1p_rank_train_max'"
+            )
+    elif str(data.get("cycle_aux_target_mode", "disabled")) != "disabled":
+        raise ValueError("Cycle auxiliary targets are isolated from the SOH-only suites")
     source_mode = str(data.get("source_mode", "legacy_runtime"))
     if source_mode not in {"preprocessed_v1", "preprocessed_v2", "legacy_runtime"}:
         raise ValueError("Paper-Backup data.source_mode must be preprocessed_v1, preprocessed_v2 or legacy_runtime")
@@ -212,7 +256,12 @@ def validate_config(
     if experiment_id == "e1_shared_crate_128x128":
         if int(data.get("raw_len_cc", 0)) != 128 or int(data.get("raw_len_cv", 0)) != 128:
             raise ValueError("The isolated 128x128 E1 suite requires raw_len_cc=raw_len_cv=128")
-    if experiment_id == "e1_final_interaction_5seed":
+    if experiment_id in {
+        "e1_final_interaction_5seed",
+        "e1_bicontext_5seed",
+        "e1_bicontext_adaptive_fusion_5seed",
+        "e1_bicontext_cycle_mtl_5seed",
+    }:
         if source_mode != "preprocessed_v2":
             raise ValueError("Final interaction E1 requires schema-v2 offline preprocessing")
         if int(data.get("raw_len_cc", 0)) != 128 or int(data.get("raw_len_cv", 0)) != 128:
@@ -221,7 +270,20 @@ def validate_config(
             raise ValueError("Final interaction E1 requires train.epochs=600")
         if int(config.get("train", {}).get("patience", 0)) != 30:
             raise ValueError("Final interaction E1 requires train.patience=30")
-        if model_type in {"FinalRawDualVanillaMamba", "FinalInteractionMamba"}:
+        if str(data.get("cohort", "")) != "all":
+            raise ValueError("Final interaction E1 requires the complete terminal cohort")
+        if str(data.get("sample_filter_mode", "")) != "none":
+            raise ValueError(
+                "Final interaction E1 requires data.sample_filter_mode='none' "
+                "for a shared unfiltered raw/feature cohort"
+            )
+        if model_type in {
+            "FinalRawDualVanillaMamba",
+            "FinalInteractionMamba",
+            "FinalBiContextMamba",
+            "FinalBiContextAdaptiveFusion",
+            "FinalBiContextCycleMTL",
+        }:
             if view_id != "terminal_phase" or str(data.get("phase_signal_mode", "")) != "shared_full_vi":
                 raise ValueError("Final dual/interaction E1 models require shared_full_vi terminal_phase input")
         if model_type == "FinalRawCCVanillaMamba" and view_id != "terminal_cc":

@@ -19,6 +19,71 @@ The final five-seed interaction-fusion E1/E2 suites can be reproduced from
 vendor sources on a new server with one active-Conda launcher. See
 [`FINAL_INTERACTION_PORTABLE_RUNBOOK.md`](../../docs/paper_backup/FINAL_INTERACTION_PORTABLE_RUNBOOK.md).
 
+The E1 `hi_mlp` group is reported as **Feature MLP (PINN4SOH F-only
+structure)**. Its 24 statistics and SOH labels come from every record in the
+same offline Terminal product used by the raw models: no 3-sigma cleaning,
+adjacent-x1 selection, or other model-specific cycle filter is applied. The
+archived run/task ID remains `Final-PINN4SOH-like-MLP` so completed five-seed
+runs remain reusable; the summary layer emits the corrected descriptive model
+ID. To rebuild tables without retraining, run:
+
+```bash
+PYTHON_BIN=/path/to/python \
+  bash scripts/paper_backup/run_e1_final_interaction_5seed_pipeline.sh summary
+PYTHON_BIN=/path/to/python \
+  bash scripts/paper_backup/run_e1_bicontext_5seed_pipeline.sh summary
+```
+
+The independent BiContext E1 supplement reuses the same schema-v2 128+128
+data, five seeds, 600-epoch cap, patience 30 and batch size 128. It trains only
+the five dataset-specific BiContext configurations (25 jobs) and does not
+overwrite the archived final E1 matrix:
+
+```bash
+bash scripts/paper_backup/run_e1_bicontext_5seed_pipeline.sh validate
+GPU_IDS="0 1" MAX_PARALLEL=3 \
+  bash scripts/paper_backup/run_e1_bicontext_5seed_pipeline.sh train
+bash scripts/paper_backup/run_e1_bicontext_5seed_pipeline.sh summary
+```
+
+The optional `diagnostics` stage performs best-checkpoint inference and writes
+the two directional gate/contribution distributions. It requires a visible
+formal Mamba GPU and defaults to `cuda:0`.
+
+The isolated Cycle MTL supplement keeps the complete BiContext inference path
+unchanged and adds a 65-parameter linear cycle-order head during training only.
+Its target is the within-battery chronological rank transformed by `log1p` and
+scaled with the training split maximum; it does not divide by a battery's final
+cycle. The SOH head never receives the real or predicted cycle value.
+
+```bash
+bash scripts/paper_backup/run_e1_bicontext_cycle_mtl_5seed_pipeline.sh validate
+GPU_IDS="0 1" MAX_PARALLEL=3 \
+  bash scripts/paper_backup/run_e1_bicontext_cycle_mtl_5seed_pipeline.sh train
+bash scripts/paper_backup/run_e1_bicontext_cycle_mtl_5seed_pipeline.sh summary
+```
+
+Results are isolated under
+`outputs/Paper-Backup/E1-BiContext-CycleMTL-5Seed`. The summary stage also
+writes paired per-seed deltas against the archived plain BiContext run when
+`outputs/Paper-Backup/E1-BiContext-5Seed/summaries` is available.
+
+The BiContext Adaptive Fusion supplement retains the complete bidirectional
+bridge and the 27-unit ordinary fusion residual. It adds a 521-parameter
+sample-adaptive CC/CV gate whose zero-initialized output starts from the exact
+0.5/0.5 BiContext mixture. Its 25 formal jobs and paired BiContext comparison
+are run with:
+
+```bash
+bash scripts/paper_backup/run_e1_bicontext_adaptive_fusion_5seed_pipeline.sh validate
+GPU_IDS="0 1" MAX_PARALLEL=3 \
+  bash scripts/paper_backup/run_e1_bicontext_adaptive_fusion_5seed_pipeline.sh train
+bash scripts/paper_backup/run_e1_bicontext_adaptive_fusion_5seed_pipeline.sh summary
+```
+
+Results are isolated under
+`outputs/Paper-Backup/E1-BiContext-AdaptiveFusion-5Seed`.
+
 ```bash
 DRY_RUN=1 PYTHON_BIN=/path/to/python bash scripts/paper_backup/run_e1.sh
 DRY_RUN=1 PYTHON_BIN=/path/to/python bash scripts/paper_backup/run_e2.sh
@@ -62,7 +127,7 @@ two 128x128 Transformer controls without rescheduling the completed Ours jobs.
 ```bash
 RUN_TIME=e1_250ep_bs128 \
 MODELS="ours transformer" \
-GPU_IDS="0 1" JOBS_PER_GPU=3 SEEDS="42 52 62" \
+GPU_IDS="0 1" MAX_PARALLEL=3 SEEDS="42 52 62" \
 EPOCHS=250 PATIENCE=40 BATCH_SIZE=128 NUM_WORKERS=1 \
 DRY_RUN=0 DEVICE_OVERRIDE=cuda:0 \
 PYTHON_BIN=/path/to/python \
@@ -73,7 +138,7 @@ The corresponding E2 launch is:
 
 ```bash
 MODELS="full_vanilla terminal_ours terminal_vanilla" \
-GPU_IDS="0 1" JOBS_PER_GPU=3 SEEDS="42 52 62" \
+GPU_IDS="0 1" MAX_PARALLEL=3 SEEDS="42 52 62" \
 EPOCHS=400 PATIENCE=20 BATCH_SIZE=128 NUM_WORKERS=1 \
 CHECK_DATA=1 DRY_RUN=0 DEVICE_OVERRIDE=cuda:0 \
 PYTHON_BIN=/path/to/python \
@@ -84,16 +149,16 @@ For a detached run, redirect the launcher output in addition to the per-job
 logs already written below `_launcher_logs`:
 
 ```bash
-nohup env MODELS="ours transformer" GPU_IDS="0 1" JOBS_PER_GPU=3 \
+nohup env MODELS="ours transformer" GPU_IDS="0 1" MAX_PARALLEL=3 \
   SEEDS="42 52 62" RUN_TIME=e1_timefix_matched \
   PYTHON_BIN=/path/to/python \
   bash scripts/paper_backup/run_e1.sh \
   > outputs/Paper-Backup/e1_timefix_matched.nohup.log 2>&1 &
 ```
 
-The aggregate concurrency in this example is six. Set `JOBS_PER_GPU=1` when
-memory is tight. `MAX_PARALLEL` remains accepted as a compatibility alias for
-`JOBS_PER_GPU`, but the latter is clearer because the limit is per GPU.
+The aggregate concurrency in this example is six. Set `MAX_PARALLEL=1` when
+memory is tight. `MAX_PARALLEL` is the maximum number of child processes on
+each GPU, so total concurrency is GPU count multiplied by `MAX_PARALLEL`.
 Launcher logs are written below
 `outputs/Paper-Backup/_launcher_logs/<experiment>/runtime_<RUN_TIME>/`.
 Every training epoch writes one line with train loss, validation loss,

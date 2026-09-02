@@ -8,6 +8,7 @@ and evaluation and is never passed to a model.
 from __future__ import annotations
 
 import copy
+import math
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -142,6 +143,64 @@ def split_terminal_records(
     split_info["battery_overlap"] = overlaps
     split_info["development_batteries"] = sorted({str(x["battery_id"]) for name in ("train", "val") for x in split_records[name]})
     return split_records, split_info
+
+
+def attach_cycle_order_auxiliary_targets(
+    split_records: Mapping[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    """Attach a no-future-lifetime cycle-order target to every split record.
+
+    Ranks are chronological positions within a battery.  The nonlinear scale
+    is fitted only on training records; neither test statistics nor a battery's
+    final cycle/EOL is used as a per-sample denominator.
+    """
+
+    cycle_ids_by_battery: dict[str, set[int]] = {}
+    for records in split_records.values():
+        for record in records:
+            battery_id = str(record["battery_id"])
+            cycle_ids_by_battery.setdefault(battery_id, set()).add(
+                int(record["cycle_id"])
+            )
+    rank_by_key: dict[tuple[str, int], int] = {}
+    for battery_id, cycle_ids in cycle_ids_by_battery.items():
+        for rank, cycle_id in enumerate(sorted(cycle_ids)):
+            rank_by_key[(battery_id, cycle_id)] = int(rank)
+
+    train_ranks = [
+        rank_by_key[(str(record["battery_id"]), int(record["cycle_id"]))]
+        for record in split_records["train"]
+    ]
+    if not train_ranks:
+        raise ValueError("Cycle auxiliary target requires non-empty training data")
+    train_max_rank = max(train_ranks)
+    log_scale = math.log1p(train_max_rank)
+    if not math.isfinite(log_scale) or log_scale <= 0.0:
+        log_scale = 1.0
+
+    target_ranges: dict[str, list[float]] = {}
+    for split_name, records in split_records.items():
+        targets = []
+        for record in records:
+            key = (str(record["battery_id"]), int(record["cycle_id"]))
+            rank = rank_by_key[key]
+            target = math.log1p(rank) / log_scale
+            record["cycle_aux_rank"] = int(rank)
+            record["cycle_aux_target"] = float(target)
+            targets.append(float(target))
+        target_ranges[str(split_name)] = [
+            float(min(targets)) if targets else float("nan"),
+            float(max(targets)) if targets else float("nan"),
+        ]
+    return {
+        "enabled": True,
+        "target": "log1p chronological rank / train log1p(max rank)",
+        "uses_battery_final_cycle_as_sample_denominator": False,
+        "uses_test_statistics": False,
+        "train_max_rank": int(train_max_rank),
+        "train_log_scale": float(log_scale),
+        "target_ranges": target_ranges,
+    }
 
 
 def _safe_float_array(value: Any, name: str) -> np.ndarray:
@@ -296,7 +355,7 @@ def _phase_sample(record: Mapping[str, Any], config: Mapping[str, Any], split_na
 def _base_metadata(record: Mapping[str, Any], split_name: str, view_id: str) -> dict[str, Any]:
     if "soh" not in record:
         raise ValueError("Canonical record has no SOH label")
-    return {
+    metadata = {
         "soh": np.asarray([float(record["soh"])], dtype=np.float32),
         "battery_id": str(record["battery_id"]),
         "domain_id": str(record.get("domain_id", record.get("dataset_id", "unknown"))),
@@ -307,6 +366,12 @@ def _base_metadata(record: Mapping[str, Any], split_name: str, view_id: str) -> 
         "view_id": view_id,
         "input_view_id": view_id,
     }
+    if "cycle_aux_target" in record:
+        metadata["cycle_aux_target"] = np.asarray(
+            [float(record["cycle_aux_target"])], dtype=np.float32
+        )
+        metadata["cycle_aux_rank"] = int(record["cycle_aux_rank"])
+    return metadata
 
 
 class SequenceViewDataset(Dataset):
@@ -558,6 +623,15 @@ def build_sequence_loaders(
                 for name, values in split_records.items()
             }
         split_info = {"provided_by": "strategy_pooling", "battery_overlap": {}}
+    cycle_aux_mode = str(
+        config.get("data", {}).get("cycle_aux_target_mode", "disabled")
+    )
+    if cycle_aux_mode == "disabled":
+        cycle_aux_audit = {"enabled": False}
+    elif cycle_aux_mode == "log1p_rank_train_max":
+        cycle_aux_audit = attach_cycle_order_auxiliary_targets(split_records)
+    else:
+        raise ValueError(f"Unknown cycle_aux_target_mode: {cycle_aux_mode!r}")
     datasets = {
         name: SequenceViewDataset(split_records[name], config, name, view_id)
         for name in ("train", "val", "test")
@@ -588,6 +662,13 @@ def build_sequence_loaders(
         ),
         "source": source_info,
         "split": split_info,
+        "sample_filter": {
+            "mode": str(config.get("data", {}).get("sample_filter_mode", "none")),
+            "filter_applied": False,
+            "records_before": sum(len(values) for values in split_records.values()),
+            "records_after": sum(len(values) for values in split_records.values()),
+            "removed_records": 0,
+        },
         "record_counts": {name: len(split_records[name]) for name in split_records},
         "sample_counts": {name: len(datasets[name]) for name in datasets},
         "battery_counts": {name: len({str(item["battery_id"]) for item in split_records[name]}) for name in split_records},
@@ -596,6 +677,7 @@ def build_sequence_loaders(
         "dataloader": loader_options,
         "metadata_in_forward": False,
         "cycle_lifetime_auxiliary": False,
+        "cycle_order_auxiliary": cycle_aux_audit,
         "matching": matching_audit,
     }
     return loaders, info
@@ -609,6 +691,7 @@ __all__ = [
     "TERMINAL_VIEW_IDS",
     "build_sequence_loaders",
     "build_strategy_sampler",
+    "attach_cycle_order_auxiliary_targets",
     "load_terminal_records",
     "split_terminal_records",
 ]

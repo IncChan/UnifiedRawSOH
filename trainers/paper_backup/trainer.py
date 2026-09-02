@@ -79,10 +79,19 @@ def _batch_values(batch: Mapping[str, Any], key: str, count: int, default: Any =
     return values
 
 
-def _forward_prediction(model_type: str, model: torch.nn.Module, batch: Mapping[str, Any], device: torch.device) -> torch.Tensor:
+def _forward_outputs(
+    model_type: str,
+    model: torch.nn.Module,
+    batch: Mapping[str, Any],
+    device: torch.device,
+) -> dict[str, Any]:
     kind = model_input_kind(model_type)
     if kind == "features":
-        return model(batch["features"].to(device, non_blocking=device.type == "cuda"))
+        return {
+            "soh_pred": model(
+                batch["features"].to(device, non_blocking=device.type == "cuda")
+            )
+        }
     if kind == "sequence":
         mask = batch.get("mask")
         if isinstance(mask, torch.Tensor):
@@ -95,13 +104,19 @@ def _forward_prediction(model_type: str, model: torch.nn.Module, batch: Mapping[
             boundary_index = boundary_index.to(
                 device, non_blocking=device.type == "cuda"
             )
-            return model(sequence, mask, boundary_index=boundary_index)
-        return model(sequence, mask)
+            return {"soh_pred": model(sequence, mask, boundary_index=boundary_index)}
+        return {"soh_pred": model(sequence, mask)}
     inputs = {
         key: batch[key].to(device, non_blocking=device.type == "cuda")
         for key in PHASE_KEYS
     }
-    return model.forward_with_aux(**inputs)["soh_pred"]
+    return model.forward_with_aux(**inputs)
+
+
+def _forward_prediction(model_type: str, model: torch.nn.Module, batch: Mapping[str, Any], device: torch.device) -> torch.Tensor:
+    """Compatibility wrapper used by diagnostics that only need SOH."""
+
+    return _forward_outputs(model_type, model, batch, device)["soh_pred"]
 
 
 def _rows_from_batch(batch: Mapping[str, Any], truth: torch.Tensor, prediction: torch.Tensor) -> list[dict[str, Any]]:
@@ -140,6 +155,7 @@ def run_epoch(
     *,
     optimizer: torch.optim.Optimizer | None = None,
     collect_predictions: bool = True,
+    cycle_aux_weight: float = 0.0,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     training = optimizer is not None
     model.train(training)
@@ -148,6 +164,9 @@ def run_epoch(
     # epoch end. Calling loss.detach().cpu() for every batch serializes the CPU
     # and GPU and is especially expensive for these small SOH models.
     loss_sum = torch.zeros((), dtype=torch.float64, device=device)
+    soh_loss_sum = torch.zeros((), dtype=torch.float64, device=device)
+    cycle_loss_sum = torch.zeros((), dtype=torch.float64, device=device)
+    cycle_sample_count = 0
     sample_count = 0
     rows: list[dict[str, Any]] = []
     context = torch.enable_grad() if training else torch.no_grad()
@@ -156,8 +175,24 @@ def run_epoch(
             truth = batch["soh"].to(
                 device, non_blocking=device.type == "cuda"
             ).reshape(-1, 1)
-            prediction = _forward_prediction(model_type, model, batch, device).reshape(-1, 1)
-            loss = loss_function(prediction, truth)
+            outputs = _forward_outputs(model_type, model, batch, device)
+            prediction = outputs["soh_pred"].reshape(-1, 1)
+            soh_loss = loss_function(prediction, truth)
+            cycle_prediction = outputs.get("cycle_aux_pred")
+            cycle_target = batch.get("cycle_aux_target")
+            cycle_loss = None
+            if cycle_prediction is not None and isinstance(cycle_target, torch.Tensor):
+                cycle_target = cycle_target.to(
+                    device, non_blocking=device.type == "cuda"
+                ).reshape(-1, 1)
+                cycle_loss = loss_function(cycle_prediction.reshape(-1, 1), cycle_target)
+            elif training and float(cycle_aux_weight) > 0.0:
+                raise ValueError(
+                    "Cycle MTL training requires both cycle_aux_pred and cycle_aux_target"
+                )
+            loss = soh_loss
+            if training and cycle_loss is not None:
+                loss = loss + float(cycle_aux_weight) * cycle_loss
             if training:
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()
@@ -165,6 +200,12 @@ def run_epoch(
                 optimizer.step()
             batch_size = int(truth.shape[0])
             loss_sum.add_(loss.detach().to(dtype=torch.float64), alpha=batch_size)
+            soh_loss_sum.add_(soh_loss.detach().to(dtype=torch.float64), alpha=batch_size)
+            if cycle_loss is not None:
+                cycle_loss_sum.add_(
+                    cycle_loss.detach().to(dtype=torch.float64), alpha=batch_size
+                )
+                cycle_sample_count += batch_size
             sample_count += batch_size
             if collect_predictions:
                 rows.extend(_rows_from_batch(batch, truth, prediction))
@@ -175,7 +216,15 @@ def run_epoch(
     metrics["loss"] = (
         float(loss_sum.item()) / sample_count if sample_count else float("nan")
     )
-    metrics["soh_loss"] = metrics["loss"]
+    metrics["soh_loss"] = (
+        float(soh_loss_sum.item()) / sample_count if sample_count else float("nan")
+    )
+    metrics["cycle_aux_loss"] = (
+        float(cycle_loss_sum.item()) / cycle_sample_count
+        if cycle_sample_count
+        else None
+    )
+    metrics["cycle_aux_weight"] = float(cycle_aux_weight) if training else 0.0
     metrics["battery_macro_rmse"] = metrics["battery_macro"]["rmse"]
     metrics["strategy_macro_rmse"] = metrics["strategy_macro"]["rmse"]
     return metrics, rows
@@ -260,6 +309,9 @@ def train_from_config(
     model_type = str(config["model"]["type"])
     model = build_model(config["model"], backend_override=backend).to(actual_device)
     train_cfg = config.get("train", {})
+    cycle_aux_enabled = model_type == "FinalBiContextCycleMTL"
+    cycle_aux_max_weight = float(train_cfg.get("lambda_cycle_aux", 0.0))
+    cycle_aux_warmup_epochs = int(train_cfg.get("cycle_aux_warmup_epochs", 0))
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=float(train_cfg.get("learning_rate", train_cfg.get("lr", 1e-3))),
@@ -274,6 +326,12 @@ def train_from_config(
     best_state = None
     no_improvement = 0
     for epoch in range(1, max_epochs + 1):
+        if cycle_aux_enabled and cycle_aux_warmup_epochs > 0:
+            cycle_aux_weight = cycle_aux_max_weight * min(
+                1.0, float(epoch) / float(cycle_aux_warmup_epochs)
+            )
+        else:
+            cycle_aux_weight = cycle_aux_max_weight if cycle_aux_enabled else 0.0
         # The optimizer only needs the training loss. Battery/strategy metrics
         # are computed on validation and final test data, so materializing one
         # Python prediction row per training cycle here is pure overhead.
@@ -284,6 +342,7 @@ def train_from_config(
             actual_device,
             optimizer=optimizer,
             collect_predictions=False,
+            cycle_aux_weight=cycle_aux_weight,
         )
         with torch.no_grad():
             val_metrics, _ = run_epoch(model_type, model, loaders["val"], actual_device, collect_predictions=True)
@@ -315,6 +374,13 @@ def train_from_config(
             f"patience={no_improvement}/{patience}",
             flush=True,
         )
+        if cycle_aux_enabled:
+            print(
+                f"[cycle-mtl] model={model_type} epoch={epoch}/{max_epochs} "
+                f"cycle_loss={float(train_metrics['cycle_aux_loss']):.8f} "
+                f"lambda={cycle_aux_weight:.8f}",
+                flush=True,
+            )
         if no_improvement >= patience:
             print(
                 f"[early-stop] model={model_type} epoch={epoch} "
@@ -350,9 +416,15 @@ def train_from_config(
         "trainable_parameter_count": int(
             sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
         ),
-        "soh_only": True,
+        "soh_only": not cycle_aux_enabled,
+        "primary_target": "SOH",
         "metadata_in_forward": False,
         "cycle_lifetime_auxiliary": False,
+        "cycle_order_auxiliary": cycle_aux_enabled,
+        "cycle_auxiliary_is_soh_input": False,
+        "cycle_auxiliary_training_only": cycle_aux_enabled,
+        "lambda_cycle_aux": cycle_aux_max_weight,
+        "cycle_aux_warmup_epochs": cycle_aux_warmup_epochs,
         "best_epoch": best_epoch,
         "monitor": monitor,
         "runtime_optimizations": {

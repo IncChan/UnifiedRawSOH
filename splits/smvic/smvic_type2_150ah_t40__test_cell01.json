@@ -1,0 +1,1 @@
+{"name":"smvic_type2_150ah_t40_test_cell01","dataset_id":"smvic_type2_150ah_t40","status":"recommended_after_protocol_audit","test_batteries":["Battery04/Cell01"],"development_split":{"mode":"mixed_cycle","scope":"single_domain_pool","val_ratio":0.2,"random_state":420,"train_val_battery_overlap_expected":true},"notes":["Two-cell symmetric holdout fold 1/2."]}

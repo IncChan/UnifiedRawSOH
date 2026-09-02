@@ -33,6 +33,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num_workers", type=int, default=None)
     parser.add_argument("--debug_num_samples", type=int, default=None)
     parser.add_argument("--run_time", default=None)
+    parser.add_argument(
+        "--split_file_override",
+        default=None,
+        help="Use an explicit tracked split JSON for this run.",
+    )
+    parser.add_argument(
+        "--data_id_override",
+        default=None,
+        help="Use a unique output data_id, for example one physical holdout fold.",
+    )
     return parser.parse_args()
 
 
@@ -96,6 +106,15 @@ def main() -> int:
         config.setdefault("debug", {})["debug_num_samples"] = int(args.debug_num_samples)
     if args.seed is not None:
         config.setdefault("train", {})["seed"] = int(args.seed)
+    if args.split_file_override is not None:
+        split_file = str(args.split_file_override)
+        config.setdefault("data", {})["split_file"] = split_file
+        config.setdefault("experiment", {})["split_file"] = split_file
+    if args.data_id_override is not None:
+        data_id = str(args.data_id_override).strip()
+        if not data_id:
+            raise ValueError("--data_id_override must be non-empty")
+        config.setdefault("output", {})["data_id"] = data_id
     contract = validate_config(config, REPO_ROOT, check_files=True)
     result = {
         "status": str(config.get("status", "runnable")),
