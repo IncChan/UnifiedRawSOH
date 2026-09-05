@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# One-seed, multi-GPU SMVIC comparison: six domains x two target models.
+# One-seed, multi-GPU curated-SMVIC comparison: six domains x three models.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-$(${REPO_ROOT}/scripts/resolve_python_bin.sh)}"
@@ -30,11 +30,11 @@ CHECK_DATA="${CHECK_DATA:-1}"
 DRY_RUN="${DRY_RUN:-0}"
 DEVICE_OVERRIDE="${DEVICE_OVERRIDE:-cuda:0}"
 BACKEND_OVERRIDE="${BACKEND_OVERRIDE:-}"
-OUTPUT_ROOT="${OUTPUT_ROOT:-${REPO_ROOT}/outputs/Paper-Backup/E4-SMVIC-OneSeed}"
-RUN_TIME="${RUN_TIME:-smvic_one_seed_${SEED}_$(date +%Y%m%dT%H%M%S)}"
+OUTPUT_ROOT="${OUTPUT_ROOT:-${REPO_ROOT}/outputs/Paper-Backup/E4-SMVIC-Curated-OneSeed}"
+RUN_TIME="${RUN_TIME:-smvic_curated_one_seed_${SEED}_$(date +%Y%m%dT%H%M%S)}"
 RUN_TIME="${RUN_TIME//\//_}"
 
-AVAILABLE_MODELS=(hi_mlp bicontext)
+AVAILABLE_MODELS=(hi_mlp raw_vanilla bicontext)
 AVAILABLE_DOMAINS=(
   smvic_e72_69ah
   smvic_s5e891_51ah
@@ -235,7 +235,7 @@ train_all() {
   echo "[training] all ${#CONFIGS[@]} tasks completed"
 }
 
-echo "SMVIC one-seed comparison"
+echo "Curated SMVIC one-seed comparison"
 echo "seed: ${SEED}"
 echo "models: ${SELECTED_MODELS[*]}"
 echo "domains: ${SELECTED_DOMAINS[*]}"

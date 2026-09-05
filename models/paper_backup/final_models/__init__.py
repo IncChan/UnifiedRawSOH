@@ -4,6 +4,7 @@ from .bicontext_mamba import BiContextMambaSOHModel
 from .bicontext_adaptive_fusion import BiContextAdaptiveFusionSOHModel
 from .bicontext_cycle_mtl import BiContextCycleMTLSOHModel
 from .interaction_fusion_mamba import InteractionFusionMambaSOHModel
+from .latent_token_bicontext import LateLatentTokenBiContextSOHModel
 from .pinn4soh_like_mlp import FinalPINN4SOHLikeMLP
 from .raw_cc_vanilla_mamba import RawCCVanillaMambaSOHModel
 from .raw_cnn import FinalRawCNNSOHModel
@@ -23,6 +24,7 @@ __all__ = [
     "RawCVVanillaMambaSOHModel",
     "RawDualVanillaMambaSOHModel",
     "InteractionFusionMambaSOHModel",
+    "LateLatentTokenBiContextSOHModel",
     "BiContextMambaSOHModel",
     "BiContextAdaptiveFusionSOHModel",
     "BiContextCycleMTLSOHModel",

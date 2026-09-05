@@ -16,15 +16,17 @@ if str(REPO_ROOT.parent) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT.parent))
 
 from UnifiedRawSOH.preprocess.smvic_common import (  # noqa: E402
+    DEFAULT_QUALITY_POLICY,
     FAMILY_SPECS,
     SOURCE_SCHEMA,
     iter_classified_cycles,
     json_value,
+    load_quality_policy,
 )
 
 
 DEFAULT_SOURCE = Path("/data1/chenyanxi/lb_project/datasets/SMVIC/dataset")
-DEFAULT_OUTPUT = REPO_ROOT / "datasets" / "SMVIC_preprocess_audit"
+DEFAULT_OUTPUT = REPO_ROOT / "datasets" / "SMVIC_preprocess_audit_v3"
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--groups", nargs="+", choices=(*FAMILY_SPECS, "all"), default=["all"])
     parser.add_argument("--max-cycles-per-cell", type=int)
     parser.add_argument("--min-phase-points", type=int, default=4)
+    parser.add_argument("--quality-policy", type=Path, default=DEFAULT_QUALITY_POLICY)
     parser.add_argument("--progress-every", type=int, default=250)
     return parser.parse_args()
 
@@ -41,6 +44,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     groups = list(FAMILY_SPECS) if "all" in args.groups else list(dict.fromkeys(args.groups))
+    quality_policy = load_quality_policy(args.quality_policy)
     args.output_root.mkdir(parents=True, exist_ok=True)
     rows: list[dict] = []
     reasons: dict[str, Counter] = defaultdict(Counter)
@@ -51,6 +55,7 @@ def main() -> int:
         groups,
         max_cycles_per_cell=args.max_cycles_per_cell,
         min_phase_points=args.min_phase_points,
+        quality_policy=quality_policy,
     ):
         rows.append(audit)
         processed += 1
@@ -71,6 +76,7 @@ def main() -> int:
         "groups": groups,
         "bounded_smoke_audit": args.max_cycles_per_cell is not None,
         "cycles_considered": processed,
+        "quality_control": quality_policy.manifest(),
         "domains": {
             domain: {
                 "group": spec.group,

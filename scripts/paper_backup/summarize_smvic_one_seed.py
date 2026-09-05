@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize the one-seed SMVIC MLP/BiContext comparison."""
+"""Summarize the one-seed SMVIC MLP/Raw-Mamba/BiContext comparison."""
 
 from __future__ import annotations
 
@@ -20,11 +20,14 @@ from UnifiedRawSOH.trainers.paper_backup.config_loader import load_config  # noq
 
 
 CONFIG_ROOT = REPO_ROOT / "configs/paper_backup/e4_industrial_external/smvic"
-DEFAULT_RESULT_ROOT = REPO_ROOT / "outputs/Paper-Backup/E4-SMVIC-OneSeed"
+DEFAULT_RESULT_ROOT = REPO_ROOT / "outputs/Paper-Backup/E4-SMVIC-Curated-OneSeed"
 MODEL_NAMES = {
     "Final-PINN4SOH-like-MLP": "PINN4SOH-like MLP",
+    "Final-Raw-Vanilla-Mamba": "Raw Vanilla Mamba",
     "Final-Ours-BiContext-Mamba": "Ours bicontext",
 }
+DOMAIN_COUNT = 6
+PROTOCOLS_PER_DOMAIN = 2
 
 
 def parse_args() -> argparse.Namespace:
@@ -74,8 +77,12 @@ def _expected(seed: int) -> dict[tuple[str, str, str, int], dict[str, Any]]:
                 "config": str(path.relative_to(REPO_ROOT)),
                 "split": f"splits/smvic/{domain_id}__{protocol_id}.json",
             }
-    if len(output) != 24:
-        raise ValueError(f"Expected 24 SMVIC model/domain/protocol tasks, found {len(output)}")
+    expected_count = DOMAIN_COUNT * len(MODEL_NAMES) * PROTOCOLS_PER_DOMAIN
+    if len(output) != expected_count:
+        raise ValueError(
+            f"Expected {expected_count} SMVIC model/domain/protocol tasks, "
+            f"found {len(output)}"
+        )
     return output
 
 
@@ -162,8 +169,11 @@ def _average_rows(rows: list[dict[str, Any]], seed: int) -> list[dict[str, Any]]
         for name in metric_names:
             item[name] = sum(float(row[name]) for row in values) / 2.0
         output.append(item)
-    if len(output) != 12:
-        raise ValueError(f"Expected 12 averaged domain/model rows, got {len(output)}")
+    expected_count = DOMAIN_COUNT * len(MODEL_NAMES)
+    if len(output) != expected_count:
+        raise ValueError(
+            f"Expected {expected_count} averaged domain/model rows, got {len(output)}"
+        )
     return output
 
 

@@ -14,6 +14,7 @@ from . import (
     FinalRawTransformerSOHModel,
     FinalRawVanillaMambaSOHModel,
     InteractionFusionMambaSOHModel,
+    LateLatentTokenBiContextSOHModel,
     RawCCVanillaMambaSOHModel,
     RawCVVanillaMambaSOHModel,
     RawDualVanillaMambaSOHModel,
@@ -33,6 +34,7 @@ FINAL_MODEL_TYPES = {
     "FinalBiContextMamba": BiContextMambaSOHModel,
     "FinalBiContextAdaptiveFusion": BiContextAdaptiveFusionSOHModel,
     "FinalBiContextCycleMTL": BiContextCycleMTLSOHModel,
+    "FinalLateLatentTokenBiContext": LateLatentTokenBiContextSOHModel,
 }
 
 

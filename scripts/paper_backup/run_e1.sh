@@ -14,7 +14,31 @@ DRY_RUN="${DRY_RUN:-0}"
 CHECK_DATA="${CHECK_DATA:-1}"
 GPU_SPEC="${GPU_IDS:-${CUDA_VISIBLE_DEVICES:-0 1}}"
 EXPERIMENT_SUITE="${EXPERIMENT_SUITE:-e1_main_estimation}"
-if [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_adaptive_fusion_5seed" ]]; then
+if [[ "${EXPERIMENT_SUITE}" == "e1_late_latent_token_bicontext_rezero_5seed" ]]; then
+  AVAILABLE_MODELS=(ours_late_latent_token_bicontext_rezero)
+  DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup/E1-Late-LatentToken-BiContext-ReZero-5Seed"
+  DEFAULT_SEEDS="42 52 62 72 82"
+  DEFAULT_EPOCHS=600
+  DEFAULT_PATIENCE=30
+  DEFAULT_BATCH_SIZE=128
+  DEFAULT_NUM_WORKERS=4
+elif [[ "${EXPERIMENT_SUITE}" == "e1_late_latent_token_bicontext_rezero_2seed" ]]; then
+  AVAILABLE_MODELS=(ours_late_latent_token_bicontext_rezero)
+  DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup/E1-Late-LatentToken-BiContext-ReZero-2Seed"
+  DEFAULT_SEEDS="42 52"
+  DEFAULT_EPOCHS=600
+  DEFAULT_PATIENCE=30
+  DEFAULT_BATCH_SIZE=128
+  DEFAULT_NUM_WORKERS=4
+elif [[ "${EXPERIMENT_SUITE}" == "e1_late_latent_token_bicontext_5seed" ]]; then
+  AVAILABLE_MODELS=(ours_late_latent_token_bicontext)
+  DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup/E1-Late-LatentToken-BiContext-5Seed"
+  DEFAULT_SEEDS="42 52 62 72 82"
+  DEFAULT_EPOCHS=600
+  DEFAULT_PATIENCE=30
+  DEFAULT_BATCH_SIZE=128
+  DEFAULT_NUM_WORKERS=4
+elif [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_adaptive_fusion_5seed" ]]; then
   AVAILABLE_MODELS=(ours_bicontext_adaptive_fusion)
   DEFAULT_OUTPUT_ROOT="${REPO_ROOT}/outputs/Paper-Backup/E1-BiContext-AdaptiveFusion-5Seed"
   DEFAULT_SEEDS="42 52 62 72 82"
@@ -371,7 +395,13 @@ fi
 
 echo "Paper-Backup E1 matrix completed successfully."
 echo "launcher logs: ${LAUNCHER_ROOT}"
-if [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_adaptive_fusion_5seed" ]]; then
+if [[ "${EXPERIMENT_SUITE}" == "e1_late_latent_token_bicontext_rezero_5seed" ]]; then
+  echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_late_latent_token_bicontext_rezero_5seed --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"
+elif [[ "${EXPERIMENT_SUITE}" == "e1_late_latent_token_bicontext_rezero_2seed" ]]; then
+  echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_late_latent_token_bicontext_rezero_2seed --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"
+elif [[ "${EXPERIMENT_SUITE}" == "e1_late_latent_token_bicontext_5seed" ]]; then
+  echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_late_latent_token_bicontext_5seed --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"
+elif [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_adaptive_fusion_5seed" ]]; then
   echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_bicontext_adaptive_fusion_5seed --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"
 elif [[ "${EXPERIMENT_SUITE}" == "e1_bicontext_cycle_mtl_5seed" ]]; then
   echo "summary: ${PYTHON_BIN} ${SCRIPT_DIR}/summarize_results.py --experiment e1_bicontext_cycle_mtl_5seed --seeds '${SEED_LIST[*]}' --root '${OUTPUT_ROOT}' --output-dir '${OUTPUT_ROOT}/summaries'"

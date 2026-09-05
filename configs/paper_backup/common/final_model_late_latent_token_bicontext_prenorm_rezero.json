@@ -1,0 +1,7 @@
+{
+  "base_config": "./final_model_late_latent_token_bicontext.json",
+  "model": {
+    "cross_residual_mode": "prenorm_bounded_rezero",
+    "cross_max_scale": 0.1
+  }
+}

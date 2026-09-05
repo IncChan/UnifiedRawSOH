@@ -9,6 +9,8 @@ are fixed physical metadata from the SMVIC specification.
 from __future__ import annotations
 
 import csv
+import hashlib
+import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +21,82 @@ import numpy as np
 
 SMVIC_SCHEMA = "smvic_model_ready_v1"
 SOURCE_SCHEMA = "smvic_normalized_cell_csv_v2"
+DEFAULT_QUALITY_POLICY = Path(__file__).with_name("smvic_quality_policy.json")
+
+
+@dataclass(frozen=True)
+class CycleExclusion:
+    battery_id: str
+    cycle_id: int
+    reason: str
+    evidence: str
+
+
+@dataclass(frozen=True)
+class QualityPolicy:
+    schema_version: int
+    policy_id: str
+    max_consecutive_record_gap_s: float
+    excluded_cycles: tuple[CycleExclusion, ...]
+    source_path: str
+    sha256: str
+
+    def exclusion_for(self, battery_id: str, cycle_id: int) -> CycleExclusion | None:
+        key = (str(battery_id), int(cycle_id))
+        return next(
+            (
+                item
+                for item in self.excluded_cycles
+                if (item.battery_id, item.cycle_id) == key
+            ),
+            None,
+        )
+
+    def manifest(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "policy_id": self.policy_id,
+            "max_consecutive_record_gap_s": self.max_consecutive_record_gap_s,
+            "curated_exclusion_count": len(self.excluded_cycles),
+            "source_path": self.source_path,
+            "sha256": self.sha256,
+            "label_action": "exclude_sample_without_modifying_source_label",
+        }
+
+
+def load_quality_policy(path: str | Path = DEFAULT_QUALITY_POLICY) -> QualityPolicy:
+    source = Path(path).expanduser().resolve()
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    if int(payload.get("schema_version", 0)) != 1:
+        raise ValueError(f"Unsupported SMVIC quality policy: {source}")
+    policy_id = str(payload.get("policy_id", "")).strip()
+    if not policy_id:
+        raise ValueError(f"SMVIC quality policy has no policy_id: {source}")
+    max_gap = float(payload.get("max_consecutive_record_gap_s", 0.0))
+    if not math.isfinite(max_gap) or max_gap <= 0.0:
+        raise ValueError(f"SMVIC quality policy has invalid max gap: {source}")
+    exclusions = tuple(
+        CycleExclusion(
+            battery_id=str(item["battery_id"]).strip(),
+            cycle_id=int(item["cycle_id"]),
+            reason=str(item["reason"]).strip(),
+            evidence=str(item.get("evidence", "")).strip(),
+        )
+        for item in payload.get("excluded_cycles", [])
+    )
+    keys = [(item.battery_id, item.cycle_id) for item in exclusions]
+    if len(keys) != len(set(keys)):
+        raise ValueError(f"Duplicate SMVIC quality exclusion: {source}")
+    if any(not item.battery_id or not item.reason for item in exclusions):
+        raise ValueError(f"Incomplete SMVIC quality exclusion: {source}")
+    return QualityPolicy(
+        schema_version=1,
+        policy_id=policy_id,
+        max_consecutive_record_gap_s=max_gap,
+        excluded_cycles=exclusions,
+        source_path=str(source),
+        sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+    )
 
 
 @dataclass(frozen=True)
@@ -217,6 +295,28 @@ def _charge_event_indices(cycle: Mapping[str, Any]) -> list[np.ndarray]:
     return [np.asarray(item, dtype=np.int64) for item in events]
 
 
+def cycle_time_quality(cycle: Mapping[str, Any]) -> dict[str, float | int]:
+    """Return record-level timing diagnostics without changing the source cycle."""
+
+    time_s = np.asarray(cycle["time_s"], dtype=np.float64)
+    finite = time_s[np.isfinite(time_s)]
+    if finite.size < 2:
+        return {
+            "max_consecutive_record_gap_s": float("nan"),
+            "min_consecutive_record_delta_s": float("nan"),
+            "nonmonotonic_record_time_count": 0,
+        }
+    deltas = np.diff(finite)
+    positive = deltas[deltas >= 0.0]
+    return {
+        "max_consecutive_record_gap_s": (
+            float(np.max(positive)) if positive.size else float("nan")
+        ),
+        "min_consecutive_record_delta_s": float(np.min(deltas)),
+        "nonmonotonic_record_time_count": int(np.sum(deltas < 0.0)),
+    }
+
+
 def select_principal_terminal_event(
     cycle: Mapping[str, Any], spec: FamilySpec, min_phase_points: int = 4
 ) -> tuple[dict[str, np.ndarray] | None, str | None, dict[str, float]]:
@@ -280,9 +380,24 @@ def select_principal_terminal_event(
 
 
 def classify_cycle(
-    cycle: Mapping[str, Any], spec: FamilySpec, min_phase_points: int = 4
+    cycle: Mapping[str, Any],
+    spec: FamilySpec,
+    min_phase_points: int = 4,
+    quality_policy: QualityPolicy | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     """Classify one cycle and return a canonical terminal record plus audit."""
+
+    policy = quality_policy or load_quality_policy()
+    time_quality = cycle_time_quality(cycle)
+    curated = policy.exclusion_for(str(cycle["battery_id"]), int(cycle["cycle_id"]))
+    detected_flags: list[str] = []
+    if curated is not None:
+        detected_flags.append(curated.reason)
+    if int(time_quality["nonmonotonic_record_time_count"]) > 0:
+        detected_flags.append("nonmonotonic_record_time")
+    max_gap = float(time_quality["max_consecutive_record_gap_s"])
+    if math.isfinite(max_gap) and max_gap > policy.max_consecutive_record_gap_s:
+        detected_flags.append("unexpected_record_gap")
 
     audit: dict[str, Any] = {
         "domain_id": spec.domain_id,
@@ -292,7 +407,20 @@ def classify_cycle(
         "cycle_id": int(cycle["cycle_id"]),
         "source_rows": int(cycle["source_rows"]),
         "quality_flags": cycle["quality_flags"],
+        "quality_policy_id": policy.policy_id,
+        "detected_quality_flags": ";".join(dict.fromkeys(detected_flags)),
+        "max_consecutive_record_gap_s": max_gap,
+        "min_consecutive_record_delta_s": float(
+            time_quality["min_consecutive_record_delta_s"]
+        ),
+        "nonmonotonic_record_time_count": int(
+            time_quality["nonmonotonic_record_time_count"]
+        ),
+        "source_discharge_capacity_ah": float(cycle["discharge_capacity_ah"]),
+        "source_soh": float(cycle["soh_source"]),
     }
+    if curated is not None:
+        audit["quality_evidence"] = curated.evidence
 
     def reject(reason: str) -> tuple[None, dict[str, Any]]:
         audit.update({"eligible": 0, "reason": reason})
@@ -300,6 +428,12 @@ def classify_cycle(
 
     if not cycle["is_complete_cycle"]:
         return reject("incomplete_cycle")
+    if curated is not None:
+        return reject(f"quality_exclusion:{curated.reason}")
+    if int(time_quality["nonmonotonic_record_time_count"]) > 0:
+        return reject("quality_exclusion:nonmonotonic_record_time")
+    if math.isfinite(max_gap) and max_gap > policy.max_consecutive_record_gap_s:
+        return reject("quality_exclusion:unexpected_record_gap")
     if spec.minimum_cycle is not None and int(cycle["cycle_id"]) < spec.minimum_cycle:
         return reject("preconditioning_cycle")
     for key, expected in (
@@ -383,11 +517,22 @@ def iter_classified_cycles(
     *,
     max_cycles_per_cell: int | None = None,
     min_phase_points: int = 4,
+    quality_policy: QualityPolicy | str | Path | None = None,
 ) -> Iterator[tuple[dict[str, Any] | None, dict[str, Any]]]:
+    policy = (
+        quality_policy
+        if isinstance(quality_policy, QualityPolicy)
+        else load_quality_policy(quality_policy or DEFAULT_QUALITY_POLICY)
+    )
     for path in list_cell_csvs(source_root, groups):
         for cycle in iter_cell_cycles(path, max_cycles=max_cycles_per_cell):
             spec = FAMILY_SPECS[str(cycle["group"])]
-            yield classify_cycle(cycle, spec, min_phase_points=min_phase_points)
+            yield classify_cycle(
+                cycle,
+                spec,
+                min_phase_points=min_phase_points,
+                quality_policy=policy,
+            )
 
 
 def json_value(value: Any) -> Any:

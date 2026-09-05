@@ -50,6 +50,49 @@ The optional `diagnostics` stage performs best-checkpoint inference and writes
 the two directional gate/contribution distributions. It requires a visible
 formal Mamba GPU and defaults to `cuda:0`.
 
+The Late Latent-Token BiContext supplement is a function-preserving extension
+of Raw Dual Vanilla: the complete baseline is inherited unchanged, cross is
+fixed between Mamba layers 2 and 3, each phase has four learned latent tokens,
+and only two four-head token-to-latent attentions are added. Both attention
+output projections start at exactly zero. The isolated 25-job matrix uses the
+same data, split, optimizer, scheduler, five seeds, epoch cap, patience and
+batch size as formal E1.
+
+```bash
+bash scripts/paper_backup/run_e1_late_latent_token_bicontext_5seed_pipeline.sh validate
+GPU_IDS="0 1" MAX_PARALLEL=3 \
+  bash scripts/paper_backup/run_e1_late_latent_token_bicontext_5seed_pipeline.sh train
+bash scripts/paper_backup/run_e1_late_latent_token_bicontext_5seed_pipeline.sh summary
+DEVICE_OVERRIDE=cuda:0 \
+  bash scripts/paper_backup/run_e1_late_latent_token_bicontext_5seed_pipeline.sh diagnostics
+```
+
+The summary stage checks identical per-seed test coverage and writes a
+three-model table for Raw Dual Vanilla, current Mean-BiContext and Late
+Latent-Token BiContext. Results are isolated under
+`outputs/Paper-Backup/E1-Late-LatentToken-BiContext-5Seed`.
+
+The stability follow-up keeps K=4, four heads and cross after layer 2 fixed,
+but applies independent CC/CV Pre-Norm and bounded ReZero scales
+`0.1*tanh(alpha)`. Both alphas start at zero, while MHA uses ordinary
+initialization, so the initial function still equals Raw Dual exactly. The
+formal matrix uses seeds 42, 52, 62, 72 and 82:
+
+```bash
+bash scripts/paper_backup/run_e1_late_latent_token_bicontext_rezero_5seed_pipeline.sh validate
+GPU_IDS="0 1" MAX_PARALLEL=3 \
+  bash scripts/paper_backup/run_e1_late_latent_token_bicontext_rezero_5seed_pipeline.sh train
+bash scripts/paper_backup/run_e1_late_latent_token_bicontext_rezero_5seed_pipeline.sh summary
+DEVICE_OVERRIDE=cuda:0 \
+  bash scripts/paper_backup/run_e1_late_latent_token_bicontext_rezero_5seed_pipeline.sh diagnostics
+```
+
+Its outputs are isolated under
+`outputs/Paper-Backup/E1-Late-LatentToken-BiContext-ReZero-5Seed`. The completed
+two-seed ReZero screening output remains archived under its original `2Seed`
+namespace, and the original five-seed late-token checkpoints retain the
+zero-output-projection behavior.
+
 The isolated Cycle MTL supplement keeps the complete BiContext inference path
 unchanged and adds a 65-parameter linear cycle-order head during training only.
 Its target is the within-battery chronological rank transformed by `log1p` and

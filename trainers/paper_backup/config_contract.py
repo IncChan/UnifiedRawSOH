@@ -23,6 +23,9 @@ EXPERIMENT_IDS = {
     "e1_bicontext_5seed",
     "e1_bicontext_adaptive_fusion_5seed",
     "e1_bicontext_cycle_mtl_5seed",
+    "e1_late_latent_token_bicontext_5seed",
+    "e1_late_latent_token_bicontext_rezero_2seed",
+    "e1_late_latent_token_bicontext_rezero_5seed",
     "e2_final_interaction_5seed",
     "e3_strategy_pooling",
 }
@@ -130,6 +133,15 @@ def validate_config(
         "e1_bicontext_5seed": {"FinalBiContextMamba"},
         "e1_bicontext_adaptive_fusion_5seed": {"FinalBiContextAdaptiveFusion"},
         "e1_bicontext_cycle_mtl_5seed": {"FinalBiContextCycleMTL"},
+        "e1_late_latent_token_bicontext_5seed": {
+            "FinalLateLatentTokenBiContext"
+        },
+        "e1_late_latent_token_bicontext_rezero_2seed": {
+            "FinalLateLatentTokenBiContext"
+        },
+        "e1_late_latent_token_bicontext_rezero_5seed": {
+            "FinalLateLatentTokenBiContext"
+        },
         "e2_final_interaction_5seed": FINAL_E2_MODEL_TYPES,
         "e3_strategy_pooling": E3_MODEL_TYPES,
     }[experiment_id]
@@ -145,6 +157,9 @@ def validate_config(
         "e1_bicontext_5seed",
         "e1_bicontext_adaptive_fusion_5seed",
         "e1_bicontext_cycle_mtl_5seed",
+        "e1_late_latent_token_bicontext_5seed",
+        "e1_late_latent_token_bicontext_rezero_2seed",
+        "e1_late_latent_token_bicontext_rezero_5seed",
     } and model_type not in {"HI-MLP", "FinalHI-MLP"} and view_id not in TERMINAL_VIEWS:
         raise ValueError(f"E1 raw model requires a terminal input view, got {view_id!r}")
     if experiment_id in {"e2_charging_information", "e2_final_256budget", "e2_final_interaction_5seed"} and view_id not in {"full_cccv", "full_joint", "terminal_joint", "terminal_cc", "terminal_cv", "terminal_phase"}:
@@ -261,6 +276,9 @@ def validate_config(
         "e1_bicontext_5seed",
         "e1_bicontext_adaptive_fusion_5seed",
         "e1_bicontext_cycle_mtl_5seed",
+        "e1_late_latent_token_bicontext_5seed",
+        "e1_late_latent_token_bicontext_rezero_2seed",
+        "e1_late_latent_token_bicontext_rezero_5seed",
     }:
         if source_mode != "preprocessed_v2":
             raise ValueError("Final interaction E1 requires schema-v2 offline preprocessing")
@@ -283,9 +301,52 @@ def validate_config(
             "FinalBiContextMamba",
             "FinalBiContextAdaptiveFusion",
             "FinalBiContextCycleMTL",
+            "FinalLateLatentTokenBiContext",
         }:
             if view_id != "terminal_phase" or str(data.get("phase_signal_mode", "")) != "shared_full_vi":
                 raise ValueError("Final dual/interaction E1 models require shared_full_vi terminal_phase input")
+        if model_type == "FinalLateLatentTokenBiContext":
+            required_late_cross = {
+                "d_model": 32,
+                "num_layers": 3,
+                "num_latents": 4,
+                "cross_num_heads": 4,
+                "cross_after_layer": 2,
+                "ordinary_fusion_hidden_dim": 48,
+            }
+            for key, expected in required_late_cross.items():
+                if int(model.get(key, -1)) != expected:
+                    raise ValueError(
+                        "Late Latent-Token BiContext formal E1 requires "
+                        f"model.{key}={expected}"
+                    )
+            residual_mode = str(
+                model.get("cross_residual_mode", "zero_init_out_proj")
+            )
+            if experiment_id in {
+                "e1_late_latent_token_bicontext_rezero_2seed",
+                "e1_late_latent_token_bicontext_rezero_5seed",
+            }:
+                if residual_mode != "prenorm_bounded_rezero":
+                    raise ValueError(
+                        "Late Latent ReZero screening requires "
+                        "model.cross_residual_mode='prenorm_bounded_rezero'"
+                    )
+                if not math.isclose(
+                    float(model.get("cross_max_scale", -1.0)),
+                    0.1,
+                    rel_tol=0.0,
+                    abs_tol=1e-12,
+                ):
+                    raise ValueError(
+                        "Late Latent ReZero screening requires "
+                        "model.cross_max_scale=0.1"
+                    )
+            elif residual_mode != "zero_init_out_proj":
+                raise ValueError(
+                    "Archived Late Latent suite requires the original "
+                    "zero_init_out_proj residual mode"
+                )
         if model_type == "FinalRawCCVanillaMamba" and view_id != "terminal_cc":
             raise ValueError("Final raw CC Vanilla Mamba requires terminal_cc")
         if model_type == "FinalRawCVVanillaMamba" and view_id != "terminal_cv":

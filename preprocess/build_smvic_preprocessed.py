@@ -29,16 +29,18 @@ from UnifiedRawSOH.preprocess.paper_backup.common import (  # noqa: E402
     rich_channel_names,
 )
 from UnifiedRawSOH.preprocess.smvic_common import (  # noqa: E402
+    DEFAULT_QUALITY_POLICY,
     FAMILY_SPECS,
     SMVIC_SCHEMA,
     SOURCE_SCHEMA,
     iter_classified_cycles,
     json_value,
+    load_quality_policy,
 )
 
 
 DEFAULT_SOURCE = Path("/data1/chenyanxi/lb_project/datasets/SMVIC/dataset")
-DEFAULT_OUTPUT = REPO_ROOT / "datasets" / "SMVIC_preprocessed_v2_128x128"
+DEFAULT_OUTPUT = REPO_ROOT / "datasets" / "SMVIC_preprocessed_v3_128x128"
 INDEX_COLUMNS = (
     "row", "battery_id", "cycle_id", "condition", "strategy_id", "domain_id",
     "soh", "soh_raw", "cc_raw_points", "cv_raw_points", "raw_point_count",
@@ -67,6 +69,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cc-len", type=int, default=128)
     parser.add_argument("--cv-len", type=int, default=128)
     parser.add_argument("--min-phase-points", type=int, default=4)
+    parser.add_argument("--quality-policy", type=Path, default=DEFAULT_QUALITY_POLICY)
     parser.add_argument("--max-cycles-per-cell", type=int)
     parser.add_argument("--progress-every", type=int, default=250)
     parser.add_argument("--overwrite", action="store_true")
@@ -227,6 +230,7 @@ def _materialize_domain(
     cc_len: int,
     cv_len: int,
     smoke: bool,
+    quality_policy,
 ) -> dict[str, Any]:
     build_dir.mkdir(parents=True)
     (build_dir / "audit").mkdir()
@@ -271,6 +275,7 @@ def _materialize_domain(
         "battery_counts": dict(sorted(Counter(str(row["battery_id"]) for row in index).items())),
         "soh_range": [float(np.min(arrays["soh"])), float(np.max(arrays["soh"]))],
         "bounded_smoke_product": smoke,
+        "quality_control": quality_policy.manifest(),
     }
     (build_dir / "audit" / "preprocessing_report.json").write_text(
         json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
@@ -287,6 +292,7 @@ def _materialize_domain(
             "soh_label": "cycle_discharge_capacity_Ah / fixed nominal_capacity_Ah",
             "same_cycle_alignment": True,
         },
+        "quality_control": quality_policy.manifest(),
         "protocol": json_value(spec.__dict__),
         "resampling": {
             "method": "linear_on_physical_phase_time",
@@ -327,6 +333,7 @@ def main() -> int:
     if args.cc_len < 2 or args.cv_len < 2 or args.min_phase_points < 2:
         raise ValueError("CC/CV lengths and minimum phase points must be at least two")
     groups = list(FAMILY_SPECS) if "all" in args.groups else list(dict.fromkeys(args.groups))
+    quality_policy = load_quality_policy(args.quality_policy)
     selected_domains = {FAMILY_SPECS[group].domain_id for group in groups}
     existing = [args.output_root / domain for domain in selected_domains if (args.output_root / domain).exists()]
     if existing and not args.overwrite:
@@ -342,6 +349,7 @@ def main() -> int:
         groups,
         max_cycles_per_cell=args.max_cycles_per_cell,
         min_phase_points=args.min_phase_points,
+        quality_policy=quality_policy,
     ):
         domain = str(audit["domain_id"])
         audits_by_domain[domain].append(audit)
@@ -372,6 +380,7 @@ def main() -> int:
                 cc_len=args.cc_len,
                 cv_len=args.cv_len,
                 smoke=args.max_cycles_per_cell is not None,
+                quality_policy=quality_policy,
             )
         for domain in selected_domains:
             destination = args.output_root / domain
@@ -385,6 +394,7 @@ def main() -> int:
     summary = {
         "product_schema": SMVIC_SCHEMA,
         "output_root": str(args.output_root.resolve()),
+        "quality_control": quality_policy.manifest(),
         "reports": reports,
     }
     (args.output_root / "summary.json").write_text(

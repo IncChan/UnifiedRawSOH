@@ -309,7 +309,7 @@ def build_default_domain_registry() -> BatteryDomainRegistry:
                 normalization=None,
                 availability="external_preprocessed_only",
                 notes=(
-                    "Model input is the locally generated, Git-ignored datasets/SMVIC_preprocessed_v2_128x128 product.",
+                    "Model input is the locally generated, quality-curated, Git-ignored datasets/SMVIC_preprocessed_v3_128x128 product.",
                     "SOH is same-cycle discharge capacity divided by fixed nominal capacity.",
                 ),
             )

@@ -74,6 +74,7 @@ def build_model(model_config: dict[str, Any], *, backend_override: str | None = 
         "FinalInteractionMamba", "FinalBiContextMamba",
         "FinalBiContextAdaptiveFusion",
         "FinalBiContextCycleMTL",
+        "FinalLateLatentTokenBiContext",
     }:
         values["backend"] = backend_override
 
@@ -126,6 +127,7 @@ def model_input_kind(model_type: str) -> str:
         "FinalBiContextMamba",
         "FinalBiContextAdaptiveFusion",
         "FinalBiContextCycleMTL",
+        "FinalLateLatentTokenBiContext",
     }:
         return "phase"
     raise ValueError(f"Unknown Paper-Backup model type: {model_type!r}")

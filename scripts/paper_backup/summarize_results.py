@@ -79,6 +79,18 @@ EXPERIMENTS = {
         "experiment_id": "e1_bicontext_cycle_mtl_5seed",
         "config_dir": "configs/paper_backup/e1_bicontext_cycle_mtl_5seed",
     },
+    "e1_late_latent_token_bicontext_5seed": {
+        "experiment_id": "e1_late_latent_token_bicontext_5seed",
+        "config_dir": "configs/paper_backup/e1_late_latent_token_bicontext_5seed",
+    },
+    "e1_late_latent_token_bicontext_rezero_2seed": {
+        "experiment_id": "e1_late_latent_token_bicontext_rezero_2seed",
+        "config_dir": "configs/paper_backup/e1_late_latent_token_bicontext_rezero_2seed",
+    },
+    "e1_late_latent_token_bicontext_rezero_5seed": {
+        "experiment_id": "e1_late_latent_token_bicontext_rezero_5seed",
+        "config_dir": "configs/paper_backup/e1_late_latent_token_bicontext_rezero_5seed",
+    },
     "e2_final_interaction_5seed": {
         "experiment_id": "e2_final_interaction_5seed",
         "config_dir": "configs/paper_backup/e2_final_interaction_5seed",

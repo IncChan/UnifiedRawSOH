@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "policy_id": "smvic_curated_cycle_quality_v1",
+  "description": "Quarantine protocol-interrupted or physically corrupted cycles without editing, smoothing, or imputing their measured SOH labels.",
+  "max_consecutive_record_gap_s": 3600.0,
+  "excluded_cycles": [
+    {
+      "battery_id": "Battery01/Cell02",
+      "cycle_id": 483,
+      "reason": "unexpected_pause",
+      "evidence": "Approximately 1.33 h unplanned gap between charge and the following step."
+    },
+    {
+      "battery_id": "Battery02/Cell01",
+      "cycle_id": 47,
+      "reason": "unexpected_pause",
+      "evidence": "Approximately 67.40 h unplanned gap after charge; discharge capacity drops and then rebounds."
+    },
+    {
+      "battery_id": "Battery02/Cell01",
+      "cycle_id": 158,
+      "reason": "unexpected_pause",
+      "evidence": "Approximately 44.67 h unplanned gap after charge; discharge capacity drops and then rebounds."
+    },
+    {
+      "battery_id": "Battery02/Cell02",
+      "cycle_id": 47,
+      "reason": "unexpected_pause",
+      "evidence": "Approximately 67.45 h unplanned gap after charge; discharge capacity drops and then rebounds."
+    },
+    {
+      "battery_id": "Battery02/Cell02",
+      "cycle_id": 158,
+      "reason": "unexpected_pause",
+      "evidence": "Approximately 45.27 h unplanned gap after charge; discharge capacity drops and then rebounds."
+    },
+    {
+      "battery_id": "Battery03/Cell01",
+      "cycle_id": 147,
+      "reason": "unexpected_pause",
+      "evidence": "Source workbook shows an approximately two-day interruption and a one-cycle capacity dip/rebound."
+    },
+    {
+      "battery_id": "Battery03/Cell02",
+      "cycle_id": 147,
+      "reason": "unexpected_pause",
+      "evidence": "Source workbook shows an approximately two-day interruption before discharge and a capacity dip/rebound."
+    },
+    {
+      "battery_id": "Battery04/Cell02",
+      "cycle_id": 29,
+      "reason": "corrupted_terminal_cc",
+      "evidence": "Terminal CC duration is 260.7 min and integrated charge is approximately 638.7 Ah versus family medians of 41.9 min and 96.4 Ah."
+    },
+    {
+      "battery_id": "Battery05/Cell04",
+      "cycle_id": 120,
+      "reason": "transient_capacity_label",
+      "evidence": "SOH drops approximately 0.98 percentage points and rebounds on the next cycle; CV charge is approximately 1.61 Ah versus a 4.78 Ah family median."
+    },
+    {
+      "battery_id": "Battery06/Cell01",
+      "cycle_id": 462,
+      "reason": "truncated_terminal_cc",
+      "evidence": "Terminal CC duration and charge are approximately half their normal values (14.96 min and 2.64 Ah)."
+    },
+    {
+      "battery_id": "Battery06/Cell02",
+      "cycle_id": 462,
+      "reason": "transient_capacity_label",
+      "evidence": "SOH has a synchronized one-cycle dip and rebounds on cycle 463."
+    }
+  ]
+}

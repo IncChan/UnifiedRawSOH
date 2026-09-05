@@ -24,6 +24,8 @@ datasets/PaperBackup_preprocessed_v2_e2_final/**
 datasets/PaperBackup_preprocessed_v2_e2_5domain_256/**
 datasets/SMVIC_preprocessed_v2_128x128/**
 datasets/SMVIC_preprocess_audit/**
+datasets/SMVIC_preprocessed_v3_128x128/**
+datasets/SMVIC_preprocess_audit_v3/**
 datasets/_legacy_aligned/
 
 # Generated experiment artifacts stay local: checkpoints, per-cycle
